@@ -1,0 +1,4 @@
+package-as: RaidAssist
+
+move-folders:
+    RaidAssist/IskarAssist: IskarAssist
