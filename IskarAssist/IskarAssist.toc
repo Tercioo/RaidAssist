@@ -1,3 +1,0 @@
-## Interface: 80000
-## Title: Iskar Assist
-## Notes: Deprecated addon, our further mods and tools will be added into Raid Assist mod.
