@@ -1120,21 +1120,17 @@ function Invite.CheckForAutoInvites()
 	if (not IsInGuild()) then
 		return
 	end
-
-	-- print ("[RA] Checking invite schedules.")
 	
---[=[
-2x RaidAssist\plugins\invite-Invite.lua:1120: attempt to compare nil with number
-RaidAssist\plugins\invite-Invite.lua:1120: in function <RaidAssist\plugins\invite.lua:1101>
---]=]	
-	
+	--get the raid schedule plugin
 	local RaidSchedule = _G ["RaidAssistRaidSchedule"]
 	if (RaidSchedule) then
 		local now = time()
 		for index, preset in ipairs (Invite:GetAllPresets()) do 
+			--this invite preset has a schedule?
 			if (preset.autostart) then
 				
 				local core, index = RaidSchedule:GetRaidScheduleTableByName (preset.autostartcore)
+				
 				if (core) then
 					local next_event_in, start_time, end_time, day, month_number, month_day = RaidSchedule:GetNextEventTime (index)
 					local keep_invites = preset.keepinvites or 15

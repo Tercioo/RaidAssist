@@ -164,14 +164,7 @@ Cooldowns.menu_popup_hide = function (plugin, ct_frame, param1, param2)
 end
 
 Cooldowns.menu_on_click = function (plugin)
-	--if (not Cooldowns.options_built) then
-	--	Cooldowns.BuildOptions()
-	--	Cooldowns.options_built = true
-	--end
-	--Cooldowns.main_frame:Show()
-	
 	RA.OpenMainOptions (Cooldowns)
-	
 end
 
 Cooldowns.OnInstall = function (plugin)
@@ -192,13 +185,17 @@ Cooldowns.OnInstall = function (plugin)
 	
 	Cooldowns:RegisterEvent ("UNIT_SPELLCAST_SUCCEEDED", Cooldowns.HandleSpellCast)
 
-	--C_Timer.After (2, Cooldowns.BuildOptions)
-	
-	C_Timer.After (1, Cooldowns.CheckForShowPanels)
-	C_Timer.After (2, function()Cooldowns.RosterUpdate (true)end)
-	C_Timer.After (8, function()Cooldowns.RosterUpdate (true)end)
-	C_Timer.After (10, function()Cooldowns.RosterUpdate (true)end)
+	--C_Timer.After (2, Cooldowns.BuildOptions) --debug
+	local f = CreateFrame("frame")
+	f:RegisterEvent ("PLAYER_LOGIN")
+	f:SetScript ("OnEvent", function(self, event, ...)
+		C_Timer.After (1, Cooldowns.CheckForShowPanels)
+		C_Timer.After (2, function() Cooldowns.RosterUpdate (true) end)
+		C_Timer.After (8, function() Cooldowns.RosterUpdate (true) end)
+		C_Timer.After (10, function() Cooldowns.RosterUpdate (true) end)
+	end)
 
+	C_Timer.After (1, Cooldowns.CheckForShowPanels)
 end
 
 Cooldowns.OnEnable = function (plugin)
@@ -648,9 +645,9 @@ local refresh_bar_settings = function (self)
 	self.icon_offline:SetSize (height, height)
 	
 	self.texture = Cooldowns.db.bar_texture
-	
-	self:SetPoint ("topleft", self:GetParent(), "topleft", 2, (-(self.MyIndex-1)*(Cooldowns.db.bar_height+1)) + (-2))
-	self:SetPoint ("topright", self:GetParent(), "topright", -2, (-(self.MyIndex-1)*(Cooldowns.db.bar_height+1)) + (-2))
+
+	PixelUtil.SetPoint (self, "topleft", self:GetParent(), "topleft", 2, (-(self.MyIndex-1)*(Cooldowns.db.bar_height+1)) + (-2))
+	PixelUtil.SetPoint (self, "topright", self:GetParent(), "topright", -2, (-(self.MyIndex-1)*(Cooldowns.db.bar_height+1)) + (-2))
 	
 	self:EnableMouse (false)
 end
@@ -891,7 +888,7 @@ function Cooldowns.ShowPanelInScreen (panel, show, event)
 			Cooldowns:RegisterEvent ("PARTY_MEMBER_DISABLE", player_connected_event)
 			Cooldowns:RegisterEvent ("PARTY_MEMBER_ENABLE", player_connected_event)
 			Cooldowns:RegisterEvent ("UNIT_CONNECTION", player_connected_event)
-			Cooldowns:RegisterEvent ("UNIT_HEALTH", player_health_event)
+			--Cooldowns:RegisterEvent ("UNIT_HEALTH", player_health_event)
 			Cooldowns:RegisterEvent ("UNIT_HEALTH_FREQUENT", player_health_event)
 			
 			Cooldowns.HealthCheck = C_Timer.NewTicker (2, player_health_check)
