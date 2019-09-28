@@ -12,33 +12,11 @@ local GetUnitName = GetUnitName
 local Ambiguate = Ambiguate
 local UnitExists = UnitExists
 
---battle res default config
+
 local default_config = {
 	enabled = true,
 	menu_priority = 1,
-	cooldowns_enabled = {
-		[47788] = true,
-		[76577] = true,
-		[64843] = true,
-		[1022] = true,
-		[98008] = true,
-		[51052] = true,
-		[115310] = true,
-		[31821] = true,
-		[108281] = true,
-		[33206] = true,
-		[116849] = true,
-		[114030] = true,
-		[15286] = true,
-		[740] = true,
-		[62618] = true,
-		[97462] = true,
-		[108280] = true,
-		[102342] = true,
-		[6940] = true,
-		[196718] = true, -- dh darkness
-		[207810] = true, --dh nether bond
-	},
+	cooldowns_enabled = {},
 	cooldowns_panels = {},
 	
 	--> general config
@@ -72,6 +50,7 @@ for spellId, _ in pairs (DetailsFramework.CooldownsExternals) do
 		local name = GetSpellInfo (spellId)
 	end
 end
+
 for spellId, _ in pairs (DetailsFramework.CooldownsRaid) do
 	if (default_config.cooldowns_enabled [spellId] == nil) then
 		default_config.cooldowns_enabled [spellId] = true
@@ -87,6 +66,7 @@ local icon_texture = "Interface\\AddOns\\" .. RA.InstallDir .. "\\media\\plugin_
 if (_G ["RaidAssistCooldowns"]) then
 	return
 end
+
 local Cooldowns = {version = "v0.1", pluginname = "Cooldowns"}
 _G ["RaidAssistCooldowns"] = Cooldowns
 
@@ -99,6 +79,38 @@ Cooldowns.InstanceType = "none"
 
 --> store the time where the unit last casted a cooldown, this avoid triggering multiple cooldowns when a channel spell spam cast_success
 Cooldowns.UnitLastCast = {}
+
+--> when the plugin finishes load and are ready to use
+Cooldowns.OnInstall = function (plugin)
+
+	Cooldowns.db.menu_priority = default_priority
+
+	Cooldowns:RegisterForEnterRaidGroup (Cooldowns.OnEnterRaidGroup)
+	Cooldowns:RegisterForLeaveRaidGroup (Cooldowns.OnLeaveRaidGroup)
+
+	Cooldowns:RegisterForEnterPartyGroup (Cooldowns.OnEnterPartyGroup)
+	Cooldowns:RegisterForLeavePartyGroup (Cooldowns.OnLeavePartyGroup)
+
+	Cooldowns:RegisterEvent ("ZONE_CHANGED_NEW_AREA")
+	Cooldowns:RegisterEvent ("PLAYER_REGEN_DISABLED")
+	Cooldowns:RegisterEvent ("PLAYER_REGEN_ENABLED")
+	Cooldowns:RegisterEvent ("ENCOUNTER_START")
+	Cooldowns:RegisterEvent ("ENCOUNTER_END")
+	
+	Cooldowns:RegisterEvent ("UNIT_SPELLCAST_SUCCEEDED", Cooldowns.HandleSpellCast)
+
+	--C_Timer.After (2, Cooldowns.BuildOptions) --debug
+	local f = CreateFrame("frame")
+	f:RegisterEvent ("PLAYER_LOGIN")
+	f:SetScript ("OnEvent", function(self, event, ...)
+		C_Timer.After (1, Cooldowns.CheckForShowPanels)
+		C_Timer.After (2, function() Cooldowns.RosterUpdate (true) end)
+		C_Timer.After (8, function() Cooldowns.RosterUpdate (true) end)
+		C_Timer.After (10, function() Cooldowns.RosterUpdate (true) end)
+	end)
+
+	C_Timer.After (1, Cooldowns.CheckForShowPanels)
+end
 
 local TrackingSpells = {}
 
@@ -167,44 +179,12 @@ Cooldowns.menu_on_click = function (plugin)
 	RA.OpenMainOptions (Cooldowns)
 end
 
-Cooldowns.OnInstall = function (plugin)
-
-	Cooldowns.db.menu_priority = default_priority
-
-	Cooldowns:RegisterForEnterRaidGroup (Cooldowns.OnEnterRaidGroup)
-	Cooldowns:RegisterForLeaveRaidGroup (Cooldowns.OnLeaveRaidGroup)
-
-	Cooldowns:RegisterForEnterPartyGroup (Cooldowns.OnEnterPartyGroup)
-	Cooldowns:RegisterForLeavePartyGroup (Cooldowns.OnLeavePartyGroup)
-
-	Cooldowns:RegisterEvent ("ZONE_CHANGED_NEW_AREA")
-	Cooldowns:RegisterEvent ("PLAYER_REGEN_DISABLED")
-	Cooldowns:RegisterEvent ("PLAYER_REGEN_ENABLED")
-	Cooldowns:RegisterEvent ("ENCOUNTER_START")
-	Cooldowns:RegisterEvent ("ENCOUNTER_END")
-	
-	Cooldowns:RegisterEvent ("UNIT_SPELLCAST_SUCCEEDED", Cooldowns.HandleSpellCast)
-
-	--C_Timer.After (2, Cooldowns.BuildOptions) --debug
-	local f = CreateFrame("frame")
-	f:RegisterEvent ("PLAYER_LOGIN")
-	f:SetScript ("OnEvent", function(self, event, ...)
-		C_Timer.After (1, Cooldowns.CheckForShowPanels)
-		C_Timer.After (2, function() Cooldowns.RosterUpdate (true) end)
-		C_Timer.After (8, function() Cooldowns.RosterUpdate (true) end)
-		C_Timer.After (10, function() Cooldowns.RosterUpdate (true) end)
-	end)
-
-	C_Timer.After (1, Cooldowns.CheckForShowPanels)
-end
-
 Cooldowns.OnEnable = function (plugin)
-	-- enabled from the options panel.
+	--enabled from the options panel.
 end
 
 Cooldowns.OnDisable = function (plugin)
-	-- disabled from the options panel.
-	plugin.bres_frame:Hide()
+	--disabled from the options panel.
 end
 
 Cooldowns.OnProfileChanged = function (plugin)
@@ -220,6 +200,7 @@ Cooldowns.OnProfileChanged = function (plugin)
 	end
 end
 
+--> check if can show cooldown panels in the user interface
 function Cooldowns.CheckForShowPanels (event)
 
 	event = event or "EVENT_STARTUP"
