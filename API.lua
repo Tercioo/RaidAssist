@@ -151,7 +151,7 @@ end
 --]=]
 
 function RA:SendPluginCommWhisperMessage (prefix, target, callback, callback_param, ...)
-	RA:SendCommMessage (RA.comm_prefix, RA:Serialize (prefix, self.version or "", ...), "WHISPER", target, nil, callback, callback_param)
+	RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "WHISPER", target, nil, callback, callback_param)
 end
 
 function RA:SendPluginCommMessage (prefix, channel, callback, callback_param, ...)
@@ -161,26 +161,26 @@ function RA:SendPluginCommMessage (prefix, channel, callback, callback_param, ..
 	end
 	if (channel == "RAID-NOINSTANCE") then
 		if (IsInRaid (LE_PARTY_CATEGORY_HOME)) then
-			RA:SendCommMessage (RA.comm_prefix, RA:Serialize (prefix, self.version or "", ...), "RAID", nil, nil, callback, callback_param)
+			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "RAID", nil, nil, callback, callback_param)
 		end
 	elseif (channel == "RAID") then
 		if (IsInRaid (LE_PARTY_CATEGORY_INSTANCE)) then
-			RA:SendCommMessage (RA.comm_prefix, RA:Serialize (prefix, self.version or "", ...), "INSTANCE_CHAT", nil, nil, callback, callback_param)
+			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "INSTANCE_CHAT", nil, nil, callback, callback_param)
 		else
-			RA:SendCommMessage (RA.comm_prefix, RA:Serialize (prefix, self.version or "", ...), "RAID", nil, nil, callback, callback_param)
+			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "RAID", nil, nil, callback, callback_param)
 		end
 	elseif (channel == "PARTY-NOINSTANCE") then
 		if (IsInGroup (LE_PARTY_CATEGORY_HOME)) then
-			RA:SendCommMessage (RA.comm_prefix, RA:Serialize (prefix, self.version or "", ...), "PARTY", nil, nil, callback, callback_param)
+			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "PARTY", nil, nil, callback, callback_param)
 		end
 	elseif (channel == "PARTY") then
 		if (IsInGroup (LE_PARTY_CATEGORY_INSTANCE)) then
-			RA:SendCommMessage (RA.comm_prefix, RA:Serialize (prefix, self.version or "", ...), "INSTANCE_CHAT", nil, nil, callback, callback_param)
+			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "INSTANCE_CHAT", nil, nil, callback, callback_param)
 		else
-			RA:SendCommMessage (RA.comm_prefix, RA:Serialize (prefix, self.version or "", ...), "PARTY", nil, nil, callback, callback_param)
+			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "PARTY", nil, nil, callback, callback_param)
 		end
 	else
-		RA:SendCommMessage (RA.comm_prefix, RA:Serialize (prefix, self.version or "", ...), channel, nil, nil, callback, callback_param)
+		RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), channel, nil, nil, callback, callback_param)
 	end
 end
 
@@ -204,11 +204,11 @@ end
 	func (function) it's called when the event is triggered.
 --]=]
 function RA:RegisterForCLEUEvent (event, func)
-	RA.CLEU_read_events [event] = true
-	if (not RA.CLEU_registered_events [event]) then
-		RA.CLEU_registered_events [event] = {}
+	RA.CLEU_readEvents [event] = true
+	if (not RA.CLEU_registeredEvents [event]) then
+		RA.CLEU_registeredEvents [event] = {}
 	end
-	tinsert (RA.CLEU_registered_events [event], func)
+	tinsert (RA.CLEU_registeredEvents [event], func)
 end
 
 --[=[
@@ -218,15 +218,15 @@ end
 	func (function) the function previous registered.
 --]=]
 function RA:UnregisterForCLEUEvent (event, func)
-	if (RA.CLEU_registered_events [event]) then
-		for index, f in ipairs (RA.CLEU_registered_events [event]) do 
+	if (RA.CLEU_registeredEvents [event]) then
+		for index, f in ipairs (RA.CLEU_registeredEvents [event]) do 
 			if (f == func) then
-				tremove (RA.CLEU_registered_events [event], index)
+				tremove (RA.CLEU_registeredEvents [event], index)
 				break
 			end
 		end
-		if (#RA.CLEU_registered_events [event] < 1) then
-			RA.CLEU_read_events [event] = nil
+		if (#RA.CLEU_registeredEvents [event] < 1) then
+			RA.CLEU_readEvents [event] = nil
 		end
 	end
 end
@@ -401,49 +401,49 @@ end
 --]=]
 
 function RA:RegisterForEnterRaidGroup (func)
-	tinsert (RA.player_enter_raid, func)
+	tinsert (RA.playerEnteredInRaidGroup, func)
 end
 
 function RA:RegisterForLeaveRaidGroup (func)
-	tinsert (RA.player_leave_raid, func)
+	tinsert (RA.playerLeftRaidGroup, func)
 end
 
 function RA:RegisterForEnterPartyGroup (func)
-	tinsert (RA.player_enter_party, func)
+	tinsert (RA.playerEnteredInPartyGroup, func)
 end
 
 function RA:RegisterForLeavePartyGroup (func)
-	tinsert (RA.player_leave_party, func)
+	tinsert (RA.playerLeftPartyGroup, func)
 end
 
 function RA:UnregisterForEnterRaidGroup (func)
-	for i = #RA.player_enter_raid, 1, -1 do
-		if (RA.player_enter_raid [i] == func) then
-			tremove (RA.player_enter_raid, i)
+	for i = #RA.playerEnteredInRaidGroup, 1, -1 do
+		if (RA.playerEnteredInRaidGroup [i] == func) then
+			tremove (RA.playerEnteredInRaidGroup, i)
 		end
 	end
 end
 
 function RA:UnregisterForLeavePartyGroup (func)
-	for i = #RA.player_leave_party, 1, -1 do
-		if (RA.player_leave_party [i] == func) then
-			tremove (RA.player_leave_party, i)
+	for i = #RA.playerLeftPartyGroup, 1, -1 do
+		if (RA.playerLeftPartyGroup [i] == func) then
+			tremove (RA.playerLeftPartyGroup, i)
 		end
 	end
 end
 
 function RA:UnregisterForEnterPartyGroup (func)
-	for i = #RA.player_enter_party, 1, -1 do
-		if (RA.player_enter_party [i] == func) then
-			tremove (RA.player_enter_party, i)
+	for i = #RA.playerEnteredInPartyGroup, 1, -1 do
+		if (RA.playerEnteredInPartyGroup [i] == func) then
+			tremove (RA.playerEnteredInPartyGroup, i)
 		end
 	end
 end
 
 function RA:UnregisterForLeaveRaidGroup (func)
-	for i = #RA.player_leave_raid, 1, -1 do
-		if (RA.player_leave_raid [i] == func) then
-			tremove (RA.player_leave_raid, i)
+	for i = #RA.playerLeftRaidGroup, 1, -1 do
+		if (RA.playerLeftRaidGroup [i] == func) then
+			tremove (RA.playerLeftRaidGroup, i)
 		end
 	end
 end

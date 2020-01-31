@@ -256,7 +256,7 @@ end
 
 function Cooldowns.OnLeaveRaidGroup()
 	if (not IsInGroup()) then
-		Cooldowns.in_party = false
+		Cooldowns.playerIsInParty = false
 	end
 	
 	Cooldowns.in_raid = false
@@ -264,12 +264,12 @@ function Cooldowns.OnLeaveRaidGroup()
 end
 
 function Cooldowns.OnEnterPartyGroup()
-	Cooldowns.in_party = true
+	Cooldowns.playerIsInParty = true
 	Cooldowns.CheckForShowPanels ("ENTER_PARTY_GROUP")
 end
 
 function Cooldowns.OnLeavePartyGroup()
-	Cooldowns.in_party = false
+	Cooldowns.playerIsInParty = false
 	if (not IsInRaid()) then
 		Cooldowns.in_raid = false
 	end

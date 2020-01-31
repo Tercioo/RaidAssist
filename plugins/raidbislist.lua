@@ -99,7 +99,7 @@ BisListRaid.OnProfileChanged = function (plugin)
 end
 
 function BisListRaid.QueryData()
-	if (BisListRaid.last_data_request+30 > time() or not BisListRaid.in_group or not IsInRaid (LE_PARTY_CATEGORY_HOME) or not BisListRaid:UnitHasAssist ("player")) then
+	if (BisListRaid.last_data_request+30 > time() or not BisListRaid.playerIsInGroup or not IsInRaid (LE_PARTY_CATEGORY_HOME) or not BisListRaid:UnitHasAssist ("player")) then
 		return
 	end
 	BisListRaid:SendPluginCommMessage ("BLR", "RAID-NOINSTANCE", _, _, BisListRaid:GetPlayerNameWithRealm())

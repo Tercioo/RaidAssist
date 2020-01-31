@@ -275,7 +275,7 @@ Notepad.OnInstall = function (plugin)
 	
 	--C_Timer.After (2, function() Notepad.BuildOptions(); Notepad.options_built = true; Notepad.main_frame:Show() end)
 	
-	Notepad.in_group = IsInGroup()
+	Notepad.playerIsInGroup = IsInGroup()
 	
 	local _, instanceType = GetInstanceInfo()
 	Notepad.current_instanceType = instanceType
@@ -292,7 +292,7 @@ Notepad.OnInstall = function (plugin)
 	
 	C_Timer.After (10, function()
 		local _, instanceType, DifficultyID = GetInstanceInfo()
-		if (instanceType == "raid" and Notepad.in_group and DifficultyID ~= 17) then
+		if (instanceType == "raid" and Notepad.playerIsInGroup and DifficultyID ~= 17) then
 			Notepad:AskForEnabledNote()
 		end
 	end)
@@ -658,23 +658,23 @@ function Notepad:ValidateNoteCurrentlyShown()
 end
 
 function Notepad:GROUP_ROSTER_UPDATE()
-	if (Notepad.in_group and not IsInGroup()) then
+	if (Notepad.playerIsInGroup and not IsInGroup()) then
 		--> left the group
 		Notepad.UnshowNoteOnScreen()
-	elseif (not Notepad.in_group and IsInGroup()) then
+	elseif (not Notepad.playerIsInGroup and IsInGroup()) then
 		--> joined a group
 		local _, instanceType = GetInstanceInfo()
 		if (instanceType and instanceType == "raid") then
 			Notepad:AskForEnabledNote()
 		end
 	end
-	Notepad.in_group = IsInGroup()
+	Notepad.playerIsInGroup = IsInGroup()
 end
 
 function Notepad:ZONE_CHANGED_NEW_AREA()
 --	local _, instanceType = GetInstanceInfo()
 	
---	if (Notepad.in_group and Notepad.current_instanceType ~= "raid") then -- instanceType == "raid" and 
+--	if (Notepad.playerIsInGroup and Notepad.current_instanceType ~= "raid") then -- instanceType == "raid" and 
 --		Notepad:AskForEnabledNote()
 --	else
 --		Notepad.UnshowNoteOnScreen()

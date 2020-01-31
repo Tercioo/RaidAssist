@@ -24,7 +24,8 @@ local SharedMedia = LibStub:GetLibrary ("LibSharedMedia-3.0")
 SharedMedia:Register ("font", "Accidental Presidency", [[Interface\Addons\RaidAssist\fonts\Accidental Presidency.ttf]])
 SharedMedia:Register ("statusbar", "Iskar Serenity", [[Interface\Addons\RaidAssist\media\bar_serenity]])
 
-local default_config = {
+--default configs
+local defaultConfig = {
 	profile = {
 		addon = {
 			enabled = true,
@@ -43,6 +44,7 @@ local default_config = {
 	}
 }
 
+--raid assist options
 local options_table = {
 	name = "Raid Assist",
 	type = "group",
@@ -60,32 +62,42 @@ local options_table = {
 	}
 }
 
-local RA = DF:CreateAddOn ("RaidAssist", DATABASE, default_config, options_table)
+
+--create the raid assist addon
+local RA = DF:CreateAddOn ("RaidAssist", DATABASE, defaultConfig, options_table)
 RA.InstallDir = FOLDERPATH
 
 do
 	local serialize = LibStub ("AceSerializer-3.0")
 	serialize:Embed (RA)
+
+	--what to do with this
 	local LGIST = LibStub:GetLibrary("LibGroupInSpecT-1.1")
 end
 
 RA.__index = RA
-RA.version = "v0.1"
+RA.version = "v1.0"
+
+--store all plugins isntalled
 RA.plugins = {}
+--plugins that have been schedule to install
 RA.schedule_install = {}
+--this is the small frame menu to select an option without using /raa
 RA.default_small_popup_width = 150
 RA.default_small_popup_height = 40
 
-function RA:LoadPluginDB (name, is_install)
+
+--plugin database are stored within the raid assist database
+function RA:LoadPluginDB (name, isInstall)
 	local plugin = RA.plugins [name]
 	if (not plugin) then
 		return
 	end
 
-	local has_config = RA.db.profile.plugins [name]
+	local hasConfig = RA.db.profile.plugins [name]
 	
-	if (has_config) then
-		RA.table.deploy (has_config, plugin.db_default)
+	if (hasConfig) then
+		RA.table.deploy (hasConfig, plugin.db_default)
 	else
 		RA.db.profile.plugins [name] = RA.table.copy ({}, plugin.db_default)
 	end
@@ -99,7 +111,7 @@ function RA:LoadPluginDB (name, is_install)
 
 	plugin.db = RA.db.profile.plugins [name]
 
-	if (not is_install) then
+	if (not isInstall) then
 		if (plugin.OnProfileChanged) then
 			xpcall (plugin.OnProfileChanged, geterrorhandler(), plugin)
 		end
@@ -107,12 +119,16 @@ function RA:LoadPluginDB (name, is_install)
 
 end
 
+
+--make the reload process all over again in case of a profile change
 function RA:ReloadPluginDB()
 	for name, plugin in pairs (RA.plugins) do
 		RA:LoadPluginDB (name)
 	end
 end
 
+
+--do the profile thing
 function RA:ProfileChanged()
 	RA:RefreshMainAnchor()
 	if (RaidAssistAnchorOptionsPanel) then
@@ -121,30 +137,34 @@ function RA:ProfileChanged()
 	RA:ReloadPluginDB()
 end
 
+
+--plugin is loaded, do the initialization
 function RA.OnInit (self)
 
+	--do more of the profile thing
 	RA.db.RegisterCallback (RA, "OnProfileChanged", "ProfileChanged")
 	RA.db.RegisterCallback (RA, "OnProfileCopied", "ProfileChanged")
 	RA.db.RegisterCallback (RA, "OnProfileReset", "ProfileChanged")
 	
 	RA.DATABASE = _G [DATABASE]
 	
-	for _, plugin_table in ipairs (RA.schedule_install) do
-		local name, frame_name, plugin_object, default_config = unpack (plugin_table)
-		RA:InstallPlugin (name, frame_name, plugin_object, default_config)
+	for _, pluginTable in ipairs (RA.schedule_install) do
+		local name, frameName, pluginObject, defaultConfig = unpack (pluginTable)
+		RA:InstallPlugin (name, frameName, pluginObject, defaultConfig)
 	end
 
-	RA.main_anchor = CreateFrame ("frame", "RaidAssistUIAnchor", UIParent)
+	RA.mainAnchor = CreateFrame ("frame", "RaidAssistUIAnchor", UIParent)
 
-	RA.main_anchor:SetScript ("OnMouseDown", function (self, button)
+	RA.mainAnchor:SetScript ("OnMouseDown", function (self, button)
 		if (button == "LeftButton") then
 			RA:OpenAnchorOptionsPanel()
 		end
 	end)
 	
-	local priority_order = {}
+	local priorityOrder = {}
 	
-	local priority_func = function (plugin1, plugin2)
+	--which menus go first
+	local priorityFunc = function (plugin1, plugin2)
 		--print (plugin1.name, plugin1.db.menu_priority, plugin2.name, plugin2.db.menu_priority)
 		--if (plugin1.db.menu_priority == nil) then
 		--	plugin1.db.menu_priority = 1
@@ -152,6 +172,7 @@ function RA.OnInit (self)
 		--if (plugin2.db.menu_priority == nil) then
 		--	plugin2.db.menu_priority = 1
 		--end
+
 		if (plugin1.db.enabled and plugin2.db.enabled) then
 			--print (plugin1.pluginname, plugin1.db.menu_priority, plugin2.pluginname, plugin2.db.menu_priority)
 			return plugin1.db.menu_priority > plugin2.db.menu_priority
@@ -162,7 +183,8 @@ function RA.OnInit (self)
 		end
 	end
 
-	local _
+	
+	--cooltip 
 	local ct = GameCooltip2
 	local icon_size = 14
 	local empty_table = {}
@@ -174,6 +196,7 @@ function RA.OnInit (self)
 		edgeSize = 1, 
 		tileSize = 64, 
 	}
+
 	local ct_backdrop_color = {0, 0, 0, 0.8}
 	local ct_backdrop_border_color = {0, 0, 0, 1}
 	
@@ -182,37 +205,39 @@ function RA.OnInit (self)
 		for name, plugin in pairs (RA:GetPluginList()) do
 			t [#t+1] = plugin
 		end
-		table.sort (t, priority_func)
+		table.sort (t, priorityFunc)
 		return t
 	end
 	
-	RA.main_anchor:SetScript ("OnEnter", function (self)
+
+	--when the anchor is hovered over, create a menu using cooltip
+	RA.mainAnchor:SetScript ("OnEnter", function (self)
 	
-		wipe (priority_order)
+		wipe (priorityOrder)
 		
 		for name, plugin in pairs (RA:GetPluginList()) do
-			priority_order [#priority_order+1] = plugin
+			priorityOrder [#priorityOrder+1] = plugin
 		end
 		
-		table.sort (priority_order, priority_func)
+		table.sort (priorityOrder, priorityFunc)
 		
-		local anchor_side = RA.db.profile.addon.anchor_side
+		local anchorSide = RA.db.profile.addon.anchor_side
 		local anchor1, anchor2, x, y
 		
-		if (anchor_side == "left") then
+		if (anchorSide == "left") then
 			anchor1, anchor2, x, y = "bottomleft", "bottomright", 0, 0
-		elseif (anchor_side == "right") then
+		elseif (anchorSide == "right") then
 			anchor1, anchor2, x, y = "bottomright", "bottomleft", 0, 0
-		elseif (anchor_side == "top") then
+		elseif (anchorSide == "top") then
 			anchor1, anchor2, x, y = "topleft", "bottomleft", 0, 0
-		elseif (anchor_side == "bottom") then
+		elseif (anchorSide == "bottom") then
 			anchor1, anchor2, x, y = "bottomleft", "topleft", 0, 0
 		end
 	
 		ct:Reset()
 		ct:SetBackdrop (first_frame, ct_backdrop, ct_backdrop_color, ct_backdrop_border_color)
 	
-		for index, plugin in ipairs (priority_order) do
+		for index, plugin in ipairs (priorityOrder) do
 			local icon_texture, icon_texcoord, text, text_color = plugin.menu_text (plugin)
 			local popup_frame_show = plugin.menu_popup_show
 			local popup_frame_hide = plugin.menu_popup_hide
@@ -236,21 +261,23 @@ function RA.OnInit (self)
 		-- fill the click function.
 	end)
 	
-	local hide_cooltip = function()
+
+	local hideCooltip = function()
 		if (not GameCooltip2.had_interaction) then
 			GameCooltip2:Hide()
 		end
 	end
 	
-	RA.main_anchor:SetScript ("OnLeave", function (self)
+	RA.mainAnchor:SetScript ("OnLeave", function (self)
 		-- hide cooltip
-		C_Timer.After (1, hide_cooltip)
+		C_Timer.After (1, hideCooltip)
 	end)
 	
 	RA:RefreshMainAnchor()
-	
 	RA:RefreshMacros()
 	
+
+	--I don't remember what patch_71 was
 	C_Timer.After (10, function()
 		if (RA.db and not RA.db.profile.patch_71) then
 			RA.db.profile.patch_71 = true
@@ -262,6 +289,8 @@ function RA.OnInit (self)
 		end
 	end)
 	
+
+	--create the floating frame in UIParent, with some delay
 	C_Timer.After (10, function()
 		--RA.db.profile.welcome_screen1 = false
 		if (not RA.db.profile.welcome_screen1) then
@@ -372,96 +401,113 @@ function RA.OnInit (self)
 	
 end
 
-local redo_refreshmacros = function()
+
+--macro to open the /raa panel
+local redoRefreshMacros = function()
 	RA:RefreshMacros()
 end
 function RA:RefreshMacros()
+	--can't run while in combat
 	if (InCombatLockdown()) then
-		return C_Timer.After (1, redo_refreshmacros)
+		return C_Timer.After (1, redoRefreshMacros)
 	end
+
 	if (RA.DATABASE.OptionsKeybind and RA.DATABASE.OptionsKeybind ~= "") then
 		local macro = GetMacroInfo ("RAOpenOptions")
 		if (not macro) then
-			local n = CreateMacro ("RAOpenOptions", "WoW_Store", "/raa")
+			local n = CreateMacro ("RAOpenOptions", "WoW_Store", "/raa") --what? dunno what i did 7 years ago
 		end
 		SetBinding (RA.DATABASE.OptionsKeybind, "MACRO RAOpenOptions")
 	end
 end
 
---
 
+--config the anchor for the floating frame in the UIParent
 function RA:RefreshMainAnchor()
-	RA.main_anchor:ClearAllPoints()
-	local anchor_side = RA.db.profile.addon.anchor_side
-	if (anchor_side == "left" or anchor_side == "right") then
-		RA.main_anchor:SetPoint (anchor_side, UIParent, anchor_side, 0, RA.db.profile.addon.anchor_y)
-		RA.main_anchor:SetSize (2, RA.db.profile.addon.anchor_size)
-	elseif (anchor_side == "top" or anchor_side == "bottom") then
-		RA.main_anchor:SetPoint (anchor_side, UIParent, anchor_side, RA.db.profile.addon.anchor_x, 0)
-		RA.main_anchor:SetSize (RA.db.profile.addon.anchor_size, 2)
+	RA.mainAnchor:ClearAllPoints()
+
+	local anchorSide = RA.db.profile.addon.anchor_side
+	
+	if (anchorSide == "left" or anchorSide == "right") then
+		RA.mainAnchor:SetPoint (anchorSide, UIParent, anchorSide, 0, RA.db.profile.addon.anchor_y)
+		RA.mainAnchor:SetSize (2, RA.db.profile.addon.anchor_size)
+
+	elseif (anchorSide == "top" or anchorSide == "bottom") then
+		RA.mainAnchor:SetPoint (anchorSide, UIParent, anchorSide, RA.db.profile.addon.anchor_x, 0)
+		RA.mainAnchor:SetSize (RA.db.profile.addon.anchor_size, 2)
 	end
 	
-	RA.main_anchor:SetBackdrop ({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 64})
+	RA.mainAnchor:SetBackdrop ({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 64})
 	local color = RA.db.profile.addon.anchor_color
-	RA.main_anchor:SetBackdropColor (color.r, color.g, color.b, color.a)
+	RA.mainAnchor:SetBackdropColor (color.r, color.g, color.b, color.a)
 	
 	if (RA.db.profile.addon.show_only_in_raid) then
 		if (IsInRaid()) then
-			RA.main_anchor:Show()
+			RA.mainAnchor:Show()
 		else
-			RA.main_anchor:Hide()
+			RA.mainAnchor:Hide()
 		end
 	else
-		RA.main_anchor:Show()
+		RA.mainAnchor:Show()
 	end
 	
 	--won't show in alpha versions
-	RA.main_anchor:Hide()
+	RA.mainAnchor:Hide()
 end
 
---
 
-RA.in_group = false
-RA.in_party = false
-RA.player_enter_raid = {}
-RA.player_leave_raid = {}
-RA.player_enter_party = {}
-RA.player_leave_party = {}
+--group managind
+RA.playerIsInRaid = false
+RA.playerIsInParty = false
 
-function RA:GROUP_ROSTER_UPDATE()
-	if (RA.in_group and not IsInRaid()) then
-		RA.in_group = false
-		RA:RosterCallback()
-	elseif (not RA.in_group and IsInRaid()) then
-		RA.in_group = true
-		RA:RosterCallback()
+RA.playerEnteredInRaidGroup = {}
+RA.playerLeftRaidGroup = {}
+RA.playerEnteredInPartyGroup = {}
+RA.playerLeftPartyGroup = {}
+
+--group roster changed
+local groupHandleFrame = CreateFrame("frame")
+groupHandleFrame:RegisterEvent ("GROUP_ROSTER_UPDATE")
+
+groupHandleFrame:SetScript("OnEvent", function()
+	--check if player entered or left the raid
+	if (RA.playerIsInRaid and not IsInRaid()) then
+		RA.playerIsInRaid = false
+		RA.RaidStateChanged()
+
+	elseif (not RA.playerIsInRaid and IsInRaid()) then
+		RA.playerIsInRaid = true
+		RA.RaidStateChanged()
 	end
 	
-	if (RA.in_party and not IsInGroup()) then
-		RA.in_party = false
-		RA:RosterPartyCallback()
-	elseif (not RA.in_party and IsInGroup()) then
-		RA.in_party = true
-		RA:RosterPartyCallback()
+	--check if player entered or left a party
+	if (RA.playerIsInParty and not IsInGroup()) then
+		RA.playerIsInParty = false
+		RA.PartyStateChanged()
+		
+	elseif (not RA.playerIsInParty and IsInGroup()) then
+		RA.playerIsInParty = true
+		RA.PartyStateChanged()
 	end
-end
+end)
 
-RA:RegisterEvent ("GROUP_ROSTER_UPDATE")
 
-function RA:RosterCallback()
+--handle when the player enters or leave a raid group
+--some plugins registered a callback to know when the player enter or leave a group
+function RA.RaidStateChanged()
 	if (RA.db.profile.addon.show_only_in_raid) then
 		RA:RefreshMainAnchor()
 	end
 	
-	if (RA.in_group) then
-		for _, func in ipairs (RA.player_enter_raid) do
+	if (RA.playerIsInRaid) then
+		for _, func in ipairs (RA.playerEnteredInRaidGroup) do
 			local okey, errortext = pcall (func, true)
 			if (not okey) then
 				print ("error on EnterRaidGroup func:", errortext)
 			end
 		end
 	else
-		for _, func in ipairs (RA.player_leave_raid) do
+		for _, func in ipairs (RA.playerLeftRaidGroup) do
 			local okey, errortext = pcall (func, false)
 			if (not okey) then
 				print ("error on LeaveRaidGroup func:", errortext)
@@ -470,16 +516,18 @@ function RA:RosterCallback()
 	end
 end
 
-function RA:RosterPartyCallback()
-	if (RA.in_party) then
-		for _, func in ipairs (RA.player_enter_party) do
+
+--handle when the player enters or leave a party group
+function RA.PartyStateChanged()
+	if (RA.playerIsInParty) then
+		for _, func in ipairs (RA.playerEnteredInPartyGroup) do
 			local okey, errortext = pcall (func, true)
 			if (not okey) then
 				print ("error on EnterPartyGroup func:", errortext)
 			end
 		end
 	else
-		for _, func in ipairs (RA.player_enter_party) do
+		for _, func in ipairs (RA.playerEnteredInPartyGroup) do
 			local okey, errortext = pcall (func, false)
 			if (not okey) then
 				print ("error on LeavePartyGroup func:", errortext)
@@ -488,10 +536,10 @@ function RA:RosterPartyCallback()
 	end
 end
 
---
 
+--comunication
 RA.comm = {}
-RA.comm_prefix = "RAST"
+RA.commPrefix = "RAST"
 
 function RA:CommReceived (_, data)
 	local prefix =  select (2, RA:Deserialize (data))
@@ -508,27 +556,31 @@ function RA:CommReceived (_, data)
 	end
 end
 
-RA:RegisterComm (RA.comm_prefix, "CommReceived")
+RA:RegisterComm (RA.commPrefix, "CommReceived")
 
---
 
-local CLEU_frame = CreateFrame ("frame")
-CLEU_frame:RegisterEvent ("COMBAT_LOG_EVENT_UNFILTERED")
+--combat log event events
+local CLEU_Frame = CreateFrame ("frame")
+CLEU_Frame:RegisterEvent ("COMBAT_LOG_EVENT_UNFILTERED")
 
-RA.CLEU_read_events = {}
-RA.CLEU_registered_events = {}
+RA.CLEU_readEvents = {}
+RA.CLEU_registeredEvents = {}
 
-local is_event_registered = RA.CLEU_read_events
+--cahe for fast reading
+local isEventRegistered = RA.CLEU_readEvents
 
-CLEU_frame:SetScript ("OnEvent", function (self, _, time, token, ...)
-	if (is_event_registered [token]) then
-		for _, func in ipairs (RA.CLEU_registered_events [token]) do
-			pcall (func, time, token, ...)
+CLEU_Frame:SetScript ("OnEvent", function()
+	local time, token, hidding, sourceGUID, sourceName, sourceFlag, sourceFlag2, targetGUID, targetName, targetFlag, targetFlag2, spellID, spellName, spellType, amount, overKill, school, resisted, blocked, absorbed, isCritical = CombatLogGetCurrentEventInfo()
+
+	if (isEventRegistered [token]) then
+		for _, func in ipairs (RA.CLEU_registeredEvents [token]) do
+			pcall (func, time, token, hidding, sourceGUID, sourceName, sourceFlag, sourceFlag2, targetGUID, targetName, targetFlag, targetFlag2, spellID, spellName, spellType, amount, overKill, school, resisted, blocked, absorbed, isCritical)
 		end
 	end
 end)
 
 
+--register chat command
 SLASH_RaidAssist1 = "/raa"
 function SlashCmdList.RaidAssist (msg, editbox)
 	RA.OpenMainOptions()

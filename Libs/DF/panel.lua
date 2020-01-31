@@ -5009,11 +5009,18 @@ DF.IconRowFunctions = {
 			cooldownFrame:SetFrameLevel (newIconFrame:GetFrameLevel()+1)
 			
 			newIconFrame.CountdownText = cooldownFrame:CreateFontString (nil, "overlay", "GameFontNormal")
-			newIconFrame.CountdownText:SetPoint ("center")
+			--newIconFrame.CountdownText:SetPoint ("center")
+			newIconFrame.CountdownText:SetPoint (self.options.text_anchor or "center", newIconFrame, self.options.text_rel_anchor or "center", self.options.text_x_offset or 0, self.options.text_y_offset or 0)
 			newIconFrame.CountdownText:Hide()
 			
+			newIconFrame.StackText = cooldownFrame:CreateFontString (nil, "overlay", "GameFontNormal")
+			--newIconFrame.StackText:SetPoint ("bottomright")
+			newIconFrame.StackText:SetPoint (self.options.stack_text_anchor or "center", newIconFrame, self.options.stack_text_rel_anchor or "bottomright", self.options.stack_text_x_offset or 0, self.options.stack_text_y_offset or 0)
+			newIconFrame.StackText:Hide()
+			
 			newIconFrame.Desc = newIconFrame:CreateFontString (nil, "overlay", "GameFontNormal")
-			newIconFrame.Desc:SetPoint ("bottom", newIconFrame, "top", 0, 2)
+			--newIconFrame.Desc:SetPoint ("bottom", newIconFrame, "top", 0, 2)
+			newIconFrame.Desc:SetPoint(self.options.desc_text_anchor or "bottom", newIconFrame, self.options.desc_text_rel_anchor or "top", self.options.desc_text_x_offset or 0, self.options.desc_text_y_offset or 2)
 			newIconFrame.Desc:Hide()
 			
 			newIconFrame.Cooldown = cooldownFrame
@@ -5051,7 +5058,7 @@ DF.IconRowFunctions = {
 		return iconFrame
 	end,
 	
-	SetIcon = function (self, spellId, borderColor, startTime, duration, forceTexture, descText)
+	SetIcon = function (self, spellId, borderColor, startTime, duration, forceTexture, descText, count, debuffType, caster, canStealOrPurge)
 	
 		local spellName, _, spellIcon
 	
@@ -5090,6 +5097,8 @@ DF.IconRowFunctions = {
 						formattedTime = floor (formattedTime)
 					end
 					
+					iconFrame.CountdownText:SetPoint (self.options.text_anchor or "center", iconFrame, self.options.text_rel_anchor or "center", self.options.text_x_offset or 0, self.options.text_y_offset or 0)
+					DF:SetFontSize (iconFrame.CountdownText, self.options.text_size)
 					iconFrame.CountdownText:SetText (formattedTime)
 					iconFrame.Cooldown:SetHideCountdownNumbers (true)
 				else
@@ -5104,9 +5113,20 @@ DF.IconRowFunctions = {
 				iconFrame.Desc:Show()
 				iconFrame.Desc:SetText (descText.text)
 				iconFrame.Desc:SetTextColor (DF:ParseColors (descText.text_color or self.options.desc_text_color))
+				iconFrame.Desc:SetPoint(self.options.desc_text_anchor or "bottom", iconFrame, self.options.desc_text_rel_anchor or "top", self.options.desc_text_x_offset or 0, self.options.desc_text_y_offset or 2)
 				DF:SetFontSize (iconFrame.Desc, descText.text_size or self.options.desc_text_size)
 			else
 				iconFrame.Desc:Hide()
+			end
+			
+			if (count and count > 1 and self.options.stack_text) then
+				iconFrame.StackText:Show()
+				iconFrame.StackText:SetText (count)
+				iconFrame.StackText:SetTextColor (DF:ParseColors (self.options.desc_text_color))
+				iconFrame.StackText:SetPoint (self.options.stack_text_anchor or "center", iconFrame, self.options.stack_text_rel_anchor or "bottomright", self.options.stack_text_x_offset or 0, self.options.stack_text_y_offset or 0)
+				DF:SetFontSize (iconFrame.StackText, self.options.stack_text_size)
+			else
+				iconFrame.StackText:Hide()
 			end
 			
 			PixelUtil.SetSize (iconFrame, self.options.icon_width, self.options.icon_height)
@@ -5115,6 +5135,15 @@ DF.IconRowFunctions = {
 			--> update the size of the frame
 			self:SetWidth ((self.options.left_padding * 2) + (self.options.icon_padding * (self.NextIcon-2)) + (self.options.icon_width * (self.NextIcon - 1)))
 			self:SetHeight (self.options.icon_height + (self.options.top_padding * 2))
+
+			--> make information available
+			iconFrame.spellId = spellId
+			iconFrame.startTime = startTime
+			iconFrame.duration = duration
+			iconFrame.count = count
+			iconFrame.debuffType = debuffType
+			iconFrame.caster = caster
+			iconFrame.canStealOrPurge = canStealOrPurge
 
 			--> show the frame
 			self:Show()
@@ -5175,9 +5204,25 @@ local default_icon_row_options = {
 	texcoord = {.1, .9, .1, .9},
 	show_text = true,
 	text_color = {1, 1, 1, 1},
+	text_size = 12,
+	text_anchor = "center",
+	text_rel_anchor = "center",
+	text_x_offset = 0,
+	text_y_offset = 0,
 	desc_text = true,
 	desc_text_color = {1, 1, 1, 1},
 	desc_text_size = 7,
+	desc_text_anchor = "bottom",
+	desc_text_rel_anchor = "top",
+	desc_text_x_offset = 0,
+	desc_text_y_offset = 2,
+	stack_text = true,
+	stack_text_color = {1, 1, 1, 1},
+	stack_text_size = 10,
+	stack_text_anchor = "center",
+	stack_text_rel_anchor = "bottomright",
+	stack_text_x_offset = 0,
+	stack_text_y_offset = 0,
 	left_padding = 1, --distance between right and left
 	top_padding = 1, --distance between top and bottom 
 	icon_padding = 1, --distance between each icon
@@ -6682,7 +6727,7 @@ function DF:CreateDataScrollFrame (parent, name, options)
 end
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
---> what's new window
+--> "WHAT's NEW" window
 
 local default_newsframe_options = {
 	width = 400,
@@ -6771,9 +6816,18 @@ end
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 --> statusbar info
 
-function DF:BuildStatusbarAuthorInfo (f)
-	
-	local authorName = DF:CreateLabel (f, "An addon by |cFFFFFFFFTercioo|r")
+--[[
+	authorTable = {
+		{
+			authorName = "author name 1",
+			link = "twitter.com/author1Handle",
+		}
+	}
+]]
+
+function DF:BuildStatusbarAuthorInfo (f, addonBy, authorsNameString)
+
+	local authorName = DF:CreateLabel (f, "" .. (addonBy or "An addon by") .. "|cFFFFFFFF" .. (authorsNameString or "Terciob") .. "|r")
 	authorName.textcolor = "silver"
 	local discordLabel = DF:CreateLabel (f, "Discord: ")
 	discordLabel.textcolor = "silver"
@@ -6796,8 +6850,36 @@ function DF:BuildStatusbarAuthorInfo (f)
 	discordTextEntry:SetHook ("OnEditFocusGained", function()
 		discordTextEntry:HighlightText()
 	end)
+
 end
 
+local statusbar_default_options = {
+	attach = "bottom", --bottomleft from statusbar attach to bottomleft of the frame | other option is "top": topleft attach to bottomleft
+}
+
+function DF:CreateStatusBar(f, options)
+	local statusBar = CreateFrame ("frame", nil, f)
+	
+	DF:Mixin (statusBar, DF.OptionsFunctions)
+	DF:Mixin (statusBar, DF.LayoutFrame)
+
+	statusBar:BuildOptionsTable (statusbar_default_options, options)
+
+	if (statusBar.options.attach == "bottom") then
+		statusBar:SetPoint ("bottomleft", f, "bottomleft")
+		statusBar:SetPoint ("bottomright", f, "bottomright")
+
+	else
+		statusBar:SetPoint ("topleft", f, "bottomleft")
+		statusBar:SetPoint ("topright", f, "bottomright")
+	end
+
+	statusBar:SetHeight (20)
+	DF:ApplyStandardBackdrop (statusBar)
+	statusBar:SetAlpha (0.8)
+
+	return statusBar
+end
 
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -6851,67 +6933,83 @@ DF.StatusBarFunctions = {
 	healthBar:SetTexture (texture)
 --]=]
 
-local debugPerformance = {
-	eventCall = {},
-	unitCall = {},
-	functionCall = {},
-	CPUUsageByFunction = {},
-}
+--debug performance isn't placed anywhere
+--how to use debug performance: I don't remember
 
-local function CalcPerformance (type, data)
-	if (type == "event") then
-		debugPerformance.eventCall [data] = (debugPerformance.eventCall [data] or 0) + 1
+	--Details:Dump (debugPerformance)
+
+	local debugPerformance = {
+		eventCall = {},
+		unitCall = {},
+		functionCall = {},
+		CPUUsageByFunction = {},
+	}
+
+	local function CalcPerformance (type, data)
+		if (type == "event") then
+			debugPerformance.eventCall [data] = (debugPerformance.eventCall [data] or 0) + 1
+			
+		elseif (type == "unit") then
+			debugPerformance.unitCall [data] = (debugPerformance.unitCall [data] or 0) + 1
 		
-	elseif (type == "unit") then
-		debugPerformance.unitCall [data] = (debugPerformance.unitCall [data] or 0) + 1
-	
-	elseif (type == "call") then
-		debugPerformance.functionCall [data] = (debugPerformance.functionCall [data] or 0) + 1
+		elseif (type == "call") then
+			debugPerformance.functionCall [data] = (debugPerformance.functionCall [data] or 0) + 1
+			
+		end
+	end
+
+	function DF_CalcCpuUsage (name)
+		local cpu = debugPerformance.CPUUsageByFunction [name] or {usage = 0, last = 0, active = false}
+		debugPerformance.CPUUsageByFunction [name] = cpu
 		
-	end
-end
-
-function DF_CalcCpuUsage (name)
-	local cpu = debugPerformance.CPUUsageByFunction [name] or {usage = 0, last = 0, active = false}
-	debugPerformance.CPUUsageByFunction [name] = cpu
-	
-	if (cpu.active) then
-		cpu.active = false
-		local diff = debugprofilestop() - cpu.last
-		cpu.usage = cpu.usage + diff
-	else
-		cpu.active = true
-		cpu.last = debugprofilestop()
-	end
-end
-
-function UnitFrameStats()
-	for functionName, functionTable in pairs (debugPerformance.CPUUsageByFunction) do
-		debugPerformance.CPUUsageByFunction [functionName] = floor (functionTable.usage)
+		if (cpu.active) then
+			cpu.active = false
+			local diff = debugprofilestop() - cpu.last
+			cpu.usage = cpu.usage + diff
+		else
+			cpu.active = true
+			cpu.last = debugprofilestop()
+		end
 	end
 
-	Details:Dump (debugPerformance)
-	
-	for functionName, functionTable in pairs (debugPerformance.CPUUsageByFunction) do
-		debugPerformance.CPUUsageByFunction [functionName] = {usage = 0, last = 0, active = false}
+	function UnitFrameStats()
+		for functionName, functionTable in pairs (debugPerformance.CPUUsageByFunction) do
+			debugPerformance.CPUUsageByFunction [functionName] = floor (functionTable.usage)
+		end
+		
+		for functionName, functionTable in pairs (debugPerformance.CPUUsageByFunction) do
+			debugPerformance.CPUUsageByFunction [functionName] = {usage = 0, last = 0, active = false}
+		end
 	end
-end
+--end of performance calcs
 
+--healthBar meta prototype
+	local healthBarMetaPrototype = {
+		WidgetType = "healthBar",
+		SetHook = DF.SetHook,
+		RunHooksForWidget = DF.RunHooksForWidget,
+	}
+	_G [DF.GlobalWidgetControlNames ["healthBar"]] = _G [DF.GlobalWidgetControlNames ["healthBar"]] or healthBarMetaPrototype
 
---CalcPerformance ("unit", data)
+	local healthBarMetaFunctions = _G [DF.GlobalWidgetControlNames ["healthBar"]]
 
-DF.HealthFrameFunctions = {
-
-	WidgetType = "healthBar",
-	SetHook = DF.SetHook,
-	RunHooksForWidget = DF.RunHooksForWidget,
-	
-	HookList = {
+--hook list
+	local defaultHooksForHealthBar = {
 		OnHide = {}, 
-		OnShow = {},
-	},
+		OnShow = {}, 
+		OnHealthChange = {}, 
+		OnHealthMaxChange = {},
+	}
 
-	Settings = {
+	--use the hook already existing
+	healthBarMetaFunctions.HookList = healthBarMetaFunctions.HookList or defaultHooksForHealthBar
+	--copy the non existing values from a new version to the already existing hook table
+	DF.table.deploy (healthBarMetaFunctions.HookList, defaultHooksForHealthBar)
+	
+--> Health Bar Meta Functions
+
+	--health bar settings
+	healthBarMetaFunctions.Settings = {
 		CanTick = false, --> if true calls the method 'OnTick' every tick, the function needs to be overloaded, it receives self and deltaTime as parameters
 		ShowHealingPrediction = true, --> when casting a healing pass, show the amount of health that spell will heal
 		ShowShields = true, --> indicator of the amount of damage absortion the unit has
@@ -6926,9 +7024,9 @@ DF.HealthFrameFunctions = {
 		--default size
 		Width = 100,
 		Height = 20,
-	},
+	}
 	
-	HealthBarEvents = {
+	healthBarMetaFunctions.HealthBarEvents = {
 		{"PLAYER_ENTERING_WORLD"},
 		--{"UNIT_HEALTH", true},
 		{"UNIT_MAXHEALTH", true},
@@ -6936,13 +7034,11 @@ DF.HealthFrameFunctions = {
 		{"UNIT_HEAL_PREDICTION", true},
 		{"UNIT_ABSORB_AMOUNT_CHANGED", true},
 		{"UNIT_HEAL_ABSORB_AMOUNT_CHANGED", true},
-	},
+	}
 	
 	--> setup the castbar to be used by another unit
-	SetUnit = function (self, unit, displayedUnit)
+	healthBarMetaFunctions.SetUnit = function (self, unit, displayedUnit)
 		if (self.unit ~= unit or self.displayedUnit ~= displayedUnit or unit == nil) then
-		
-			CalcPerformance ("call", "SetUnit")
 		
 			self.unit = unit
 			self.displayedUnit = displayedUnit or unit
@@ -6996,9 +7092,9 @@ DF.HealthFrameFunctions = {
 				self:Hide()
 			end
 		end
-	end,
+	end
 	
-	Initialize = function (self)
+	healthBarMetaFunctions.Initialize = function (self)
 		PixelUtil.SetWidth (self, self.Settings.Width, 1)
 		PixelUtil.SetHeight (self, self.Settings.Height, 1)
 		
@@ -7021,61 +7117,44 @@ DF.HealthFrameFunctions = {
 		self.shieldAbsorbGlow:Hide()
 		
 		self:SetUnit (nil)
-		
-		CalcPerformance ("call", "HealthBar-Initialize")
-	end,
+	end
 	
-	--> call every tick
-	OnTick = function (self, deltaTime) end, --if overrided, set 'CanTick' to true on the settings table
+	--call every tick
+	healthBarMetaFunctions.OnTick = function (self, deltaTime) end --if overrided, set 'CanTick' to true on the settings table
 
-	--> when an event happen for this unit, send it to the apropriate function
-	OnEvent = function (self, event, ...)
-		CalcPerformance ("unit", self.unit)
-		CalcPerformance ("event", event)
-		CalcPerformance ("call", "HealthBar-OnEvent")
-	
-		DF_CalcCpuUsage ("healthBar-OnEvent")
+	--when an event happen for this unit, send it to the apropriate function
+	healthBarMetaFunctions.OnEvent = function (self, event, ...)
 		local eventFunc = self [event]
 		if (eventFunc) then
 			--the function doesn't receive which event was, only 'self' and the parameters
 			eventFunc (self, ...)
 		end
-		DF_CalcCpuUsage ("healthBar-OnEvent")
-	end,
+	end
 
-	--colocar mais coisas aqui, um member dizendo quanto de health e o health max da unit
-	UpdateMaxHealth = function (self)
-		DF_CalcCpuUsage ("HealthBar-UpdateMaxHealth")
-			local maxHealth = UnitHealthMax (self.displayedUnit)
-			self:SetMinMaxValues (0, maxHealth)
-			self.currentHealthMax = maxHealth
-		DF_CalcCpuUsage ("HealthBar-UpdateMaxHealth")
+	--when the unit max health is changed
+	healthBarMetaFunctions.UpdateMaxHealth = function (self)
+		local maxHealth = UnitHealthMax (self.displayedUnit)
+		self:SetMinMaxValues (0, maxHealth)
+		self.currentHealthMax = maxHealth
 
-		CalcPerformance ("call", "HealthBar-UpdateMaxHealth")
-	end,
+		self:RunHooksForWidget ("OnHealthMaxChange", self, self.displayedUnit)
+	end
 
-	UpdateHealth = function (self)
-		DF_CalcCpuUsage ("HealthBar-UpdateHealth")
-			local health = UnitHealth (self.displayedUnit)
-			self.currentHealth = health
-			PixelUtil.SetStatusBarValue (self, health)
-		DF_CalcCpuUsage ("HealthBar-UpdateHealth")
-		
-		CalcPerformance ("call", "HealthBar-UpdateHealth")
-	end,
+	healthBarMetaFunctions.UpdateHealth = function (self)
+		local health = UnitHealth (self.displayedUnit)
+		self.currentHealth = health
+		PixelUtil.SetStatusBarValue (self, health)
+
+		self:RunHooksForWidget ("OnHealthChange", self, self.displayedUnit)
+	end
 	
-	--isso aqui vai ser complicado!
-	UpdateHealPrediction = function (self)
-		CalcPerformance ("call", "HealthBar-UpdateHealPrediction")
-		
-		DF_CalcCpuUsage ("HealthBar-UpdateHealPrediction")
-		
+	--health and absorbs prediction
+	healthBarMetaFunctions.UpdateHealPrediction = function (self)
 		local currentHealth = self.currentHealth
 		local currentHealthMax = self.currentHealthMax
 		local healthPercent = currentHealth / currentHealthMax
 		
 		if (not currentHealthMax or currentHealthMax <= 0) then
-			DF_CalcCpuUsage ("HealthBar-UpdateHealPrediction")
 			return
 		end
 		
@@ -7137,50 +7216,50 @@ DF.HealthFrameFunctions = {
 			self.shieldAbsorbIndicator:Hide()
 			self.shieldAbsorbGlow:Hide()
 		end
-		
-		DF_CalcCpuUsage ("HealthBar-UpdateHealPrediction")
-	end,
+	end
 
-	PLAYER_ENTERING_WORLD = function (self, ...) 
-		self:UpdateMaxHealth()
-		self:UpdateHealth()
-		self:UpdateHealPrediction()
-	end,
-	
-	--> health events
-	UNIT_HEALTH = function (self, ...) 
-		self:UpdateHealth()
-		self:UpdateHealPrediction()
-		
-		local unitName = UnitName (self.unit)
-		CalcPerformance ("call", "HealthBar-UNIT_HEALTH-" .. unitName)
-	end,
-	UNIT_HEALTH_FREQUENT = function (self, ...)
-		self:UpdateHealth()
-		self:UpdateHealPrediction()
-	end,
-	UNIT_MAXHEALTH = function (self, ...)
-		self:UpdateMaxHealth()
-		self:UpdateHealth()
-		self:UpdateHealPrediction()
-	end,
+	--> Health Events
+		healthBarMetaFunctions.PLAYER_ENTERING_WORLD = function (self, ...) 
+			self:UpdateMaxHealth()
+			self:UpdateHealth()
+			self:UpdateHealPrediction()
+		end
 
-	UNIT_HEAL_PREDICTION = function (self, ...)
-		self:UpdateMaxHealth()
-		self:UpdateHealth()
-		self:UpdateHealPrediction()
-	end,
-	UNIT_ABSORB_AMOUNT_CHANGED = function (self, ...)
-		self:UpdateMaxHealth()
-		self:UpdateHealth()
-		self:UpdateHealPrediction()
-	end,
-	UNIT_HEAL_ABSORB_AMOUNT_CHANGED = function (self, ...)
-		self:UpdateMaxHealth()
-		self:UpdateHealth()
-		self:UpdateHealPrediction()
-	end,
-}
+		healthBarMetaFunctions.UNIT_HEALTH = function (self, ...) 
+			self:UpdateHealth()
+			self:UpdateHealPrediction()
+		end
+
+		healthBarMetaFunctions.UNIT_HEALTH_FREQUENT = function (self, ...)
+			self:UpdateHealth()
+			self:UpdateHealPrediction()
+		end
+
+		healthBarMetaFunctions.UNIT_MAXHEALTH = function (self, ...)
+			self:UpdateMaxHealth()
+			self:UpdateHealth()
+			self:UpdateHealPrediction()
+		end
+
+
+		healthBarMetaFunctions.UNIT_HEAL_PREDICTION = function (self, ...)
+			self:UpdateMaxHealth()
+			self:UpdateHealth()
+			self:UpdateHealPrediction()
+		end
+
+		healthBarMetaFunctions.UNIT_ABSORB_AMOUNT_CHANGED = function (self, ...)
+			self:UpdateMaxHealth()
+			self:UpdateHealth()
+			self:UpdateHealPrediction()
+		end
+
+		healthBarMetaFunctions.UNIT_HEAL_ABSORB_AMOUNT_CHANGED = function (self, ...)
+			self:UpdateMaxHealth()
+			self:UpdateHealth()
+			self:UpdateHealPrediction()
+		end
+
 
 -- ~healthbar
 function DF:CreateHealthBar (parent, name, settingsOverride)
@@ -7212,18 +7291,18 @@ function DF:CreateHealthBar (parent, name, settingsOverride)
 		end
 
 	--> mixins
-	DF:Mixin (healthBar, DF.HealthFrameFunctions)
+	DF:Mixin (healthBar, healthBarMetaFunctions)
 	DF:Mixin (healthBar, DF.StatusBarFunctions)
 	
 	--> settings and hooks
-	local settings = DF.table.copy ({}, DF.HealthFrameFunctions.Settings)
+	local settings = DF.table.copy ({}, healthBarMetaFunctions.Settings)
 	if (settingsOverride) then
 		DF.table.copy (settings, settingsOverride)
 	end
 	healthBar.Settings = settings
-	
-	local hookList = DF.table.copy ({}, DF.HealthFrameFunctions.HookList)
-	healthBar.HookList = hookList
+
+	--> hook list
+	healthBar.HookList = DF.table.copy ({}, healthBarMetaFunctions.HookList)
 	
 	--> initialize the cast bar
 	healthBar:Initialize()
@@ -7350,13 +7429,11 @@ DF.PowerFrameFunctions = {
 
 	--> when an event happen for this unit, send it to the apropriate function
 	OnEvent = function (self, event, ...)
-		DF_CalcCpuUsage ("Powerbar-OnEvent")
 		local eventFunc = self [event]
 		if (eventFunc) then
 			--the function doesn't receive which event was, only 'self' and the parameters
 			eventFunc (self, ...)
 		end
-		DF_CalcCpuUsage ("Powerbar-OnEvent")
 	end,
 	
 	UpdatePowerBar = function (self)
@@ -7376,32 +7453,27 @@ DF.PowerFrameFunctions = {
 		end
 	end,
 	UpdatePower = function (self)
-		DF_CalcCpuUsage ("Powerbar-UpdatePower")
 		self.currentPower = UnitPower (self.displayedUnit, self.powerType)
 		PixelUtil.SetStatusBarValue (self, self.currentPower)
 		
 		if (self.Settings.ShowPercentText) then
 			self.percentText:SetText (floor (self.currentPower / self.currentPowerMax * 100) .. "%")
 		end
-		DF_CalcCpuUsage ("Powerbar-UpdatePower")
 	end,
 	
 	--> when a event different from unit_power_update is triggered, update which type of power the unit should show
 	UpdatePowerInfo = function (self)
-		DF_CalcCpuUsage ("Powerbar-UpdatePowerInfo")
 		if (self.Settings.ShowAlternatePower) then
 			local _, minPower, _, _, _, _, showOnRaid = UnitAlternatePowerInfo (self.displayedUnit)
 			if (showOnRaid and IsInGroup()) then
 				self.powerType = ALTERNATE_POWER_INDEX
 				self.minPower = minPower
-				DF_CalcCpuUsage ("Powerbar-UpdatePowerInfo")
 				return
 			end
 		end
 		
 		self.powerType = UnitPowerType (self.displayedUnit)
 		self.minPower = 0
-		DF_CalcCpuUsage ("Powerbar-UpdatePowerInfo")
 	end,
 	
 	--> tint the bar with the color of the power, e.g. blue for a mana bar
@@ -7683,7 +7755,7 @@ DF.CastFrameFunctions = {
 		--> check max value
 		if (not isFinished and not self.finished) then
 			if (self.casting) then
-				if (self.value >= self.maxValue or self.value < 0) then
+				if (self.value >= self.maxValue) then
 					isFinished = true
 				end
 				
@@ -7937,10 +8009,8 @@ DF.CastFrameFunctions = {
 	end,
 	
 	OnTick = function (self, deltaTime)
-		DF_CalcCpuUsage ("CastBar-OnTick")
 		if (self.casting) then
 			if (not self:OnTick_Casting (deltaTime)) then
-				DF_CalcCpuUsage ("CastBar-OnTick")
 				return
 			end
 
@@ -7953,7 +8023,6 @@ DF.CastFrameFunctions = {
 			
 		elseif (self.channeling) then
 			if (not self:OnTick_Channeling (deltaTime)) then
-				DF_CalcCpuUsage ("CastBar-OnTick")
 				return
 			end
 			
@@ -7964,7 +8033,6 @@ DF.CastFrameFunctions = {
 				self.lazyUpdateCooldown = self.Settings.LazyUpdateCooldown
 			end
 		end
-		DF_CalcCpuUsage ("CastBar-OnTick")
 	end,
 	
 	--> animation start script
@@ -8302,6 +8370,11 @@ DF.CastFrameFunctions = {
 		self.spellStartTime = startTime / 1000
 		self.spellEndTime = endTime / 1000
 		self.value = self.spellEndTime - GetTime()
+
+		if (self.value < 0) then 
+			self.value = 0 
+		end
+
 		self.maxValue = self.spellEndTime - self.spellStartTime
 		self:SetMinMaxValues (0, self.maxValue)
 		self:SetValue (self.value)
@@ -8644,7 +8717,6 @@ end
 		--> when an event happen for this unit, send it to the apropriate function
 		OnEvent = function (self, event, ...)
 			--> run the function for this event
-			DF_CalcCpuUsage ("unitFrame-OnEvent")
 			local eventFunc = self [event]
 			if (eventFunc) then
 				--> is this event an unit event?
@@ -8658,7 +8730,6 @@ end
 					eventFunc (self, ...)
 				end
 			end
-			DF_CalcCpuUsage ("unitFrame-OnEvent")
 		end,
 		
 		OnHide = function (self)
@@ -9277,7 +9348,7 @@ DF.TimeLineBlockFunctions = {
 				if (isAura) then
 					block.auraLength:Show()
 					block.auraLength:SetWidth (pixelPerSecond * isAura)
-					block:SetWidth (pixelPerSecond * isAura)
+					block:SetWidth (max (pixelPerSecond * isAura, 16))
 				else
 					block.auraLength:Hide()
 				end
@@ -9285,7 +9356,7 @@ DF.TimeLineBlockFunctions = {
 				block.background:SetVertexColor (0, 0, 0, 0)
 			else
 				block.background:SetVertexColor (unpack (color))
-				PixelUtil.SetSize (block, width, self:GetHeight())
+				PixelUtil.SetSize (block, max (width, 16), self:GetHeight())
 				block.auraLength:Hide()
 			end
 		end
@@ -9522,7 +9593,12 @@ function DF:CreateTimeLineFrame (parent, name, options, timelineOptions)
 		horizontalSlider:SetMinMaxValues (0, scrollWidth)
 		horizontalSlider:SetValue (0)
 		horizontalSlider:SetScript ("OnValueChanged", function (self)
-			frameCanvas:SetHorizontalScroll (self:GetValue())
+			local _, maxValue = horizontalSlider:GetMinMaxValues()
+			local stepValue = ceil (ceil(self:GetValue() * maxValue)/maxValue)
+			if (stepValue ~= horizontalSlider.currentValue) then
+				horizontalSlider.currentValue = stepValue
+				frameCanvas:SetHorizontalScroll (stepValue)
+			end
 		end)
 		
 		frameCanvas.horizontalSlider = horizontalSlider
@@ -9553,9 +9629,12 @@ function DF:CreateTimeLineFrame (parent, name, options, timelineOptions)
 		scaleSlider:SetValue (DF:GetRangeValue (frameCanvas.options.scale_min, frameCanvas.options.scale_max, 0.5))
 
 		scaleSlider:SetScript ("OnValueChanged", function (self)
-			local current = scaleSlider:GetValue()
-			frameCanvas.currentScale = current
-			frameCanvas:RefreshTimeLine()
+			local stepValue = ceil(self:GetValue() * 100)/100
+			if (stepValue ~= frameCanvas.currentScale) then
+				local current = stepValue
+				frameCanvas.currentScale = stepValue
+				frameCanvas:RefreshTimeLine()
+			end
 		end)
 
 	--create vertical slider
@@ -9735,6 +9814,38 @@ function DF:ShowErrorMessage (errorMessage, titleText)
 	DF.ErrorMessagePanel.FlashAnimation:Play()
 end
 
+--[[
+	DF:SetPointOffsets(frame, xOffset, yOffset)
 
+	Set an offset into the already existing offset of the frame
+	If passed xOffset:1 and yOffset:1 and the frame has 1 -1,  the new offset will be 2 -2
+	This function is great to create a 1 knob for distance
 
---functionn falsee truee breakk elsea endz 
+	@frame: a frame to have the offsets changed
+	@xOffset: the amount to apply into the x offset
+	@yOffset: the amount to apply into the y offset
+--]]
+function DF:SetPointOffsets(frame, xOffset, yOffset)
+	for i = 1, frame:GetNumPoints() do
+		local anchor1, anchorTo, anchor2, x, y = frame:GetPoint(i)
+		x = x or 0
+		y = y or 0
+
+		if (x >= 0) then
+			xOffset = x + xOffset
+
+		elseif (x < 0) then
+			xOffset = x - xOffset
+		end
+
+		if (y >= 0) then
+			yOffset = y + yOffset
+		
+		elseif (y < 0) then
+			yOffset = y - yOffset
+		end
+
+		frame:SetPoint(anchor1, anchorTo, anchor2, xOffset, yOffset)
+	end
+end
+

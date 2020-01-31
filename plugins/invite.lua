@@ -949,7 +949,7 @@ function Invite.DoInvitesForPreset (preset)
 	local my_name = UnitName ("player")
 	local is_showing_all = GetGuildRosterShowOffline()
 
-	local in_raid, in_group = IsInRaid (LE_PARTY_CATEGORY_HOME), IsInGroup (LE_PARTY_CATEGORY_HOME)
+	local in_raid, playerIsInGroup = IsInRaid (LE_PARTY_CATEGORY_HOME), IsInGroup (LE_PARTY_CATEGORY_HOME)
 	if (not in_raid) then
 		Invite:RegisterEvent ("GROUP_ROSTER_UPDATE")
 	end
@@ -961,7 +961,7 @@ function Invite.DoInvitesForPreset (preset)
 		for i = 1, select (is_showing_all and 1 or 2, GetNumGuildMembers()) do
 			local name, rank, rankIndex, level, classDisplayName, zone, note, officernote, isOnline = GetGuildRosterInfo (i) --, status, class, achievementPoints, achievementRank, isMobile, canSoR, repStanding
 			if (preset.ranks [rankIndex+1] and isOnline and not isMobile) then
-				if (my_name ~= name and ((in_raid and not UnitInRaid (Ambiguate (name, "none"))) or (in_group and not UnitInParty (Ambiguate (name, "none"))) or (not in_raid and not in_group))) then
+				if (my_name ~= name and ((in_raid and not UnitInRaid (Ambiguate (name, "none"))) or (playerIsInGroup and not UnitInParty (Ambiguate (name, "none"))) or (not in_raid and not playerIsInGroup))) then
 					InviteUnit (name)
 					--print ("Inviting", name)
 					invites_sent = invites_sent + 1
@@ -976,7 +976,7 @@ function Invite.DoInvitesForPreset (preset)
 		for i = 1, select (is_showing_all and 1 or 2, GetNumGuildMembers()) do
 			local name, rank, rankIndex, level, classDisplayName, zone, note, officernote, isOnline = GetGuildRosterInfo (i) --, status, class, achievementPoints, achievementRank, isMobile, canSoR, repStanding
 			if (preset.ranks [rankIndex+1] and isOnline and not isMobile) then
-				if (my_name ~= name and ((in_raid and not UnitInRaid (Ambiguate (name, "none"))) or (in_group and not UnitInParty (Ambiguate (name, "none"))) or (not in_raid and not in_group))) then
+				if (my_name ~= name and ((in_raid and not UnitInRaid (Ambiguate (name, "none"))) or (playerIsInGroup and not UnitInParty (Ambiguate (name, "none"))) or (not in_raid and not playerIsInGroup))) then
 					InviteUnit (name)
 				end
 			end

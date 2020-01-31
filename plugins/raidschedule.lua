@@ -645,7 +645,7 @@ local day_seconds = 86400
 local get_epoch_raid_time = function (attendance, current_time, today)
 	current_time = current_time or time()
 
-	-- horario de hoje onde irá iniciar a captura do attendance
+	-- horario de hoje onde irï¿½ iniciar a captura do attendance
 	local raid_start = date ("*t", current_time)
 	raid_start.hour = attendance.start_hour
 	raid_start.min = attendance.start_min
@@ -653,7 +653,7 @@ local get_epoch_raid_time = function (attendance, current_time, today)
 	local day, month = raid_start.month, raid_start.day
 	raid_start = time (raid_start)
 
-	-- horario em que a raide terminará
+	-- horario em que a raide terminarï¿½
 	local raid_end
 	if (attendance.end_day == today) then
 		raid_end = date ("*t", current_time)
@@ -680,6 +680,141 @@ local get_raid_time = function (schedule_table, day, now, diff_days)
 	end
 end
 
+--if week day is passed, it just convert from 1-7 to 0-6
+local getWeekDayIndex = function (weekDay)
+	--0-6 = Sunday-Saturday
+	local todayWeekDay = weekDay or tonumber (date ("%w")) 
+	--0 == sunsay
+	if (todayWeekDay == 0) then 
+		todayWeekDay = 7
+	end
+	return todayWeekDay
+end
+
+--get the time start and end for the next raid
+local getUnixTime = function (weekScheduleTable)
+
+	--get the 1-7 week index
+	local todayWeekIndex = getWeekDayIndex()
+
+	--store time() of start and end of the next event
+	local startTime, endTime
+
+	--check if today has an event today
+	local dayTable = weekScheduleTable [todayWeekIndex]
+	--if is enabled, there's an event today
+
+	--[[
+	if (dayTable.enabled) then
+		
+		--get a table with time information now
+		--replace the hour and minute with the start event hour and time
+		local timeTableStart = date ("*t", time())
+		timeTableStart.hour = dayTable.start_hour
+		timeTableStart.min = dayTable.start_min
+		timeTableStart.sec = 0
+		--get the time() at the start of the event
+		startTime = time (timeTableStart)
+
+		--check if the end time of the event is in the same day where it started
+		if (dayTable.end_day == todayWeekIndex) then
+			--the event starts and end on the same day
+			local timeTableEnd = date ("*t", time())
+			timeTableEnd.hour = dayTable.end_hour
+			timeTableEnd.min = dayTable.end_min
+			timeTableEnd.sec = 0
+			--get the time() at the end of the event
+			endTime = time (timeTableEnd)
+
+		else
+			--get the dayTable from the day where the event ends
+			local endDayTable = weekScheduleTable [dayTable.end_day]
+
+			--the event starts in one day and finishes in another
+			local timeTableEnd = date ("*t", time() + 86400)
+			timeTableEnd.hour = dayTable.end_hour
+			timeTableEnd.min = dayTable.end_min
+			timeTableEnd.sec = 0
+			--get the time() at the end of the event
+			endTime = time (timeTableEnd)
+		end
+		
+	else --there's no event today
+		--check if the end time of the previous day isn't today
+		--so check if the raid isn't going on
+
+		--get the dayTable from the day where the event ends
+		local previousDay = dayTable.end_day - 1
+		if (previousDay == 0) then
+			previousDay = 7
+		end
+
+		local yesterdayTable = weekScheduleTable [previousDay]
+		if (yesterdayTable.enabled) then
+
+			--here I know an event started yesterday
+			--but I don't know if the event is already done
+			--I don't know if the event finished today
+
+			--get the start of the yesterday event
+			local timeTableStart = date ("*t", time() - 86400)
+			timeTableStart.hour = dayTable.start_hour
+			timeTableStart.min = dayTable.start_min
+			timeTableStart.sec = 0
+			--get the time() at the end of the event
+			startTime = time (timeTableStart)
+
+			if (yesterdayTable.end_day == todayWeekIndex) then
+				--get the end of the yesterday event
+				local timeTableEnd = date ("*t", time() - 86400)
+				timeTableEnd.hour = dayTable.end_hour
+				timeTableEnd.min = dayTable.end_min
+				timeTableEnd.sec = 0
+				--get the time() at the end of the event
+				endTime = time (timeTableEnd)
+			end
+		end
+
+		local todayWeekDay = tonumber (date ("%w")) --0-6 = Sunday-Saturday
+		local todayWeekIndex = todayWeekDay
+		if (todayWeekIndex == 0) then --0 == sunsay
+			todayWeekIndex = 7
+		end
+
+	end
+	--]]
+
+
+	local timeNow = time()
+
+	local nextRaidStart, nextRaidEnd = -1, -1
+
+	for i = 0, 6 do --sunday to saturday
+		local todayWeekIndex = i
+		if (todayWeekIndex == 0) then --0 == sunsay
+			todayWeekIndex = 7
+		end
+
+		local dayTable = weekScheduleTable [todayWeekIndex]
+
+		if (dayTable.enabled) then
+
+			local todayTable = date ("*t", current_time)
+
+			local unixTime = time ({
+				year = tonumber (date ("%Y")),
+				month = tonumber (date ("%m")), 
+				day = tonumber (date ("%d")),
+				hour = weekScheduleTable [1].start_hour, 
+				min = weekScheduleTable [1].start_min,
+			})
+
+
+		end
+	end
+
+end 
+
 function RaidSchedule:GetNextEventTime (index)
 
 	local current_core
@@ -692,6 +827,8 @@ function RaidSchedule:GetNextEventTime (index)
 	
 	if (current_core) then
 		local schedule_table = current_core.days_table
+		local nextStart, nextEnd = getUnixTime (schedule_table)
+
 		local now = time()
 		local today_wday = tonumber (date ("%w"))
 		
