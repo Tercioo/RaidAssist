@@ -8,7 +8,6 @@ if (_G.RaidAssistLoadDeny) then
 end
 
 local plugin_frame_backdrop = {edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true}
-local plugin_title_backdrop = {edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\DialogFrame\UI-DialogBox-Background-Dark]], tileSize = 64, tile = true}
 local plugin_frame_backdrop_color = {0, 0, 0, 0.8}
 local plugin_frame_backdrop_border_color = {0, 0, 0, 1}
 
@@ -24,8 +23,8 @@ function RA:CreatePopUpFrame (plugin, frame_name)
 	return f
 end
 
-function RA:CreateStandardFrame (parent, width, heigh, frame_title, frame_name, db)
-	local f = RA:Create1PxPanel (parent or UIParent, width or 300, heigh or 150, frame_title, frame_name, db, _, false)
+function RA:CreateStandardFrame (parent, width, heigh, frameTitle, frame_name, db)
+	local f = RA:Create1PxPanel (parent or UIParent, width or 300, heigh or 150, frameTitle, frame_name, db, _, false)
 	if (not f:HasPosition()) then
 		f:SetPoint ("center", UIParent, "center")
 		f:SavePosition()
@@ -54,15 +53,15 @@ function RA:CreateStandardFrame (parent, width, heigh, frame_title, frame_name, 
 	return f
 end
 
-function RA:CreatePluginFrame (plugin, frame_name, frame_title)
+function RA:CreatePluginFrame (plugin, frameName, frameTitle)
 
-	if (not frame_name) then
-		assert (type (frame_name) == "string", "CreatePluginFrame expects a string on parameter 2.")
+	if (not frameName) then
+		assert (type (frameName) == "string", "CreatePluginFrame expects a string on parameter 2.")
 	end
 
-	plugin.db [frame_name] = plugin.db [frame_name] or {}
+	plugin.db [frameName] = plugin.db [frameName] or {}
 	
-	local f = RA:Create1PxPanel (UIParent, 100, 80, frame_title, frame_name, plugin.db [frame_name], _, false)
+	local f = RA:Create1PxPanel (UIParent, 100, 80, frameTitle, frameName, plugin.db [frameName], _, false)
 	if (not f:HasPosition()) then
 		f:SetPoint ("center", UIParent, "center")
 		f:SavePosition()
@@ -72,7 +71,7 @@ function RA:CreatePluginFrame (plugin, frame_name, frame_title)
 	f:SetBackdropColor (unpack (plugin_frame_backdrop_color))
 	f:SetBackdropBorderColor (unpack (plugin_frame_backdrop_border_color))
 	
-	local title_bar = CreateFrame ("frame", frame_name .. "TitleBar", f)
+	local title_bar = CreateFrame ("frame", frameName .. "TitleBar", f)
 	title_bar:SetPoint ("topleft", f, "topleft", 2, -3)
 	title_bar:SetPoint ("topright", f, "topright", -2, -3)
 	title_bar:SetHeight (20)
@@ -92,14 +91,14 @@ function RA:CreatePluginFrame (plugin, frame_name, frame_title)
 	return f
 end
 
-function RA:CreateCleanFrame (plugin, frame_name)
-	if (not frame_name) then
-		assert (type (frame_name) == "string", "CreateCleanFrame expects a string on parameter 2.")
+function RA:CreateCleanFrame (plugin, frameName)
+	if (not frameName) then
+		assert (type (frameName) == "string", "CreateCleanFrame expects a string on parameter 2.")
 	end
 
-	plugin.db [frame_name] = plugin.db [frame_name] or {}
+	plugin.db [frameName] = plugin.db [frameName] or {}
 	
-	local f = RA:Create1PxPanel (UIParent, 100, 80, "", frame_name, plugin.db [frame_name], _, true)
+	local f = RA:Create1PxPanel (UIParent, 100, 80, "", frameName, plugin.db [frameName], _, true)
 	if (not f:HasPosition()) then
 		f:SetPoint ("center", UIParent, "center")
 		f:SavePosition()

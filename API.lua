@@ -13,16 +13,16 @@ end
 	use: ANCHOR1, <menu_frame>, ANCHOR2, X, Y
 --]=]
 function RA:GetPopupAttachAnchors()
-	local anchor_side = RA.db.profile.addon.anchor_side
+	local anchorSide = RA.db.profile.addon.anchor_side
 	local anchor1, anchor2, x, y
 	
-	if (anchor_side == "left") then
+	if (anchorSide == "left") then
 		anchor1, anchor2, x, y = "left", "right", 4, 0
-	elseif (anchor_side == "right") then
+	elseif (anchorSide == "right") then
 		anchor1, anchor2, x, y = "right", "left", -4, 0
-	elseif (anchor_side == "top") then
+	elseif (anchorSide == "top") then
 		anchor1, anchor2, x, y = "topleft", "topright", 4, 0
-	elseif (anchor_side == "bottom") then
+	elseif (anchorSide == "bottom") then
 		anchor1, anchor2, x, y = "bottomleft", "right", 4, 0
 	end
 	
@@ -41,39 +41,39 @@ function RA:AnchorMyPopupFrame (plugin)
 end
 
 --[=[
-	RA:InstallPlugin (name, frame_name, plugin_object, default_config)
+	RA:InstallPlugin (name, frameName, pluginObject, defaultConfig)
 	name: string, name of the plugin.
-	frame_name: string, name for the plugin frames.
-	plugin_object: table, with all the plugin functions.
-	default_config: table, with key and values to store on db.
+	frameName: string, name for the plugin frames.
+	pluginObject: table, with all the plugin functions.
+	defaultConfig: table, with key and values to store on db.
 --]=]
-function RA:InstallPlugin (name, frame_name, plugin_object, default_config)
+function RA:InstallPlugin (name, frameName, pluginObject, defaultConfig)
 	assert (type (name) == "string", "InstallPlugin expects a string on parameter 1.")
-	assert (type (frame_name) == "string", "InstallPlugin expects a string on parameter 2.")
+	assert (type (frameName) == "string", "InstallPlugin expects a string on parameter 2.")
 	assert (not RA.plugins [name], "Plugin name " ..name.." already in use.")
-	assert (type (plugin_object) == "table", "InstallPlugin expects a table on parameter 3.")
+	assert (type (pluginObject) == "table", "InstallPlugin expects a table on parameter 3.")
 	
 	if (not RA.db) then
-		RA.schedule_install [#RA.schedule_install+1] = {name, frame_name, plugin_object, default_config}
+		RA.schedule_install [#RA.schedule_install+1] = {name, frameName, pluginObject, defaultConfig}
 		return "scheduled"
 	end
 	
-	RA.plugins [name] = plugin_object
-	plugin_object.db_default = default_config or {}
-	setmetatable (plugin_object, RA)
+	RA.plugins [name] = pluginObject
+	pluginObject.db_default = defaultConfig or {}
+	setmetatable (pluginObject, RA)
 
 	RA:LoadPluginDB (name, true)
 
-	if (plugin_object.db.menu_priority == nil) then
-		plugin_object.db.menu_priority = 1
+	if (pluginObject.db.menu_priority == nil) then
+		pluginObject.db.menu_priority = 1
 	end
 	
-	plugin_object.popup_frame = RA:CreatePopUpFrame (plugin_object, frame_name .. "PopupFrame")
-	plugin_object.main_frame = RA:CreatePluginFrame (plugin_object, frame_name .. "MainFrame", name)
+	pluginObject.popup_frame = RA:CreatePopUpFrame (pluginObject, frameName .. "PopupFrame")
+	pluginObject.main_frame = RA:CreatePluginFrame (pluginObject, frameName .. "MainFrame", name)
 
-	if (plugin_object.OnInstall) then
+	if (pluginObject.OnInstall) then
 		local err = geterrorhandler()
-		xpcall (plugin_object.OnInstall, err, plugin_object)
+		xpcall (pluginObject.OnInstall, err, pluginObject)
 	end
 	
 	return "successful"
@@ -146,52 +146,52 @@ end
 	prefix (string) receiving func identification.
 	channel (string) which channel the comm is sent.
 	callback (function) called after the message as fully sent.
-	callback_param (any value), param to be added within callback.
+	callbackParam (any value), param to be added within callback.
 	... all parameter to be send within the comm.
 --]=]
 
-function RA:SendPluginCommWhisperMessage (prefix, target, callback, callback_param, ...)
-	RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "WHISPER", target, nil, callback, callback_param)
+function RA:SendPluginCommWhisperMessage (prefix, target, callback, callbackParam, ...)
+	RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "WHISPER", target, nil, callback, callbackParam)
 end
 
-function RA:SendPluginCommMessage (prefix, channel, callback, callback_param, ...)
+function RA:SendPluginCommMessage (prefix, channel, callback, callbackParam, ...)
 	assert (type (prefix) == "string", "SendPluginCommMessage expects a string on parameter 1.")
 	if (callback) then
 		assert (type (callback) == "function", "SendPluginCommMessage expects a function as callback (optional).")
 	end
 	if (channel == "RAID-NOINSTANCE") then
 		if (IsInRaid (LE_PARTY_CATEGORY_HOME)) then
-			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "RAID", nil, nil, callback, callback_param)
+			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "RAID", nil, nil, callback, callbackParam)
 		end
 	elseif (channel == "RAID") then
 		if (IsInRaid (LE_PARTY_CATEGORY_INSTANCE)) then
-			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "INSTANCE_CHAT", nil, nil, callback, callback_param)
+			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "INSTANCE_CHAT", nil, nil, callback, callbackParam)
 		else
-			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "RAID", nil, nil, callback, callback_param)
+			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "RAID", nil, nil, callback, callbackParam)
 		end
 	elseif (channel == "PARTY-NOINSTANCE") then
 		if (IsInGroup (LE_PARTY_CATEGORY_HOME)) then
-			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "PARTY", nil, nil, callback, callback_param)
+			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "PARTY", nil, nil, callback, callbackParam)
 		end
 	elseif (channel == "PARTY") then
 		if (IsInGroup (LE_PARTY_CATEGORY_INSTANCE)) then
-			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "INSTANCE_CHAT", nil, nil, callback, callback_param)
+			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "INSTANCE_CHAT", nil, nil, callback, callbackParam)
 		else
-			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "PARTY", nil, nil, callback, callback_param)
+			RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "PARTY", nil, nil, callback, callbackParam)
 		end
 	else
-		RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), channel, nil, nil, callback, callback_param)
+		RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), channel, nil, nil, callback, callbackParam)
 	end
 end
 
 --[=[
-	RA:IsAddOnInstalled (addon_name)
+	RA:IsAddOnInstalled (addonName)
 	return if the user has a addon installed and if is enabled or not.
-	addon_name (string) name of an addon.
+	addonName (string) name of an addon.
 --]=]
-function RA:IsAddOnInstalled (addon_name)
-	assert (type (addon_name) == "string", "IsAddOnInstalled expects a string on parameter 1.")
-	local name, title, notes, loadable, reason, security, newVersion = GetAddOnInfo (addon_name)
+function RA:IsAddOnInstalled (addonName)
+	assert (type (addonName) == "string", "IsAddOnInstalled expects a string on parameter 1.")
+	local name, title, notes, loadable, reason, security, newVersion = GetAddOnInfo (addonName)
 	
 	-- need to check ingame what the values is returning.
 	print (name, loadable, reason)
@@ -257,14 +257,14 @@ end
 	RA:GetSloppyEquipment()
 	return two tables containing the slot id of items without enchats and gems.
 --]=]
-local can_enchant_slot = {
+local canEnchantSlot = {
 	--[INVSLOT_NECK] = true,
 	[INVSLOT_FINGER1] = true,
 	[INVSLOT_FINGER2] = true,
 	--[INVSLOT_BACK] = true,
 	[INVSLOT_MAINHAND] = true,
 }
-local stats_table = {}
+local statsTable = {}
 function RA:GetSloppyEquipment()
 
 	local no_enchant = {}
@@ -276,15 +276,15 @@ function RA:GetSloppyEquipment()
 			if (item) then
 				local _, _, enchant, gemID1, gemID2, gemID3, gemID4 = strsplit (":", item)
 				
-				if (can_enchant_slot [equip_id] and (enchant == "0" or enchant == "")) then
+				if (canEnchantSlot [equip_id] and (enchant == "0" or enchant == "")) then
 					no_enchant [#no_enchant+1] = equip_id
 				end
 				
-				stats_table.EMPTY_SOCKET_PRISMATIC = nil
-				GetItemStats (item, stats_table)
+				statsTable.EMPTY_SOCKET_PRISMATIC = nil
+				GetItemStats (item, statsTable)
 				
 				--all sockets on WoD are prismatic, we are safe to make this
-				if (stats_table.EMPTY_SOCKET_PRISMATIC) then
+				if (statsTable.EMPTY_SOCKET_PRISMATIC) then
 					--in WoD, no item has more than 1 slot
 					if (gemID1 == "0" or gemID1 == "") then
 						no_gem [#no_gem+1] = equip_id
@@ -302,33 +302,33 @@ end
 	return a table where the first index is the specialization ID and the other 7 indexes are the IDs for the chosen talents.
 --]=]
 function RA:GetTalents()
-	local spec_slot = GetActiveSpecGroup()
-	if (spec_slot) then
-		local talent_info = {}
-		local id, name, description, icon, background, role = GetSpecializationInfo (spec_slot)
-		talent_info [#talent_info+1] = id
+	local specSlot = GetActiveSpecGroup()
+	if (specSlot) then
+		local talentInfo = {}
+		local id, name, description, icon, background, role = GetSpecializationInfo (specSlot)
+		talentInfo [#talentInfo+1] = id
 		
 		for i = 1, 7 do
 			for o = 1, 3 do
-				local talentID, name, texture, selected, available = GetTalentInfo (i, o, spec_slot)
+				local talentID, name, texture, selected, available = GetTalentInfo (i, o, specSlot)
 				if (selected) then
-					talent_info [#talent_info+1] = talentID
+					talentInfo [#talentInfo+1] = talentID
 					break
 				end
 			end
 		end
 		
-		return talent_info
+		return talentInfo
 	end
 	return {}
 end
 
 --[=[
-	RA:GetGuildRanks (for_dropdown)
+	RA:GetGuildRanks (forDropdown)
 	return a table with ranks for the player guild or a formated table for use on dropdowns.
 --]=]
-function RA:GetGuildRanks (for_dropdown)
-	if (for_dropdown) then
+function RA:GetGuildRanks (forDropdown)
+	if (forDropdown) then
 		local t = {}
 		for i = 1, GuildControlGetNumRanks() do 
 			tinsert (t, {value = i, label = GuildControlGetRankName (i), onclick = empty_func})
@@ -461,10 +461,10 @@ end
 	GetEncounterName (encounter_id)
 	return the encounter name from a encounter id.
 --]=]
-function RA:GetEncounterName (encounterid)
-	for _, instance_id in ipairs (RA.LootList.InstanceIds) do
-		EJ_SelectInstance (instance_id)
-		local name, description, encounterID, rootSectionID, link = EJ_GetEncounterInfo (encounterid)
+function RA:GetEncounterName (encounterId)
+	for _, instanceId in ipairs (RA.LootList.InstanceIds) do
+		EJ_SelectInstance (instanceId)
+		local name, description, encounterID, rootSectionID, link = EJ_GetEncounterInfo (encounterId)
 		if (name) then
 			return name
 		end
