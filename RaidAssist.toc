@@ -1,4 +1,4 @@
-## Interface: 80205
+## Interface: 80300
 ## Title: Raid Assist
 ## Notes: Mods and Tools for raiding, type /raa to see.
 ## SavedVariables: IskarAssistDB, RADataBase
