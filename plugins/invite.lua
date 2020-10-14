@@ -990,7 +990,7 @@ function Invite.AutoInviteTick()
 	Invite.auto_invite_ticks = Invite.auto_invite_ticks - 1
 	
 	if (Invite.auto_invite_wave_time == 15) then
-		GuildRoster()
+		C_GuildInfo.GuildRoster()
 		
 	--elseif (Invite.auto_invite_wave_time == 5) then
 	elseif (Invite.db.invite_msg_repeats and Invite.auto_invite_wave_time == 5) then
@@ -1039,7 +1039,7 @@ function Invite:StartInvitesAuto (preset, remaining)
 		return
 	end
 	
-	GuildRoster()
+	C_GuildInfo.GuildRoster()
 	
 	if (not Invite.auto_invite_frame) then
 		Invite.auto_invite_frame = RA:CreateCleanFrame (Invite, "AutoInviteFrame")
@@ -1106,7 +1106,7 @@ function Invite:StartInvites (preset_number)
 			local invite_time = preset.keepinvites * 60
 			return Invite:StartInvitesAuto (preset, invite_time)
 		else
-			GuildRoster()
+			C_GuildInfo.GuildRoster()
 			Invite.invites_in_progress = true
 			Invite.invite_preset = preset
 			Invite:SendInviteAnnouncementMsg()
