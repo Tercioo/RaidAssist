@@ -50,7 +50,7 @@ function RA.OpenMainOptions (plugin)
 	f.AllOptionsPanels = {}
 	
 	--create the footer and attach it into the bottom of the main frame
-		local statusBar = CreateFrame ("frame", nil, f)
+		local statusBar = CreateFrame ("frame", nil, f, "BackdropTemplate")
 		statusBar:SetPoint ("bottomleft", f, "bottomleft")
 		statusBar:SetPoint ("bottomright", f, "bottomright")
 		statusBar:SetHeight (20)
@@ -176,7 +176,7 @@ function RA.OpenMainOptions (plugin)
 		for i = 1, #allPlugin do
 			local plugin = allPlugin[i]
 
-			local optionsFrame = CreateFrame ("frame", "RaidAssistOptionsPanel" .. (plugin.pluginname or math.random (1, 1000000)), f)
+			local optionsFrame = CreateFrame ("frame", "RaidAssistOptionsPanel" .. (plugin.pluginname or math.random (1, 1000000)), f, "BackdropTemplate")
 			optionsFrame:Hide()
 			optionsFrame:SetSize (1, 1)
 			optionsFrame:SetPoint ("topleft", f, "topleft", CONST_OPTIONSPANEL_STARTPOS_X, CONST_OPTIONSPANEL_STARTPOS_Y)
@@ -212,10 +212,10 @@ function RA.CreateHotkeyFrame(f)
 
 	local currentKeyBind = RA.DATABASE.OptionsKeybind
 
-	local keyBindListener = CreateFrame ("frame", "RaidAssistBindListenerFrame", f)
+	local keyBindListener = CreateFrame ("frame", "RaidAssistBindListenerFrame", f, "BackdropTemplate")
 	keyBindListener.IsListening = false
 	
-	local enter_the_key = CreateFrame ("frame", nil, keyBindListener)
+	local enter_the_key = CreateFrame ("frame", nil, keyBindListener, "BackdropTemplate")
 	enter_the_key:SetFrameStrata ("tooltip")
 	enter_the_key:SetSize (200, 60)
 	enter_the_key:SetBackdrop ({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 16, edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1})
