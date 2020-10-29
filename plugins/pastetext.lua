@@ -70,8 +70,8 @@ function PasteText.PluginCommReceived (prefix, sourcePluginVersion, sourceUnit, 
 		
 		PasteText.AddText (data.title, data.text, data.source, true)
 		
-		--check se não é 'eu mesmo'
-		--mostrar na tela se não é a mesma pessoa que enviou
+		--check se nï¿½o ï¿½ 'eu mesmo'
+		--mostrar na tela se nï¿½o ï¿½ a mesma pessoa que enviou
 		
 	end
 end
@@ -157,7 +157,7 @@ end
 -- pequeno 200 pixels +-
 -- tem uma scrollframe pra mostrar quais os textos salvos
 -- o menu tem um text e uma X para apagar
--- todo texto recebido é salvo automaticamente
+-- todo texto recebido ï¿½ salvo automaticamente
 
 -- text
 -- grande 800 pixels +-
@@ -254,7 +254,7 @@ function PasteText.BuildOptions (frame)
 		end
 		
 		local scroll_createline = function (self, index)
-			local line = CreateFrame ("button", "$parentLine" .. index, self)
+			local line = CreateFrame ("button", "$parentLine" .. index, self, "BackdropTemplate")
 			line:SetPoint ("topleft", self, "topleft", 0, -((index-1)*(scroll_line_height+1)))
 			line:SetSize (scroll_width, scroll_line_height)
 			line:SetScript ("OnEnter", line_onenter)
@@ -275,7 +275,7 @@ function PasteText.BuildOptions (frame)
 			name:SetHeight (10)
 			name:SetJustifyH ("left")
 			
-			local deleteButton = CreateFrame ("button", nil, line)
+			local deleteButton = CreateFrame ("button", nil, line, "BackdropTemplate")
 			deleteButton:SetPoint ("right", line, "right", -2, 0)
 			deleteButton:SetSize (18, 18)
 			deleteButton:SetScript ("OnClick", line_delete_OnClick)
@@ -383,7 +383,7 @@ function PasteText.BuildOptions (frame)
 			local selectedText = PasteText.LastSelected_Options
 			local data = PasteText.db.texts [selectedText]
 			
-			--chamar a função para enviar o texto
+			--chamar a funï¿½ï¿½o para enviar o texto
 			PasteText.ShareText (data)
 		end
 		
@@ -439,7 +439,7 @@ function PasteText.RemoveText (index)
 		PasteText.LastSelected_Screen = math.max (1, PasteText.LastSelected_Screen - 1)
 	end
 
-	--se o painel de opção estiver aberto, dar refresh nele
+	--se o painel de opï¿½ï¿½o estiver aberto, dar refresh nele
 	if (PasteText.OptionsPasteMenuScroll and PasteText.OptionsPasteMenuScroll:IsShown()) then
 		PasteText.OptionsPasteMenuScroll:Refresh()
 		PasteText:RefreshText()
@@ -468,7 +468,7 @@ function PasteText.AddText (title, text, source, showOnScreen)
 	
 	newText.source = source
 	
-	--verifica se o painel de opções esta aberto e da refresh
+	--verifica se o painel de opï¿½ï¿½es esta aberto e da refresh
 	if (PasteText.OptionsPasteMenuScroll and PasteText.OptionsPasteMenuScroll:IsShown()) then
 		PasteText.OptionsPasteMenuScroll:Refresh()
 		PasteText:RefreshText()
@@ -483,7 +483,7 @@ function PasteText.ShareText (data)
 
 	--PasteText.ShowOnScreen ({title = "texto paste", text = "meu texto digitado", source = "Trcioo"})
 
-	--verifica se é officer ou raid leader
+	--verifica se ï¿½ officer ou raid leader
 	if (IsInRaid()) then
 		if (not PasteText:UnitHasAssist ("player")) then
 			return PasteText:Msg ("you aren't leader or assistant.")

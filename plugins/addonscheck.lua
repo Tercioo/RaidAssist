@@ -130,7 +130,7 @@ function AddonsCheck.BuildOptions (frame)
 	AddonsCheck.fillPanel = fillPanel
 	fillPanel.WelcomeLabel = WelcomeLabel
 
-	local dummy = CreateFrame ("frame", nil, frame)
+	local dummy = CreateFrame ("frame", nil, frame, "BackdropTemplate")
 	dummy:SetScript ("OnShow", function()
 		fillPanel:Show()
 	end)
@@ -243,7 +243,7 @@ function AddonsCheck.BuildOptions (frame)
 	AddonsCheck.UpdateAddonsString()
 
 	--Management frame
-	local manage_panel = CreateFrame ("frame", nil, frame)
+	local manage_panel = CreateFrame ("frame", nil, frame, "BackdropTemplate")
 	manage_panel:SetPoint ("topleft", frame, "topleft", -10, -30)
 	manage_panel:SetSize (790, 410)
 	manage_panel:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
@@ -274,7 +274,7 @@ function AddonsCheck.BuildOptions (frame)
 	current_tracking_label:SetPoint ("topleft", manage_panel, "topleft", 10, -10)
 	
 	for i = 1, 20 do
-		local f = CreateFrame ("frame", nil, manage_panel)
+		local f = CreateFrame ("frame", nil, manage_panel, "BackdropTemplate")
 		f:SetSize (80, 17)
 		f:SetPoint ("topleft", manage_panel, "topleft", 10, i*18*-1 + (-15))
 		local addonExclude = AddonsCheck:CreateButton (f, remove_addon, 10, 17, "X", i, _, _, "button_remove" .. i, _, _, AddonsCheck:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), AddonsCheck:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
@@ -323,7 +323,7 @@ function AddonsCheck.BuildOptions (frame)
 	
 		--> check for not addin plugins of the same addon
 		if ((not addonName:lower():find (lastAddon)) and (not addonName:lower():find (lastAddon2))) then
-			local f = CreateFrame ("frame", nil, manage_panel)
+			local f = CreateFrame ("frame", nil, manage_panel, "BackdropTemplate")
 			f:SetSize (120, 17)
 			f:SetPoint ("topleft", manage_panel, "topleft", x, y)
 			
@@ -469,7 +469,7 @@ end
 
 function AddonsCheck.BuildAddonList()
 	local addonsList = AddonsCheck.LatestSyncAddonNames --tabela numerica com os nomes dos addons
-	local addonsInstalled = {} --tabela hash com os nomes dos addons e se esta instalado ou não
+	local addonsInstalled = {} --tabela hash com os nomes dos addons e se esta instalado ou nï¿½o
 	for i = 1, GetNumAddOns() do
 		local name, title, notes, loadable, reason, security, newVersion = GetAddOnInfo (i)
 		addonsInstalled [name] = loadable and RESPONSE_TYPE_HAVE or RESPONSE_TYPE_NOT_HAVE

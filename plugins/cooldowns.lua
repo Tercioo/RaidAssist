@@ -687,7 +687,7 @@ end
 function Cooldowns.GetPanelInScreen (id)
 	if (not Cooldowns.ScreenPanels [id]) then
 		--local new_screen_panel = Cooldowns:CreateCleanFrame (Cooldowns, "CooldownsScreenFrame" .. id)
-		local new_screen_panel = CreateFrame ("frame", "CooldownsScreenFrame" .. id, UIParent)
+		local new_screen_panel = CreateFrame ("frame", "CooldownsScreenFrame" .. id, UIParent, "BackdropTemplate")
 		new_screen_panel:EnableMouse (true)
 		new_screen_panel:Hide()
 		
@@ -703,7 +703,7 @@ function Cooldowns.GetPanelInScreen (id)
 		new_screen_panel.GetBar = panel_get_bar
 		new_screen_panel.CleanUp = panel_cleanup_bars
 		
-		new_screen_panel.support_frame = CreateFrame ("frame", "CooldownsScreenFrame" .. id .. "Support", new_screen_panel)
+		new_screen_panel.support_frame = CreateFrame ("frame", "CooldownsScreenFrame" .. id .. "Support", new_screen_panel, "BackdropTemplate")
 		new_screen_panel.support_frame:SetFrameLevel (new_screen_panel:GetFrameLevel()+2)
 		
 		new_screen_panel.AlertFrame = CreateFrame ("frame", "CooldownsScreenFrame" .. id .. "Alert", new_screen_panel, "ActionBarButtonSpellActivationAlert")
@@ -1277,7 +1277,7 @@ function Cooldowns.BuildOptions (frame)
 	button_delete_panel:SetIcon ([[Interface\BUTTONS\UI-StopButton]], 14, 14, "overlay", {0, 1, 0, 1}, {1, 1, 1}, 2, 1, 0)
 	
 	
-	local f = CreateFrame ("frame", "CooldownsOptionsHolder1", main_frame)
+	local f = CreateFrame ("frame", "CooldownsOptionsHolder1", main_frame, "BackdropTemplate")
 	f:SetSize (1, 1)
 	f:SetPoint ("topleft", 0, 0)
 	
@@ -1337,7 +1337,7 @@ function Cooldowns.BuildOptions (frame)
 	table.sort (texTable, function (t1, t2) return t1.label < t2.label end)
 	
 	
-	local advise_panel = CreateFrame ("frame", nil, f)
+	local advise_panel = CreateFrame ("frame", nil, f, "BackdropTemplate")
 	advise_panel:SetPoint ("topleft", f, "topleft", 120, -22)
 	advise_panel:SetSize (260, 58)
 	advise_panel:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
@@ -1584,7 +1584,7 @@ function Cooldowns.BuildOptions (frame)
 		local spellname, _, spellicon = GetSpellInfo (spellid)
 		
 		if (spellname) then
-			local background = CreateFrame ("frame", nil, main_frame)
+			local background = CreateFrame ("frame", nil, main_frame, "BackdropTemplate")
 			background:SetBackdrop (backdrop_table)
 			background:SetFrameLevel (frame_level+1)
 			background:SetBackdropColor (.1, .1, .1, 0.4)
@@ -1628,7 +1628,7 @@ function Cooldowns.BuildOptions (frame)
 	
 		local spellname, _, spellicon = GetSpellInfo (spellid)
 		if (spellname) then
-			local background = CreateFrame ("frame", nil, main_frame)
+			local background = CreateFrame ("frame", nil, main_frame, "BackdropTemplate")
 			background:SetBackdrop (backdrop_table)
 			background:SetFrameLevel (frame_level+1)
 			

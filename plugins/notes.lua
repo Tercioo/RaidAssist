@@ -129,7 +129,7 @@ Notepad.OnInstall = function (plugin)
 	screen_frame.background = background
 	
 	-- resize button
-	local resize_button = CreateFrame ("button", nil, screen_frame)
+	local resize_button = CreateFrame ("button", nil, screen_frame, "BackdropTemplate")
 	resize_button:SetPoint ("topleft", editbox_notes, "bottomleft")
 	resize_button:SetPoint ("topright", editbox_notes, "bottomright")
 	resize_button:SetHeight (16)
@@ -187,7 +187,7 @@ Notepad.OnInstall = function (plugin)
 	
 	-------
 
-	local lock = CreateFrame ("button", "NotepadScreenFrameLockButton", screen_frame)
+	local lock = CreateFrame ("button", "NotepadScreenFrameLockButton", screen_frame, "BackdropTemplate")
 	lock:SetSize (16, 16)
 	lock:SetNormalTexture (Notepad:GetFrameworkFolder() .. "icons")
 	lock:SetHighlightTexture (Notepad:GetFrameworkFolder() .. "icons")
@@ -204,7 +204,7 @@ Notepad.OnInstall = function (plugin)
 	end)
 	screen_frame.lock = lock
 	
-	local close = CreateFrame ("button", "NotepadScreenFrameCloseButton", screen_frame)
+	local close = CreateFrame ("button", "NotepadScreenFrameCloseButton", screen_frame, "BackdropTemplate")
 	close:SetSize (16, 16)
 	close:SetNormalTexture (Notepad:GetFrameworkFolder() .. "icons")
 	close:SetHighlightTexture (Notepad:GetFrameworkFolder() .. "icons")
@@ -220,7 +220,7 @@ Notepad.OnInstall = function (plugin)
 	
 	---------------
 	
-	local f_anim = CreateFrame ("frame", nil, screen_frame)
+	local f_anim = CreateFrame ("frame", nil, screen_frame, "BackdropTemplate")
 	local t = f_anim:CreateTexture (nil, "overlay")
 	t:SetColorTexture (1, 1, 1, 0.25)
 	t:SetAllPoints()
@@ -731,7 +731,7 @@ function Notepad.BuildOptions (frame)
 		Notepad:PLAYER_REGEN_DISABLED()
 	end)
 	
-	local toptions_panel = CreateFrame ("frame", "NotepadTextOptionsPanel", main_frame)
+	local toptions_panel = CreateFrame ("frame", "NotepadTextOptionsPanel", main_frame, "BackdropTemplate")
 	main_frame.toptions_panel = toptions_panel
 	toptions_panel:SetSize (446, 375)
 	--toptions_panel:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
@@ -880,7 +880,7 @@ function Notepad.BuildOptions (frame)
 
 	----------
 	
-	local frame_note_shown = CreateFrame ("frame", nil, main_frame)
+	local frame_note_shown = CreateFrame ("frame", nil, main_frame, "BackdropTemplate")
 	frame_note_shown:SetPoint ("topleft", main_frame, "topleft", 10, -138)
 	frame_note_shown:SetSize (160, 43)
 	frame_note_shown:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
@@ -1069,7 +1069,7 @@ function Notepad.BuildOptions (frame)
 --> text format
 
 	--color
-	local colors_panel = CreateFrame ("frame", nil, editbox_notes)
+	local colors_panel = CreateFrame ("frame", nil, editbox_notes, "BackdropTemplate")
 	
 	
 	local get_color_hash = function (t)

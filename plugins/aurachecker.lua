@@ -221,7 +221,7 @@ function AuraCheck.BuildOptions (frame)
 	
 	--auras frame
 	
-		local aurasFrame = CreateFrame ("frame", "AuraCheckerAurasFrame", frame)
+		local aurasFrame = CreateFrame ("frame", "AuraCheckerAurasFrame", frame, "BackdropTemplate")
 		aurasFrame:SetPoint (unpack (framesPoint))
 		aurasFrame:SetSize (unpack (framesSize))
 		
@@ -291,7 +291,7 @@ function AuraCheck.BuildOptions (frame)
 			self:Show()
 		end
 		
-		local auraScroll = CreateFrame ("scrollframe", "AuraCheckerAurasFrameAuraScroll", frame, "FauxScrollFrameTemplate")
+		local auraScroll = CreateFrame ("scrollframe", "AuraCheckerAurasFrameAuraScroll", frame, "FauxScrollFrameTemplate, BackdropTemplate")
 		auraScroll:SetPoint ("topleft", aurasFrame, "topleft", 795, -5)
 		auraScroll:SetSize (180, CONST_AURALIST_ROWS*21 - 5)
 		auraScroll.CurrentAuraSelected = "-none-"
@@ -338,7 +338,7 @@ function AuraCheck.BuildOptions (frame)
 		
 		--> aura selection
 		for i = 1, CONST_AURALIST_ROWS do
-			local f = CreateFrame ("frame", "AuraCheckerAurasFrameAuraScroll_Button" .. i, auraScroll)
+			local f = CreateFrame ("frame", "AuraCheckerAurasFrameAuraScroll_Button" .. i, auraScroll, "BackdropTemplate")
 			f:SetPoint ("topleft", auraScroll, "topleft", 2, -(i-1)*21)
 			f:SetScript ("OnMouseUp", on_mousedown)
 			f:SetScript ("OnEnter", aura_on_enter)
@@ -593,7 +593,7 @@ function AuraCheck.BuildOptions (frame)
 		end)
 
 	--history frame
-		local historyFrame = CreateFrame ("frame", "AuraCheckerHistoryFrame", frame)
+		local historyFrame = CreateFrame ("frame", "AuraCheckerHistoryFrame", frame, "BackdropTemplate")
 		historyFrame:SetPoint (unpack (framesPoint))
 		historyFrame:SetSize (unpack (framesSize))
 	
@@ -651,7 +651,7 @@ function AuraCheck.BuildOptions (frame)
 			end
 		end
 		
-		local historyScroll = CreateFrame ("scrollframe", "AuraCheckerHistoryFrameHistoryScroll", historyFrame, "FauxScrollFrameTemplate")
+		local historyScroll = CreateFrame ("scrollframe", "AuraCheckerHistoryFrameHistoryScroll", historyFrame, "FauxScrollFrameTemplate, BackdropTemplate")
 		historyScroll:SetPoint ("topleft", historyFrame, "topleft", 0, 0)
 		historyScroll:SetSize (767, 503)
 		DetailsFramework:ReskinSlider (historyScroll)
@@ -671,7 +671,7 @@ function AuraCheck.BuildOptions (frame)
 		historyScroll.Frames = {}
 
 		for i = 1, CONST_RESULTAURALIST_ROWS do
-			local f = CreateFrame ("frame", "AuraCheckerHistoryFrameHistoryScroll_Button" .. i, historyScroll)
+			local f = CreateFrame ("frame", "AuraCheckerHistoryFrameHistoryScroll_Button" .. i, historyScroll, "BackdropTemplate")
 			f:SetPoint ("topleft", historyScroll, "topleft", 2, -(i-1)*19)
 			f:SetSize (571, 18)
 			f:SetBackdrop (backdrop)
@@ -848,7 +848,7 @@ function AuraCheck.CreateFlash (frame, duration, amount, r, g, b)
 	end
 
 	--create the flash frame
-	local f = CreateFrame ("frame", "RaidAssistAuraCheckFlashAnimationFrame".. math.random (1, 100000000), frame)
+	local f = CreateFrame ("frame", "RaidAssistAuraCheckFlashAnimationFrame".. math.random (1, 100000000), frame, "BackdropTemplate")
 	f:SetFrameLevel (frame:GetFrameLevel()+1)
 	f:SetAllPoints()
 	f:Hide()

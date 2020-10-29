@@ -265,7 +265,7 @@ function LeaderToolbar.CreateScreenPanel()
 		button.MyIcon = icon
 		LeaderToolbar.MarkersButtons [i] = button
 		
-		local raid_marker_button = CreateFrame ("button", "LeaderToolbarRaidGroundIcon" .. i, ScreenPanel, "SecureActionButtonTemplate")
+		local raid_marker_button = CreateFrame ("button", "LeaderToolbarRaidGroundIcon" .. i, ScreenPanel, "SecureActionButtonTemplate, BackdropTemplate")
 		raid_marker_button:SetAttribute ("type1", "macro")
 		raid_marker_button:SetAttribute ("type2", "macro")
 		raid_marker_button:SetSize (20, 20)
@@ -317,7 +317,7 @@ function LeaderToolbar.CreateScreenPanel()
 
 	local status_button = LeaderToolbar:CreateButton (ScreenPanel, open_raidstatus, 50, 20, "Status", _, _, _, "status_button", _, "none", button_template)
 	status_button:SetPoint ("left", reset_button, "right", 2, 0)
-	local status_frame = CreateFrame ("frame", nil, UIParent)
+	local status_frame = CreateFrame ("frame", nil, UIParent, "BackdropTemplate")
 	status_frame:SetSize (790, 460)
 	status_frame:SetFrameStrata ("TOOLTIP")
 	status_frame:SetClampedToScreen (true)

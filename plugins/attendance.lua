@@ -151,7 +151,7 @@ function Attendance.BuildOptions (frame)
 	local fill_panel = Attendance:CreateFillPanel (frame, {}, 790, 400, false, false, false, {rowheight = 16}, "fill_panel", "AttendanceFillPanel")
 	fill_panel:SetPoint ("topleft", frame, "topleft", 10, -30)
 	
-	local advise_panel = CreateFrame ("frame", nil, frame)
+	local advise_panel = CreateFrame ("frame", nil, frame, "BackdropTemplate")
 	advise_panel:SetPoint ("center", frame, "center", 790/2, -400/2)
 	advise_panel:SetSize (460, 68)
 	advise_panel:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
@@ -426,7 +426,7 @@ function Attendance:StartNewCapture (start_time, end_time, now, day, month_numbe
 	Attendance.player_table = ctable
 	Attendance.guild_name = GetGuildInfo ("player")
 	
-	local ticks = floor ((end_time - time()) / 60) -- usava 'start_time' ao invés de time(), mas se der /reload ou entrar na já em andamento vai zuar o tempo total da captura.
+	local ticks = floor ((end_time - time()) / 60) -- usava 'start_time' ao invï¿½s de time(), mas se der /reload ou entrar na jï¿½ em andamento vai zuar o tempo total da captura.
 	
 	Attendance:StartCapture (ticks)
 	
@@ -478,18 +478,18 @@ function Attendance:StartCapture (ticks)
 end
 
 
--- ao receber NEW verifica se quem mandou é guild master, somente GM pode criar novas tabelas.
+-- ao receber NEW verifica se quem mandou ï¿½ guild master, somente GM pode criar novas tabelas.
 -- NEW todos criam as tabelas.
 
--- ao receber EDIT verifica se quem mandou é officer do attendance ou guild master.
+-- ao receber EDIT verifica se quem mandou ï¿½ officer do attendance ou guild master.
 -- GM pode editar todas as tabelas, officer apenas as deles.
 
--- ao receber DELETE verifica se quem mandou é officer/gm ou se a guilda que o player esta é difirente da tabela.
+-- ao receber DELETE verifica se quem mandou ï¿½ officer/gm ou se a guilda que o player esta ï¿½ difirente da tabela.
 
 -- SHAREAR INDEXES
 
--- somente officer mandam informações
--- officers somente recebem informações de outro officer para sincronizar as tabelas
+-- somente officer mandam informaï¿½ï¿½es
+-- officers somente recebem informaï¿½ï¿½es de outro officer para sincronizar as tabelas
 
 -- officer manda o index do dia e espera alguem pedir
 -- e vai mandando e shariando com todos na raide

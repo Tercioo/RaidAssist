@@ -168,12 +168,12 @@ function AuraBank.BuildOptions (frame)
 	end
 	
 	--auras frame
-		local aurasFrame = CreateFrame ("frame", "AuraBankerAurasFrame", frame)
+		local aurasFrame = CreateFrame ("frame", "AuraBankerAurasFrame", frame, "BackdropTemplate")
 		aurasFrame:SetPoint (unpack (framesPoint))
 		aurasFrame:SetSize (unpack (framesSize))
 	
 	--history frame
-		local historyFrame = CreateFrame ("frame", "AuraBankerHistoryFrame", frame)
+		local historyFrame = CreateFrame ("frame", "AuraBankerHistoryFrame", frame, "BackdropTemplate")
 		historyFrame:SetPoint (unpack (framesPoint))
 		historyFrame:SetSize (unpack (framesSize))
 	

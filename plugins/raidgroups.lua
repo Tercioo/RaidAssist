@@ -253,7 +253,7 @@ function RaidGroups.BuildOptions (frame)
 	
 	frame:SetScript ("OnShow", OnShowPanel)
 	
-	local help_frame = CreateFrame ("frame", nil, frame)
+	local help_frame = CreateFrame ("frame", nil, frame, "BackdropTemplate")
 	help_frame:SetSize (320, 100)
 	help_frame:SetBackdrop ({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 16, edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1})
 	help_frame:SetBackdropColor (0, 0, 0, .3)
@@ -284,7 +284,7 @@ function RaidGroups.BuildOptions (frame)
 			-- SetRaidSubgroup	raid index do GetNumGroupMembers()
 			-- SwapRaidSubgroup	mesma coisa, usa o index do GetNumGroupMembers()
 			
-			if (RaidGroups.TargetSlot.RosterIndex) then -- o slot esta ocupado? é um switch
+			if (RaidGroups.TargetSlot.RosterIndex) then -- o slot esta ocupado? ï¿½ um switch
 				
 				--> get raid indexes, goes from 1 .. 40
 				local self_rosterIndex = self.RosterIndex
@@ -315,7 +315,7 @@ function RaidGroups.BuildOptions (frame)
 					end
 				end
 				
-			else -- o slot não esta ocupado, adicionar o jogador ao grupo
+			else -- o slot nï¿½o esta ocupado, adicionar o jogador ao grupo
 				
 				--> get raid indexes, goes from 1 .. 40
 				local self_rosterIndex = self.RosterIndex
@@ -408,7 +408,7 @@ function RaidGroups.BuildOptions (frame)
 		elseif (RaidGroups.TargetGroup) then
 			--> the mouse is between slots, so try to move the player to the hovering over group
 			
-			-- pegar qual é o grupo
+			-- pegar qual ï¿½ o grupo
 			local group = RaidGroups.TargetGroup.Group
 			
 			-- o grupo esta cheio?
@@ -457,7 +457,7 @@ function RaidGroups.BuildOptions (frame)
 
 	for i = 1, 8 do
 	
-		local panel = CreateFrame ("frame", "RaidAssistRaidGroups_Group" .. i, frame)
+		local panel = CreateFrame ("frame", "RaidAssistRaidGroups_Group" .. i, frame, "BackdropTemplate")
 		panel:SetPoint ("topleft", frame, "topleft", x, y)
 		panel:SetSize (group_sizeX, group_sizeY)
 		panel:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
@@ -475,7 +475,7 @@ function RaidGroups.BuildOptions (frame)
 		tinsert (RaidGroups.RaidGroups, panel)
 		
 		for o = 1, 5 do
-			local slot = CreateFrame ("frame", "RaidAssistRaidGroups_Group" .. i .. "Slot" .. o, panel)
+			local slot = CreateFrame ("frame", "RaidAssistRaidGroups_Group" .. i .. "Slot" .. o, panel, "BackdropTemplate")
 			slot:SetMovable (true)
 			slot:SetSize (group_sizeX-2, slot_height)
 			slot:RegisterForDrag ("LeftButton")
@@ -559,7 +559,7 @@ function RaidGroups.BuildOptions (frame)
 	end
 	
 	--> lock frame while syncing
-	local lock_frame = CreateFrame ("frame", nil, frame)
+	local lock_frame = CreateFrame ("frame", nil, frame, "BackdropTemplate")
 	lock_frame:SetFrameStrata ("TOOLTIP")
 	lock_frame:SetPoint ("topleft", RaidGroups.RaidGroups[1], "topleft", 0, 0)
 	lock_frame:SetPoint ("bottomright", RaidGroups.RaidGroups[8], "bottomright", 0, 0)
@@ -571,7 +571,7 @@ function RaidGroups.BuildOptions (frame)
 	RaidGroups.lock_frame = lock_frame
 	--
 	
-	local apply_frame = CreateFrame ("frame", nil, UIParent)
+	local apply_frame = CreateFrame ("frame", nil, UIParent, "BackdropTemplate")
 	
 	RaidGroups.CanGoNext = true
 
@@ -605,10 +605,10 @@ function RaidGroups.BuildOptions (frame)
 				--print (index, playerVirtual [ROSTER_PLAYERNAME], playerVirtual [ROSTER_RAIDGROUP], subgroup, name)
 				
 				if (raidIndex) then
-					--> algo saiu errado, o grupo não foi atualizado?
+					--> algo saiu errado, o grupo nï¿½o foi atualizado?
 					--RaidGroups.Sync()
 					--apply_frame:SetScript ("OnUpdate", nil)
-					--print ("Algo saiu errado, o grupo não era o mesmo...")
+					--print ("Algo saiu errado, o grupo nï¿½o era o mesmo...")
 					--return
 
 					--> if the player is on a different group on the virtual roster, we need to move he on the original roster

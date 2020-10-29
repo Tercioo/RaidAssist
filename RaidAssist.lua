@@ -153,7 +153,7 @@ function RA.OnInit (self)
 		RA:InstallPlugin (name, frameName, pluginObject, defaultConfig)
 	end
 
-	RA.mainAnchor = CreateFrame ("frame", "RaidAssistUIAnchor", UIParent)
+	RA.mainAnchor = CreateFrame ("frame", "RaidAssistUIAnchor", UIParent, "BackdropTemplate")
 
 	RA.mainAnchor:SetScript ("OnMouseDown", function (self, button)
 		if (button == "LeftButton") then
@@ -303,7 +303,7 @@ function RA.OnInit (self)
 				onenterbordercolor = {1, .9, 1, 1},
 			}
 			
-			local f = CreateFrame ("frame", nil, UIParent)
+			local f = CreateFrame ("frame", nil, UIParent, "BackdropTemplate")
 			f:SetSize (600, 430)
 			f:SetBackdrop ({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 16, edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1})
 			f:SetBackdropColor (0, 0, 0)

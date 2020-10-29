@@ -12,7 +12,7 @@ local plugin_frame_backdrop_color = {0, 0, 0, 0.8}
 local plugin_frame_backdrop_border_color = {0, 0, 0, 1}
 
 function RA:CreatePopUpFrame (plugin, frame_name)
-	local f = CreateFrame ("frame", frame_name, UIParent)
+	local f = CreateFrame ("frame", frame_name, UIParent, "BackdropTemplate")
 	f:SetSize (100, 80)
 	
 	f:SetBackdrop (plugin_frame_backdrop)
@@ -34,7 +34,7 @@ function RA:CreateStandardFrame (parent, width, heigh, frameTitle, frame_name, d
 	f:SetBackdropColor (unpack (plugin_frame_backdrop_color))
 	f:SetBackdropBorderColor (unpack (plugin_frame_backdrop_border_color))
 	
-	local title_bar = CreateFrame ("frame", frame_name .. "TitleBar", f)
+	local title_bar = CreateFrame ("frame", frame_name .. "TitleBar", f, "BackdropTemplate")
 	title_bar:SetPoint ("topleft", f, "topleft", 2, -3)
 	title_bar:SetPoint ("topright", f, "topright", -2, -3)
 	title_bar:SetHeight (20)
@@ -71,7 +71,7 @@ function RA:CreatePluginFrame (plugin, frameName, frameTitle)
 	f:SetBackdropColor (unpack (plugin_frame_backdrop_color))
 	f:SetBackdropBorderColor (unpack (plugin_frame_backdrop_border_color))
 	
-	local title_bar = CreateFrame ("frame", frameName .. "TitleBar", f)
+	local title_bar = CreateFrame ("frame", frameName .. "TitleBar", f, "BackdropTemplate")
 	title_bar:SetPoint ("topleft", f, "topleft", 2, -3)
 	title_bar:SetPoint ("topright", f, "topright", -2, -3)
 	title_bar:SetHeight (20)
