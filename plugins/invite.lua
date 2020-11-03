@@ -153,11 +153,15 @@ function Invite:CHAT_MSG_WHISPER (event, message, sender, language, channelStrin
 end
 
 function Invite:CHAT_MSG_BN_WHISPER (event, message, sender, unknown, unknown, unknown, unknown, unknown, unknown, unknown, unknown, counter, unknown, presenceID, unknown)
-	local bnet_friends_amt = BNGetNumFriends()
-	for i = 1, bnet_friends_amt do 
-		local presenceID, presenceName, battleTag, isBattleTagPresence, toonName, toonID, client, isOnline, lastOnline, isAFK, isDND, messageText, noteText, isRIDFriend, broadcastTime, canSoR = BNGetFriendInfo (i)
-		if (presenceName == sender) then
-			return handle_inv_whisper (message, toonName)
+	local _, bnet_friends_amt = BNGetNumFriends()
+	for i = 1, bnet_friends_amt do
+
+		local accountInfo = C_BattleNet.GetFriendAccountInfo(i)
+		if (accountInfo and accountInfo.gameAccountInfo and accountInfo.gameAccountInfo.isOnline and accountInfo.gameAccountInfo.characterName) then
+			if (accountInfo.gameAccountInfo.characterName == sender) then
+				--print("invite", sender, accountInfo.gameAccountInfo.characterName)
+				return handle_inv_whisper (message, sender)
+			end
 		end
 	end
 	return handle_inv_whisper (message, sender)
