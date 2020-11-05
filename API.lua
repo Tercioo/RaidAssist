@@ -364,10 +364,10 @@ end
 
 function RA:IsBnetFriend (who)
 	who = RA:RemoveRealName (who)
-	local bnet_friends_amt = BNGetNumFriends()
-	for i = 1, bnet_friends_amt do 
-		local presenceID, presenceName, battleTag, isBattleTagPresence, toonName, toonID, client, isOnline, lastOnline, isAFK, isDND, messageText, noteText, isRIDFriend, broadcastTime, canSoR = BNGetFriendInfo (i)
-		if (isOnline and client == BNET_CLIENT_WOW and who == toonName) then
+	local _, bnet_friends_amt = BNGetNumFriends()
+	for i = 1, bnet_friends_amt do
+		local accountInfo = C_BattleNet.GetFriendAccountInfo(i);
+		if (accountInfo and accountInfo.gameAccountInfo and accountInfo.gameAccountInfo.isOnline and accountInfo.gameAccountInfo.characterName == who) then
 			return true
 		end
 	end
