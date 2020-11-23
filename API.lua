@@ -60,6 +60,7 @@ function RA:InstallPlugin (name, frameName, pluginObject, defaultConfig)
 	
 	RA.plugins [name] = pluginObject
 	pluginObject.db_default = defaultConfig or {}
+	pluginObject._eventsCallback = {}
 	setmetatable (pluginObject, RA)
 
 	RA:LoadPluginDB (name, true)
@@ -67,7 +68,7 @@ function RA:InstallPlugin (name, frameName, pluginObject, defaultConfig)
 	if (pluginObject.db.menu_priority == nil) then
 		pluginObject.db.menu_priority = 1
 	end
-	
+
 	pluginObject.popup_frame = RA:CreatePopUpFrame (pluginObject, frameName .. "PopupFrame")
 	pluginObject.main_frame = RA:CreatePluginFrame (pluginObject, frameName .. "MainFrame", name)
 
@@ -75,7 +76,25 @@ function RA:InstallPlugin (name, frameName, pluginObject, defaultConfig)
 		local err = geterrorhandler()
 		xpcall (pluginObject.OnInstall, err, pluginObject)
 	end
-	
+
+	local eventFrame = CreateFrame("frame")
+	pluginObject._eventFrame = eventFrame
+	eventFrame:RegisterEvent("PLAYER_LOGIN")
+	eventFrame:SetScript("OnEvent", function(self, event)
+		if (event == "PLAYER_LOGIN") then
+			if (pluginObject.PLAYER_LOGIN) then
+				local err = geterrorhandler()
+				xpcall (pluginObject.PLAYER_LOGIN, err, pluginObject, event)
+			end
+		else
+			local callback = pluginObject._eventsCallback[event]
+			if (callback) then
+				local err = geterrorhandler()
+				xpcall(callback, err, pluginObject, event)
+			end
+		end
+	end)
+
 	return "successful"
 end
 
@@ -151,7 +170,7 @@ end
 --]=]
 
 function RA:SendPluginCommWhisperMessage (prefix, target, callback, callbackParam, ...)
-	RA:SendCommMessage (RA.commPrefix, RA:Serialize (prefix, self.version or "", ...), "WHISPER", target, nil, callback, callbackParam)
+	RA:SendCommMessage (RA.commPrefix, RA:Serialize(prefix, self.version or "", ...), "WHISPER", target, nil, callback, callbackParam)
 end
 
 function RA:SendPluginCommMessage (prefix, channel, callback, callbackParam, ...)

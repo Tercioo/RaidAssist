@@ -1,5 +1,3 @@
--- InviteUnit/AcceptGroup
-
 
 local RA = RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
@@ -126,7 +124,7 @@ local handle_inv_text = function (message, from)
 					end
 				end
 			end
-			InviteUnit (from)
+			C_PartyInfo.InviteUnit(from)
 		end
 	end
 end
@@ -139,7 +137,7 @@ local handle_inv_whisper = function (message, from)
 		if (Invite:IsInQueue()) then
 			return
 		elseif (Invite.db.auto_invite_limited) then
-			if (Invite:IsBnetFriend (from) or Invite:IsFriend (from) or Invite:IsGuildFriend (from)) then
+			if (Invite:IsBnetFriend(from) or Invite:IsFriend(from) or Invite:IsGuildFriend (from)) then
 				handle_inv_text (message, from)
 			end
 		else
@@ -164,7 +162,7 @@ function Invite:CHAT_MSG_BN_WHISPER (event, message, sender, unknown, unknown, u
 			end
 		end
 	end
-	return handle_inv_whisper (message, sender)
+	return handle_inv_whisper(message, sender)
 end
 
 
@@ -966,7 +964,7 @@ function Invite.DoInvitesForPreset (preset)
 			local name, rank, rankIndex, level, classDisplayName, zone, note, officernote, isOnline = GetGuildRosterInfo (i) --, status, class, achievementPoints, achievementRank, isMobile, canSoR, repStanding
 			if (preset.ranks [rankIndex+1] and isOnline and not isMobile) then
 				if (my_name ~= name and ((in_raid and not UnitInRaid (Ambiguate (name, "none"))) or (playerIsInGroup and not UnitInParty (Ambiguate (name, "none"))) or (not in_raid and not playerIsInGroup))) then
-					InviteUnit (name)
+					C_PartyInfo.InviteUnit(name)
 					--print ("Inviting", name)
 					invites_sent = invites_sent + 1
 					if (invites_sent >= 4) then
@@ -981,7 +979,7 @@ function Invite.DoInvitesForPreset (preset)
 			local name, rank, rankIndex, level, classDisplayName, zone, note, officernote, isOnline = GetGuildRosterInfo (i) --, status, class, achievementPoints, achievementRank, isMobile, canSoR, repStanding
 			if (preset.ranks [rankIndex+1] and isOnline and not isMobile) then
 				if (my_name ~= name and ((in_raid and not UnitInRaid (Ambiguate (name, "none"))) or (playerIsInGroup and not UnitInParty (Ambiguate (name, "none"))) or (not in_raid and not playerIsInGroup))) then
-					InviteUnit (name)
+					C_PartyInfo.InviteUnit(name)
 				end
 			end
 		end	

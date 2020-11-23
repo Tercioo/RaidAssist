@@ -1,4 +1,4 @@
-## Interface: 90001
+## Interface: 90002
 ## Title: Raid Assist
 ## Notes: Mods and Tools for raiding, type /raa to see.
 ## SavedVariables: IskarAssistDB, RADataBase

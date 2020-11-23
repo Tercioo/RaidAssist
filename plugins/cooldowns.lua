@@ -44,24 +44,18 @@ local default_config = {
 }
 
 --> check for new cooldowns
-for spellId, _ in pairs (DetailsFramework.CooldownsExternals) do
-	if (default_config.cooldowns_enabled [spellId] == nil) then
-		default_config.cooldowns_enabled [spellId] = true
-		local name = GetSpellInfo (spellId)
-	end
-end
-
-for spellId, _ in pairs (DetailsFramework.CooldownsRaid) do
-	if (default_config.cooldowns_enabled [spellId] == nil) then
-		default_config.cooldowns_enabled [spellId] = true
-		local name = GetSpellInfo (spellId)
+for spellId, cooldownTable in pairs(LIB_RAID_STATUS_COOLDOWNS_INFO) do
+	if (default_config.cooldowns_enabled[spellId] == nil) then
+		if (cooldownTable.type == 3 or cooldownTable.type == 4) then
+			default_config.cooldowns_enabled[spellId] = true
+		end
 	end
 end
 
 local icon_texcoord = {l=0, r=32/512, t=0, b=1}
 local text_color_enabled = {r=1, g=1, b=1, a=1}
 local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
-local icon_texture = "Interface\\AddOns\\" .. RA.InstallDir .. "\\media\\plugin_icons"
+local icon_texture = "Interface\\AddOns\\RaidAssist\\media\\plugin_icons"
 
 if (_G ["RaidAssistCooldowns"]) then
 	return
@@ -82,7 +76,6 @@ Cooldowns.UnitLastCast = {}
 
 --> when the plugin finishes load and are ready to use
 Cooldowns.OnInstall = function (plugin)
-
 	Cooldowns.db.menu_priority = default_priority
 
 	Cooldowns:RegisterForEnterRaidGroup (Cooldowns.OnEnterRaidGroup)
@@ -114,38 +107,31 @@ end
 
 local TrackingSpells = {}
 
-local get_unit_name = function (unitid)
-	local name = GetUnitName (unitid, true)
+local getUnitName = function (unitid)
+	local name = GetUnitName(unitid, true)
 	if (name) then
-		return Ambiguate (name, "none")
+		return Ambiguate(name, "none")
 	else
 		return ""
 	end
 end
 
---[=[
-	/dump GetTalentInfo ( 4, 3, 1, true, "player" ) --paladin clemency
-	/dump GetTalentInfo ( 4, 3, 1, false, "player" )
-	--/run for i=1, GetNumGroupMembers() do print ("raid"..i .."  ".. UnitName("raid"..i)) end	
---]=]
-
 --> build the spell list from the framework
-local spell_list = {}
+local spellList = {}
 
-for specID, cooldowns in pairs (DetailsFramework.CooldownsBySpec) do
-	local class = DetailsFramework.SpecIds [specID]
-	
-	for spellID, cooldownType in pairs (cooldowns) do
+for specId, cooldowns in pairs (LIB_RAID_STATUS_COOLDOWNS_BY_SPEC) do
+	for spellId, cooldownType in pairs(cooldowns) do
 		if (cooldownType == 3 or cooldownType == 4) then
-			local cooldownInfo = DetailsFramework.CooldownsInfo [spellID]
+
+			local cooldownInfo = LIB_RAID_STATUS_COOLDOWNS_INFO[spellId]
 			if (cooldownInfo) then
-				local classTable = spell_list [cooldownInfo.class] or {}
-				spell_list [cooldownInfo.class] = classTable
+				local classTable = spellList[cooldownInfo.class] or {}
+				spellList[cooldownInfo.class] = classTable
 				
-				local specTable = classTable [specID] or {}
-				classTable [specID] = specTable
+				local specTable = classTable[specId] or {}
+				classTable [specId] = specTable
 			
-				specTable [spellID] = {
+				specTable[spellId] = {
 					cooldown = cooldownInfo.cooldown,
 					need_talent = cooldownInfo.talent,
 					type = cooldownType,
@@ -157,7 +143,7 @@ for specID, cooldowns in pairs (DetailsFramework.CooldownsBySpec) do
 	end
 end
 
-Cooldowns.spell_list = spell_list
+Cooldowns.spellList = spellList
 
 Cooldowns.menu_text = function (plugin)
 	if (Cooldowns.db.enabled) then
@@ -208,23 +194,23 @@ function Cooldowns.CheckForShowPanels (event)
 	local show = false
 
 	if (not Cooldowns.OptionsFrame or not Cooldowns.OptionsFrame:IsShown() or not Cooldowns.OptionsFrame:GetParent():IsShown()) then
-	
+
 		local isInInstance = GetInstanceInfo()
 		if (Cooldowns.db.only_inside_instances and (Cooldowns.in_instance or isInInstance)) then
 			if (debugMode) then print ("show because", 1) end
 			show = true
 		end
-		
+
 		if (Cooldowns.db.only_in_raid_group and IsInRaid()) then
 			if (debugMode) then print ("show because", 2) end
 			show = true
 		end
-		
+
 		if (Cooldowns.db.only_in_group and IsInGroup()) then
 			if (debugMode) then print ("show because", 3) end
 			show = true
 		end
-		
+
 		if (Cooldowns.db.only_in_combat and (Cooldowns.in_combat or InCombatLockdown() or UnitAffectingCombat ("player"))) then
 			if (debugMode) then print ("show because", 4) end
 			show = true
@@ -234,7 +220,7 @@ function Cooldowns.CheckForShowPanels (event)
 			if (debugMode) then print ("show because", 5) end
 			show = true
 		end
-	
+
 	else
 		if (debugMode) then print ("show because", "forcing to show") end
 		show = true
@@ -313,7 +299,7 @@ function Cooldowns.CheckValues (panel)
 	Cooldowns.table.deploy (panel, panel_prototype)
 end
 
-local in_the_group = {}
+local unitsInTheGroup = {}
 
 function Cooldowns:LibGroupInSpecT_UpdateReceived()
 	Cooldowns.RosterUpdate()
@@ -326,9 +312,9 @@ function Cooldowns.ResetRoster()
 		Cooldowns.Roster [i] = {}
 	end
 	--cancel all schedules
-	for player_id, schedule in pairs (Cooldowns.CooldownSchedules) do
+	for playerId, schedule in pairs (Cooldowns.CooldownSchedules) do
 		Cooldowns:CancelTimer (schedule)
-		Cooldowns.CooldownSchedules [player_id] = nil
+		Cooldowns.CooldownSchedules [playerId] = nil
 	end
 	--cancel bar timers
 	for id, panel in pairs (Cooldowns.ScreenPanels) do
@@ -342,15 +328,15 @@ end
 
 function Cooldowns.CheckForRosterReset (event)
 	if (event == "ZONE_CHANGED") then
-		local _, instance_type = GetInstanceInfo()
-		if (instance_type ~= Cooldowns.InstanceType) then
-			if (instance_type == "pvp" or instance_type == "arena") then
+		local _, instanceType = GetInstanceInfo()
+		if (instanceType ~= Cooldowns.InstanceType) then
+			if (instanceType == "pvp" or instanceType == "arena") then
 				--> player entered into an battleground or arena
 				--print ("===> Reseting the Roster", event)
 				Cooldowns.RosterUpdate (true)
 			end
 		end
-		Cooldowns.InstanceType = instance_type
+		Cooldowns.InstanceType = instanceType
 		
 	elseif (event == "ENCOUNTER_END" or event == "PANEL_OPTIONS_UPDATE") then
 		--print ("===> Reseting the Roster", event)
@@ -358,126 +344,131 @@ function Cooldowns.CheckForRosterReset (event)
 	end
 end
 
-local received_roster_event = function()
+local receivedRosterEvent = function()
 	return Cooldowns.RosterUpdate()
 end
 
 function Cooldowns.CheckUnitCooldowns (unitID, groupType, groupIndex)
-
-	local guid = UnitGUID (unitID)
+	local guid = UnitGUID(unitID)
 	local info = LibGroupInSpecT:GetCachedInfo (guid)
-	--print (guid, unitID, info)
-	
+
+	if (not info and guid) then
+		--get information from Details!
+		if (Details) then
+			local talents = Details.cached_talents[guid]
+			local specId = Details.cached_specs[guid]
+
+			if (talents and specId) then
+				local _, class, classId = UnitClass(unitID)
+				local talents2 = {} --transform details talents in cooldowns talents
+				for i, talentId in ipairs(talents) do
+					talents2[talentId] = true
+				end
+				info = {class_id = classId, global_spec_id = specId, class = class, talents = talents2}
+			end
+		end
+	end
+
 	if (info and info.class_id and info.global_spec_id and info.global_spec_id > 0) then
 
-		local name = get_unit_name (unitID)
-		local unit_table = Cooldowns.Roster [info.class_id] [name]
+		local name = getUnitName(unitID)
+		local unitTable = Cooldowns.Roster [info.class_id] [name]
+		local _, class = UnitClass(unitID)
+		local unitSpells = spellList [info.class or class] and spellList [info.class or class] [info.global_spec_id]
 		
-		--print (info.class, spell_list [info.class])
-		
-		local _, class = UnitClass (unitID)
-		local unit_spells = spell_list [info.class or class] and spell_list [info.class or class] [info.global_spec_id]
-		
-		local spells_added = {}
-		
-		for spellid, spelltable in pairs (unit_spells or {}) do
-		
-			local can_add = true
-		
+		local spellsAdded = {}
+
+		for spellId, spelltable in pairs (unitSpells or {}) do
+
+			local canAdd = true
+
 			if (spelltable.need_talent and not info.talents [spelltable.need_talent]) then
-				can_add = false
+				canAdd = false
 			end
-			
-			if (can_add) then
-				local new_actor = false
-				if (not unit_table) then
+
+			if (canAdd) then
+				if (not unitTable) then
 					Cooldowns.Roster [info.class_id] [name] = {}
-					unit_table = Cooldowns.Roster [info.class_id] [name]
-					new_actor = true
+					unitTable = Cooldowns.Roster [info.class_id] [name]
 				end
-				
-				unit_table.spells = unit_table.spells or {}
-				
-				unit_table.spells [spellid] = unit_table.spells [spellid] or {}
-				local amt_charges = spelltable.charges or 1
+
+				unitTable.spells = unitTable.spells or {}
+
+				unitTable.spells [spellId] = unitTable.spells [spellId] or {}
+				local amtCharges = spelltable.charges or 1
 				if (spelltable.extra_charge_talent and info.talents [spelltable.extra_charge_talent]) then
-					amt_charges = amt_charges + (spelltable.charges_extra or 1)
+					amtCharges = amtCharges + (spelltable.charges_extra or 1)
 				end
+
+				unitTable.spells[spellId].charges_amt = unitTable.spells [spellId].charges_amt or amtCharges
+				unitTable.spells[spellId].charges_max = unitTable.spells [spellId].charges_max or amtCharges
+				unitTable.spells[spellId].charges_next = unitTable.spells [spellId].charges_next or 0
 				
-				unit_table.spells [spellid].charges_amt = unit_table.spells [spellid].charges_amt or amt_charges
-				unit_table.spells [spellid].charges_max = unit_table.spells [spellid].charges_max or amt_charges
-				unit_table.spells [spellid].charges_next = unit_table.spells [spellid].charges_next or 0
+				unitTable.spells[spellId].type = spelltable.type
+				unitTable.spells[spellId].spellid = spellId
 				
-				unit_table.spells [spellid].type = spelltable.type
-				unit_table.spells [spellid].spellid = spellid
-				
-				spells_added [spellid] = true
-				TrackingSpells [spellid] = true
+				spellsAdded [spellId] = true
+				TrackingSpells [spellId] = true
 			end
 		end
 
-		if (unit_table and next (unit_table.spells)) then
-			unit_table.class = info.class
-			unit_table.spec = info.global_spec_id
-			unit_table.connected = UnitIsConnected (unitID)
-			unit_table.alive = UnitHealth (unitID) > 1
-			
+		if (unitTable and next (unitTable.spells)) then
+			unitTable.class = info.class
+			unitTable.spec = info.global_spec_id
+			unitTable.connected = UnitIsConnected (unitID)
+			unitTable.alive = UnitHealth (unitID) > 1
+
 			if (groupType == DF_COOLDOWN_RAID) then
 				local _, _, subgroup = GetRaidRosterInfo (groupIndex)
-				unit_table.raidgroup = subgroup
+				unitTable.raidgroup = subgroup
 			else
-				unit_table.raidgroup = 1
+				unitTable.raidgroup = 1
 			end
-			
-			if (not unit_table.alive) then
+
+			if (not unitTable.alive) then
 				Cooldowns.Deaths [name] = true
 			else
 				Cooldowns.Deaths [name] = nil
 			end
-			unit_table.name = name
-			
+			unitTable.name = name
+
 			--> clean up spells not used any more (spec changed)
-			for spellid, spell in pairs (unit_table.spells) do
-				if (not spells_added [spellid]) then
+			for spellId, spell in pairs (unitTable.spells) do
+				if (not spellsAdded [spellId]) then
 					--> check for schedules for this spell
-					local player_id = Cooldowns.GetPlayerSpellId (unit_table, spell)
-					local has_schedule = Cooldowns.CooldownSchedules [player_id]
+					local playerId = Cooldowns.GetPlayerSpellId (unitTable, spell)
+					local has_schedule = Cooldowns.CooldownSchedules [playerId]
 					if (has_schedule) then
 						Cooldowns:CancelTimer (has_schedule)
-						Cooldowns.CooldownSchedules [player_id] = nil
+						Cooldowns.CooldownSchedules [playerId] = nil
 					end
 					--> remove it
-					unit_table.spells [spellid] = nil
+					unitTable.spells [spellId] = nil
 				end
 			end
-			
-			in_the_group [name] = true
+
+			unitsInTheGroup[name] = true
 		end
 	end
-	
 end
 
-function Cooldowns.RosterUpdate (need_reset)
---	if um == 3 then return print ("ignoring update...") end --control test
---	um = um + 1
-
-	if (need_reset) then
+function Cooldowns.RosterUpdate (needReset)
+	if (needReset) then
 		Cooldowns.ResetRoster()
 	end
-	
-	wipe (in_the_group)
-	wipe (TrackingSpells)
-	
-	if (IsInRaid() or IsInGroup()) then
 
+	wipe(unitsInTheGroup)
+	wipe(TrackingSpells)
+
+	if (IsInRaid() or IsInGroup()) then
 		local GroupId
 		if (IsInRaid()) then
 			GroupId = "raid"
 		else
 			GroupId = "party"
 		end
-	
-		--> built the spell list for each actor
+
+		--built the spell list for each actor
 		if (GroupId == "party") then
 			for i = 1, GetNumGroupMembers()-1 do
 				local unitid = GroupId .. i
@@ -488,100 +479,97 @@ function Cooldowns.RosterUpdate (need_reset)
 				local unitid = GroupId .. i
 				Cooldowns.CheckUnitCooldowns (unitid, GroupId, i)
 			end
+		end
 
-		end
-		
 		if (GroupId == "party") then
-			Cooldowns.CheckUnitCooldowns ("player", 1)
+			Cooldowns.CheckUnitCooldowns("player", 1)
 		end
-		
-		--> check which actors isn't on the raid anymore
-		for index, class_id_table in pairs (Cooldowns.Roster) do
-			for name, _ in pairs (class_id_table) do
-				if (not in_the_group [name]) then
-					--> check for schedules for this actor
-					for player_id, schedule in pairs (Cooldowns.CooldownSchedules) do
-						local playername, spellid = Cooldowns.UnpackPlayerSpellId (player_id)
+
+		--check which actors isn't on the raid anymore
+		for index, classIdTable in pairs (Cooldowns.Roster) do
+			for name, _ in pairs (classIdTable) do
+				if (not unitsInTheGroup[name]) then
+					--check for schedules for this actor
+					for playerId, schedule in pairs (Cooldowns.CooldownSchedules) do
+						local playername = Cooldowns.UnpackPlayerSpellId(playerId)
 						if (playername == name) then
 							Cooldowns:CancelTimer (schedule)
-							Cooldowns.CooldownSchedules [player_id] = nil
+							Cooldowns.CooldownSchedules [playerId] = nil
 						end
 					end
-					wipe (Cooldowns.Roster [index] [name])
-					Cooldowns.Roster [index] [name] = nil
+					wipe(Cooldowns.Roster[index][name])
+					Cooldowns.Roster[index][name] = nil
 				end
 			end
 		end
-		
-		Cooldowns.BarControl ("roster_update")
-		
+
+		Cooldowns.BarControl("roster_update")
 	end
-	
-	--> send update signal
 end
 
 function Cooldowns.CheckIfNoPanel()
 	if (#Cooldowns.db.cooldowns_panels == 0) then
-		--> create the first panel
-		local first_panel = Cooldowns.CreateNewPanel()
-		first_panel.cooldowns_raid = true
-		first_panel.cooldowns_external = true
-	end	
+		--create the first panel
+		local firstPanel = Cooldowns.CreateNewPanel()
+		firstPanel.cooldowns_raid = true
+		firstPanel.cooldowns_external = true
+	end
 end
 
 function Cooldowns.CreateNewPanel()
-	local in_use, panel_number = {}, 1
-	for i = 1, #Cooldowns.db.cooldowns_panels do 
+	local inUse, panelNumber = {}, 1
+	for i = 1, #Cooldowns.db.cooldowns_panels do
 		local panel = Cooldowns.db.cooldowns_panels [i]
-		in_use [tonumber (panel.name:match ("%d+"))] = true
+		inUse [tonumber (panel.name:match ("%d+"))] = true
 	end
 	for i = 1, 999 do
-		if (not in_use [i]) then
-			panel_number = i
+		if (not inUse [i]) then
+			panelNumber = i
 			break
 		end
 	end
-	
-	local new_panel = Cooldowns.table.copy ({}, panel_prototype)
-	tinsert (Cooldowns.db.cooldowns_panels, new_panel)
-	new_panel.name = "Panel" .. panel_number
-	new_panel.id = panel_number
-	return new_panel
+
+	local newPanel = Cooldowns.table.copy ({}, panel_prototype)
+	tinsert(Cooldowns.db.cooldowns_panels, newPanel)
+	newPanel.name = "Panel" .. panelNumber
+	newPanel.id = panelNumber
+	return newPanel
 end
 
-local icon_table = {"", {5/64, 59/64, 5/64, 59/64}}
-local setup_player_bar = function (self, panel, player, spell, bar_index)
-	local spellname, _, spellicon = GetSpellInfo (spell.spellid)
-	icon_table[1] = spellicon
-	self.icon = icon_table
+local iconTable = {"", {5/64, 59/64, 5/64, 59/64}}
+local setupPlayerBar = function (self, panel, player, spell, bar_index)
+	local _, _, spellicon = GetSpellInfo (spell.spellid)
+	iconTable[1] = spellicon
+	self.icon = iconTable
+	
 	self.lefttext = Cooldowns:RemoveRealName (player.name)
 	self.righttext = spell.charges_amt > 1 and spell.charges_amt or ""
 	self.spellid = spell.spellid
 	self.playername = player.name
 	self.player = player
-	
+
 	if (Cooldowns.db.bar_class_color) then
 		self.color = player.class
 	else
 		self.color = Cooldowns.db.bar_fixed_color
 	end
-	
-	local player_spellid = Cooldowns.GetPlayerSpellId (player, spell)
-	panel.PlayerCache [player_spellid] = bar_index
-	
-	--> check if this is a new bar for this spell
-	if (player_spellid ~= self.player_spellid) then
+
+	local playerSpellid = Cooldowns.GetPlayerSpellId(player, spell)
+	panel.PlayerCache [playerSpellid] = bar_index
+
+	--check if this is a new bar for this spell
+	if (playerSpellid ~= self.player_spellid) then
 		if (spell.charges_amt < 1) then
-			--> if the charges are charging, set the timer
+			--if the charges are charging, set the timer
 			self:SetTimer (spell.charges_start_time, spell.charges_next)
 		else
 			self:CancelTimerBar()
-			--> if the spell has charges, set it to full
+			--if the spell has charges, set it to full
 			self.value = 100
 		end
-		self.player_spellid = player_spellid
+		self.player_spellid = playerSpellid
 	end
-	
+
 	if (not player.alive or not player.connected) then
 		self:PlayerEnabled (false)
 	else
@@ -589,7 +577,7 @@ local setup_player_bar = function (self, panel, player, spell, bar_index)
 	end
 end
 
-local player_bar_enabled = function (self, on)
+local playerBarEnabled = function (self, on)
 	if (on) then
 		self:SetAlpha (1)
 		self.icon_death:Hide()
@@ -605,8 +593,7 @@ local player_bar_enabled = function (self, on)
 	end
 end
 
-local refresh_bar_settings = function (self)
-	
+local refreshBarSettings = function (self)
 	--text font
 	self.textfont = Cooldowns.db.text_font
 	self.textsize = Cooldowns.db.text_size
@@ -621,32 +608,42 @@ local refresh_bar_settings = function (self)
 	if (not Cooldowns.db.bar_class_color) then
 		self.color = Cooldowns.db.bar_fixed_color
 	end
-	
+
+	--Details:Dump(self)
+
+	--self.icontexture:SetSize(height, height)
+	self._icon:SetSize(height-1, height-1)
+
 	self.icon_death:SetSize (height, height)
 	self.icon_offline:SetSize (height, height)
-	
+
 	self.texture = Cooldowns.db.bar_texture
 
 	PixelUtil.SetPoint (self, "topleft", self:GetParent(), "topleft", 2, (-(self.MyIndex-1)*(Cooldowns.db.bar_height+1)) + (-2))
 	PixelUtil.SetPoint (self, "topright", self:GetParent(), "topright", -2, (-(self.MyIndex-1)*(Cooldowns.db.bar_height+1)) + (-2))
-	
+
 	self:EnableMouse (false)
 end
 
-local panel_get_bar = function (self, bar_index)
-	if (type (bar_index) == "string") then
-		bar_index = self.PlayerCache [bar_index]
+local panelGetBar = function (self, barIndex)
+	if (type (barIndex) == "string") then
+		barIndex = self.PlayerCache[barIndex]
+
 	else
-		if (not self.Bars [bar_index]) then
+		if (not self.Bars [barIndex]) then
 			local bar = Cooldowns:CreateBar (self, nil, self:GetWidth(), Cooldowns.db.bar_height, 100)
-			bar:SetFrameLevel (self:GetFrameLevel()+1)
+			bar:SetFrameLevel(self:GetFrameLevel()+1)
 			bar.RightTextIsTimer = true
 			bar.BarIsInverse = true
-			bar.MyIndex = bar_index
-			bar.SetupPlayer = setup_player_bar
-			bar.PlayerEnabled = player_bar_enabled
+			bar.MyIndex = barIndex
+			bar.SetupPlayer = setupPlayerBar
+			bar.PlayerEnabled = playerBarEnabled
 			bar:EnableMouse (false)
-			
+
+			bar.backgroundInUse = bar:CreateTexture(nil, "background")
+			bar.backgroundInUse:SetColorTexture(1, .1, .1, .4)
+			bar.backgroundInUse:SetAllPoints()
+
 			bar.icon_death = self.support_frame:CreateTexture (nil, "overlay")
 			bar.icon_death:SetTexture ([[Interface\WorldStateFrame\SkullBones]])
 			bar.icon_death:SetTexCoord (3/64, 29/64, 3/64, 30/64)
@@ -659,91 +656,86 @@ local panel_get_bar = function (self, bar_index)
 			bar.icon_offline:SetAlpha (0.8)
 			bar.icon_offline:SetPoint ("right", bar.icon_death, "left", 0, 0)
 			bar.icon_offline:Hide()
-			
-			--bar.flash = 1
-			
-			--bar.LeftToRight = true
+
 			bar:SetHook ("OnTimerEnd", Cooldowns.OnEndBarTimer)
-			bar.UpdateSettings = refresh_bar_settings
+			bar.UpdateSettings = refreshBarSettings
 			bar:UpdateSettings()
-			self.Bars [bar_index] = bar
+			self.Bars [barIndex] = bar
 		end
 	end
-	return self.Bars [bar_index]
+	return self.Bars [barIndex]
 end
 
-local panel_cleanup_bars = function (self, bar_index)
-	--> hide bars from index to #
-	for i = 1, bar_index-1 do
-		self.Bars [i]:Show()
+local panelCleanupBars = function (self, barIndex)
+	--hide bars from index to #
+	for i = 1, barIndex-1 do
+		self.Bars[i]:Show()
 	end
-	for i = bar_index, #self.Bars do
-		self.Bars [i]:Hide()
-		self.Bars [i].icon_death:Hide()
-		self.Bars [i].icon_offline:Hide()
+	for i = barIndex, #self.Bars do
+		self.Bars[i]:Hide()
+		self.Bars[i].icon_death:Hide()
+		self.Bars[i].icon_offline:Hide()
 	end
 end
 
 function Cooldowns.GetPanelInScreen (id)
 	if (not Cooldowns.ScreenPanels [id]) then
-		--local new_screen_panel = Cooldowns:CreateCleanFrame (Cooldowns, "CooldownsScreenFrame" .. id)
-		local new_screen_panel = CreateFrame ("frame", "CooldownsScreenFrame" .. id, UIParent, "BackdropTemplate")
-		new_screen_panel:EnableMouse (true)
-		new_screen_panel:Hide()
-		
-		new_screen_panel.Background = new_screen_panel:CreateTexture (nil, "background")
-		new_screen_panel.Background:SetPoint ("topleft")
-		new_screen_panel.Background:SetPoint ("topright")
-		
-		new_screen_panel:SetSize (200, 20)
-		new_screen_panel.DontRightClickClose = true
-		new_screen_panel.Bars = {}
-		new_screen_panel.Spells = {}
-		new_screen_panel.PlayerCache = {}
-		new_screen_panel.GetBar = panel_get_bar
-		new_screen_panel.CleanUp = panel_cleanup_bars
-		
-		new_screen_panel.support_frame = CreateFrame ("frame", "CooldownsScreenFrame" .. id .. "Support", new_screen_panel, "BackdropTemplate")
-		new_screen_panel.support_frame:SetFrameLevel (new_screen_panel:GetFrameLevel()+2)
-		
-		new_screen_panel.AlertFrame = CreateFrame ("frame", "CooldownsScreenFrame" .. id .. "Alert", new_screen_panel, "ActionBarButtonSpellActivationAlert")
-		new_screen_panel.AlertFrame:SetFrameStrata ("FULLSCREEN")
-		new_screen_panel.AlertFrame:SetPoint ("topleft", new_screen_panel, "topleft", -60, 46)
-		new_screen_panel.AlertFrame:SetPoint ("bottomright", new_screen_panel, "bottomright", 60, -46)
-		new_screen_panel.AlertFrame:SetAlpha (0.2)
-		new_screen_panel.AlertFrame:Hide()
-		
-		local debug_title = Cooldowns:CreateLabel (new_screen_panel, "cooldown panel " .. id .. "")
-		debug_title:SetPoint ("center", new_screen_panel, "center")
-		debug_title:SetPoint ("top", new_screen_panel, "top", 0, -4)
-		new_screen_panel.debug_title = debug_title
-		
-		new_screen_panel:SetScript ("OnShow", function()
+		local newScreenPanel = CreateFrame ("frame", "CooldownsScreenFrame" .. id, UIParent, "BackdropTemplate")
+		newScreenPanel:EnableMouse (true)
+		newScreenPanel:Hide()
+
+		newScreenPanel.Background = newScreenPanel:CreateTexture (nil, "background")
+		newScreenPanel.Background:SetPoint ("topleft")
+		newScreenPanel.Background:SetPoint ("topright")
+
+		newScreenPanel:SetSize (200, 20)
+		newScreenPanel.DontRightClickClose = true
+		newScreenPanel.Bars = {}
+		newScreenPanel.Spells = {}
+		newScreenPanel.PlayerCache = {}
+		newScreenPanel.GetBar = panelGetBar
+		newScreenPanel.CleanUp = panelCleanupBars
+
+		newScreenPanel.support_frame = CreateFrame ("frame", "CooldownsScreenFrame" .. id .. "Support", newScreenPanel, "BackdropTemplate")
+		newScreenPanel.support_frame:SetFrameLevel (newScreenPanel:GetFrameLevel()+2)
+
+		newScreenPanel.AlertFrame = CreateFrame ("frame", "CooldownsScreenFrame" .. id .. "Alert", newScreenPanel, "ActionBarButtonSpellActivationAlert")
+		newScreenPanel.AlertFrame:SetFrameStrata ("FULLSCREEN")
+		newScreenPanel.AlertFrame:SetPoint ("topleft", newScreenPanel, "topleft", -60, 46)
+		newScreenPanel.AlertFrame:SetPoint ("bottomright", newScreenPanel, "bottomright", 60, -46)
+		newScreenPanel.AlertFrame:SetAlpha (0.2)
+		newScreenPanel.AlertFrame:Hide()
+
+		local debug_title = Cooldowns:CreateLabel (newScreenPanel, "cooldown panel " .. id .. "")
+		debug_title:SetPoint ("center", newScreenPanel, "center")
+		debug_title:SetPoint ("top", newScreenPanel, "top", 0, -4)
+		newScreenPanel.debug_title = debug_title
+
+		newScreenPanel:SetScript ("OnShow", function()
 			if (Cooldowns.OptionsFrame and Cooldowns.OptionsFrame:IsShown()) then
-				new_screen_panel.AlertFrame.animOut:Stop()
-				new_screen_panel.AlertFrame.animIn:Play()
-				C_Timer.After (0.5, function() new_screen_panel.AlertFrame.animIn:Stop(); new_screen_panel.AlertFrame.animOut:Play() end)
+				newScreenPanel.AlertFrame.animOut:Stop()
+				newScreenPanel.AlertFrame.animIn:Play()
+				C_Timer.After (0.5, function() newScreenPanel.AlertFrame.animIn:Stop(); newScreenPanel.AlertFrame.animOut:Play() end)
 			end
 		end)
-		
+
 		--window position
-			local panelOptions = Cooldowns.db.panel_positions ["p" .. id]
-			if (not panelOptions) then
-				Cooldowns.db.panel_positions ["p" .. id] = {}
-				panelOptions = Cooldowns.db.panel_positions ["p" .. id]
-			end
-			
-			--remove 1px frame move functions
-			new_screen_panel:SetScript ("OnMouseDown", nil)
-			new_screen_panel:SetScript ("OnMouseUp", nil)
-			
-			--use libwindow for positioning
-			LibWindow.RegisterConfig (new_screen_panel, panelOptions)
-			LibWindow.MakeDraggable (new_screen_panel)
-			LibWindow.RestorePosition (new_screen_panel)
-		--
-		
-		Cooldowns.ScreenPanels [id] = new_screen_panel
+		local panelOptions = Cooldowns.db.panel_positions ["p" .. id]
+		if (not panelOptions) then
+			Cooldowns.db.panel_positions ["p" .. id] = {}
+			panelOptions = Cooldowns.db.panel_positions ["p" .. id]
+		end
+
+		--remove 1px frame move functions
+		newScreenPanel:SetScript ("OnMouseDown", nil)
+		newScreenPanel:SetScript ("OnMouseUp", nil)
+
+		--use libwindow for positioning
+		LibWindow.RegisterConfig (newScreenPanel, panelOptions)
+		LibWindow.MakeDraggable (newScreenPanel)
+		LibWindow.RestorePosition (newScreenPanel)
+
+		Cooldowns.ScreenPanels [id] = newScreenPanel
 		Cooldowns.UpdatePanels()
 	end
 	
@@ -770,20 +762,20 @@ function Cooldowns.BarControlUnitEnable (name)
 	end
 end
 
-local player_health_check = function()
+local playerHealthCheck = function()
 	if (IsInRaid()) then
 		for i = 1, GetNumGroupMembers() do
 			local unit = "raid" .. i
-			local health = UnitHealth (unit)
-			local name = get_unit_name (unit)
-			
+			local health = UnitHealth(unit)
+			local name = getUnitName(unit)
+
 			if (health) then
 				if (health > 2) then
 					if (Cooldowns.Deaths [name]) then
 						--> player is alive
-						local _, _, class_number = UnitClass (unit)
-						if (class_number) then
-							local player = Cooldowns.Roster [class_number] [name]
+						local _, _, classNumber = UnitClass (unit)
+						if (classNumber) then
+							local player = Cooldowns.Roster [classNumber] [name]
 							if (player) then
 								player.alive = true
 								Cooldowns.BarControlUnitEnable (name)
@@ -794,28 +786,68 @@ local player_health_check = function()
 				end
 			end
 		end
-		
+
 	elseif (IsInGroup()) then
-		
+		for i = 1, GetNumGroupMembers()-1 do
+			local unit = "party" .. i
+			local health = UnitHealth(unit)
+			local name = getUnitName(unit)
+
+			if (health) then
+				if (health > 2) then
+					if (Cooldowns.Deaths[name]) then
+						--player is alive
+						local _, _, classNumber = UnitClass (unit)
+						if (classNumber) then
+							local player = Cooldowns.Roster [classNumber] [name]
+							if (player) then
+								player.alive = true
+								Cooldowns.BarControlUnitEnable (name)
+								Cooldowns.Deaths [name] = nil
+							end
+						end
+					end
+				end
+			end
+		end
+
+		local unit = "player"
+		local health = UnitHealth(unit)
+		local name = getUnitName(unit)
+
+		if (health) then
+			if (health > 2) then
+				if (Cooldowns.Deaths[name]) then
+					--player is alive
+					local _, _, classNumber = UnitClass (unit)
+					if (classNumber) then
+						local player = Cooldowns.Roster [classNumber] [name]
+						if (player) then
+							player.alive = true
+							Cooldowns.BarControlUnitEnable (name)
+							Cooldowns.Deaths [name] = nil
+						end
+					end
+				end
+			end
+		end
 	end
-	
 end
 
-local player_health_event = function (event, unit)
+local playerHealthEvent = function (event, unit)
 	if (not UnitExists (unit)) then
 		return
 	end
+
 	local health = UnitHealth (unit)
-	local name = get_unit_name (unit)
-	if (not health) then
-		--print (unit, UnitName(unit))
-	end
+	local name = getUnitName (unit)
+
 	if (health and health < 2) then
 		if (not Cooldowns.Deaths [name]) then
-			--> player just died
-			local _, _, class_number = UnitClass (unit)
-			if (class_number) then
-				local player = Cooldowns.Roster [class_number] [name]
+			--player just died
+			local _, _, classNumber = UnitClass (unit)
+			if (classNumber) then
+				local player = Cooldowns.Roster [classNumber] [name]
 				if (player) then
 					player.alive = false
 					Cooldowns.BarControlUnitDisable (name)
@@ -825,10 +857,10 @@ local player_health_event = function (event, unit)
 		end
 	else
 		if (Cooldowns.Deaths [name]) then
-			--> player got res
-			local _, _, class_number = UnitClass (unit)
-			if (class_number) then
-				local player = Cooldowns.Roster [class_number] [name]
+			--player got res
+			local _, _, classNumber = UnitClass (unit)
+			if (classNumber) then
+				local player = Cooldowns.Roster [classNumber] [name]
 				if (player) then
 					player.alive = true
 					Cooldowns.BarControlUnitEnable (name)
@@ -839,11 +871,11 @@ local player_health_event = function (event, unit)
 	end
 end
 
-local player_connected_event = function (event, unit)
-	local name = get_unit_name (unit)
-	local _, _, class_number = UnitClass (unit)
-	if (class_number) then
-		local player = Cooldowns.Roster [class_number] [name]
+local playerConnectedEvent = function (event, unit)
+	local name = getUnitName (unit)
+	local _, _, classNumber = UnitClass (unit)
+	if (classNumber) then
+		local player = Cooldowns.Roster [classNumber] [name]
 		if (player) then
 			player.connected = UnitIsConnected (unit)
 			if (player.connected) then
@@ -863,50 +895,49 @@ function Cooldowns.ShowPanelInScreen (panel, show, event)
 	if (show) then
 		if (not Cooldowns.RosterIsEnabled) then
 			Cooldowns.RosterIsEnabled = true
-			
-			LibGroupInSpecT.RegisterCallback (Cooldowns, "GroupInSpecT_Update", "LibGroupInSpecT_UpdateReceived")
-			Cooldowns:RegisterEvent ("GROUP_ROSTER_UPDATE", received_roster_event)
-			Cooldowns:RegisterEvent ("PARTY_MEMBER_DISABLE", player_connected_event)
-			Cooldowns:RegisterEvent ("PARTY_MEMBER_ENABLE", player_connected_event)
-			Cooldowns:RegisterEvent ("UNIT_CONNECTION", player_connected_event)
-			--Cooldowns:RegisterEvent ("UNIT_HEALTH", player_health_event)
-			Cooldowns:RegisterEvent ("UNIT_HEALTH_FREQUENT", player_health_event)
-			
-			Cooldowns.HealthCheck = C_Timer.NewTicker (2, player_health_check)
-			
+
+			LibGroupInSpecT.RegisterCallback(Cooldowns, "GroupInSpecT_Update", "LibGroupInSpecT_UpdateReceived")
+			Cooldowns:RegisterEvent("GROUP_ROSTER_UPDATE", receivedRosterEvent)
+			Cooldowns:RegisterEvent("PARTY_MEMBER_DISABLE", playerConnectedEvent)
+			Cooldowns:RegisterEvent("PARTY_MEMBER_ENABLE", playerConnectedEvent)
+			Cooldowns:RegisterEvent("UNIT_CONNECTION", playerConnectedEvent)
+			Cooldowns:RegisterEvent("UNIT_HEALTH", playerHealthEvent)
+
+			Cooldowns.HealthCheck = C_Timer.NewTicker(2, playerHealthCheck)
+
 			Cooldowns.RosterUpdate (true)
-			local _, instance_type = GetInstanceInfo()
-			Cooldowns.InstanceType = instance_type
+			local _, instanceType = GetInstanceInfo()
+			Cooldowns.InstanceType = instanceType
 		else
-			Cooldowns.CheckForRosterReset (event)
+			Cooldowns.CheckForRosterReset(event)
 		end
-		
-		local my_panel = Cooldowns.GetPanelInScreen (panel.id)
-		C_Timer.After (0, function() my_panel:Show() end)
-		
+
+		local myPanel = Cooldowns.GetPanelInScreen (panel.id)
+		C_Timer.After(0, function() myPanel:Show() end)
+
 		if (not Cooldowns.OptionsFrame or not Cooldowns.OptionsFrame:IsShown() or not Cooldowns.OptionsFrame:GetParent():IsShown()) then
-			if (my_panel.debug_title:IsShown()) then
-				my_panel.debug_title:Hide()
+			if (myPanel.debug_title:IsShown()) then
+				myPanel.debug_title:Hide()
 			end
 		else
-			my_panel.debug_title:Show()
+			myPanel.debug_title:Show()
 		end
-		
+
 		Cooldowns.UpdatePanels()
 	else
 		if (Cooldowns.ScreenPanels [panel.id]) then
 			Cooldowns.ScreenPanels [panel.id]:Hide()
 		end
 		if (Cooldowns.RosterIsEnabled) then
-			local can_turnoff = true
+			local canTurnOff = true
 			for _, panel in pairs (Cooldowns.ScreenPanels) do
 				if (panel:IsShown()) then
-					can_turnoff = nil
+					canTurnOff = nil
 					break
 				end
 			end
-			if (can_turnoff) then
-				Cooldowns:UnregisterEvent ("GROUP_ROSTER_UPDATE")
+			if (canTurnOff) then
+				Cooldowns:UnregisterEvent("GROUP_ROSTER_UPDATE")
 				LibGroupInSpecT.UnregisterCallback (Cooldowns, "GroupInSpecT_Update")
 				Cooldowns.RosterIsEnabled = false
 				if (Cooldowns.HealthCheck) then
@@ -919,44 +950,41 @@ end
 
 -- ~panel ~frame ~updatepanel
 function Cooldowns.UpdatePanels()
-	local frame_color = Cooldowns.db.panel_background_color
+	local frameColor = Cooldowns.db.panel_background_color
 	for id, panel in pairs (Cooldowns.ScreenPanels) do
-		--> a texture is used now as the backdrop
-		panel.Background:SetColorTexture (frame_color.r, frame_color.g, frame_color.b, frame_color.a)
+		--a texture is used now as the backdrop
+		panel.Background:SetColorTexture (frameColor.r, frameColor.g, frameColor.b, frameColor.a)
 
-		--> bars
+		--bars
 		for _, bar in ipairs (panel.Bars) do
 			bar:UpdateSettings()
 		end
-		
+
 		if (Cooldowns.db.locked) then
-			--panel:SetMovable (false)
 			panel:EnableMouse (false)
 			panel:RegisterForDrag()
 		else
-			--panel:SetMovable (true)
 			panel:EnableMouse (true)
 			panel:RegisterForDrag ("LeftButton")
 		end
-		
+
 		panel:SetWidth (Cooldowns.db.panel_width)
 	end
 end
 
 function Cooldowns.HandleSpellCast (event, unit, castGUID, spellID)
 	if (TrackingSpells [spellID]) then
-		
-		--> check for cast_success spam from channel spells
+
+		--check for cast_success spam from channel spells
 		local unitCastCooldown = Cooldowns.UnitLastCast [UnitGUID (unit)]
 		if (not unitCastCooldown) then
 			unitCastCooldown = {}
 			Cooldowns.UnitLastCast [UnitGUID (unit)] = unitCastCooldown
 		end
-		
+
 		if (not unitCastCooldown [spellID] or unitCastCooldown [spellID]+5 < GetTime()) then
 			 unitCastCooldown [spellID] = GetTime()
-			 
-			--> trigger a cooldown usage
+			--trigger a cooldown usage
 			Cooldowns.BarControl ("spell_cast", unit, spellID)
 		end
 	end
@@ -966,18 +994,18 @@ function Cooldowns.BarControlCleanUpCache (panel)
 	wipe (panel.PlayerCache)
 end
 
-function Cooldowns.BarControlUpdatePanelSpells (panel, cooldown_raid, cooldown_external)
-	--> reset spells
+function Cooldowns.BarControlUpdatePanelSpells (panel, cooldownRaid, cooldown_external)
+	--reset spells
 	for spellid, value in pairs (panel.Spells) do
 		panel.Spells [spellid] = nil
 	end
-	
-	--> build spells the panel can show
+
+	--build spells the panel can show
 	local cd_enabled = Cooldowns.db.cooldowns_enabled
-	for class, classtable in pairs (spell_list) do
+	for class, classtable in pairs (spellList) do
 		for specid, spectable in pairs (classtable) do
 			for spellid, spelltable in pairs (spectable) do
-				if (cd_enabled [spellid] and (cooldown_raid and spelltable.type == DF_COOLDOWN_RAID) or (cooldown_external and spelltable.type == DF_COOLDOWN_EXTERNAL)) then
+				if (cd_enabled [spellid] and (cooldownRaid and spelltable.type == DF_COOLDOWN_RAID) or (cooldown_external and spelltable.type == DF_COOLDOWN_EXTERNAL)) then
 					panel.Spells [spellid] = true
 				end
 			end
@@ -994,45 +1022,44 @@ end
 
 function Cooldowns.OnEndBarTimer (widget, bar)
 	bar.div_timer:Hide() --spark
-	--print ("===> BAR TIMER IS OVER")
 	return true
 end
 
 function Cooldowns.GetPlayerSpellId (player, spell)
 	return player.name .. "_" .. spell.spellid
 end
-function Cooldowns.UnpackPlayerSpellId (player_id)
-	local playername, spellid = strsplit ("_", player_id)
+
+function Cooldowns.UnpackPlayerSpellId (playerId)
+	local playername, spellid = strsplit ("_", playerId)
 	spellid = tonumber (spellid)
 	return playername, spellid
 end
+
 function Cooldowns.SetBarRightText (bar, charges)
 	bar.righttext = charges > 1 and charges or ""
 end
 
 function Cooldowns:CooldownReady (param)
-	local player, spell, cooldown = unpack (param)
-	
-	-->  checking if the actor already is on max charges due to external resets
+	local player, spell, cooldown = unpack(param)
+
+	--checking if the actor already is on max charges due to external resets
 	if (spell.charges_amt < spell.charges_max) then
 		spell.charges_amt = spell.charges_amt + 1
 	end
-	
-	Cooldowns.CooldownSchedules [Cooldowns.GetPlayerSpellId (player, spell)] = nil
-	
-	local spellname = GetSpellInfo (spell.spellid)
-	
+
+	Cooldowns.CooldownSchedules [Cooldowns.GetPlayerSpellId(player, spell)] = nil
+
 	if (spell.charges_amt < spell.charges_max) then
-		--> there is more charges to recharge
+		--there is more charges to recharge
 		Cooldowns.TriggerCooldown (player, spell, cooldown)
 	else
-		--> we're done with recharges
+		--we're done with recharges
 		spell.charges_next = 0
 	end
-	
+
 	for id, panel in pairs (Cooldowns.ScreenPanels) do
 		if (panel.Spells [spell.spellid]) then --> this panel is allowed to show this spell
-			local bar = panel:GetBar (Cooldowns.GetPlayerSpellId (player, spell))
+			local bar = panel:GetBar (Cooldowns.GetPlayerSpellId(player, spell))
 			if (bar) then
 				bar.value = 100
 				Cooldowns.SetBarRightText (bar, spell.charges_amt)
@@ -1041,6 +1068,7 @@ function Cooldowns:CooldownReady (param)
 		end
 	end
 end
+
 function Cooldowns.TriggerCooldown (player, spell, cooldown)
 	spell.charges_next = GetTime() + cooldown
 	spell.charges_start_time = GetTime()
@@ -1049,52 +1077,52 @@ function Cooldowns.TriggerCooldown (player, spell, cooldown)
 	Cooldowns.CooldownSchedules [Cooldowns.GetPlayerSpellId (player, spell)] = schedule
 end
 
-function Cooldowns.BarControl (update_type, unitid, spellid)
-	
-	if (update_type == "spell_cast") then
-		local name = get_unit_name (unitid)
-		local _, class_name, class_number = UnitClass (unitid)
-		local player = Cooldowns.Roster [class_number] [name]
-		
+function Cooldowns.BarControl (updateType, unitid, spellid)
+
+	if (updateType == "spell_cast") then
+		local name = getUnitName (unitid)
+		local _, className, classNumber = UnitClass (unitid)
+		local player = Cooldowns.Roster [classNumber] [name]
+
 		if (not player) then
 			return
 		end
 		local spell = player.spells [spellid]
-		
+
 		if (spell and (not spell.latest_usage or spell.latest_usage+0.5 < GetTime())) then
 			spell.latest_usage = GetTime()
-			
+
 			--> use one charge
 			if (spell.charges_amt == 0) then
-				--> cooldown ingame got ready before our recharge here in the addon
-				--> may happen if latency get too high
+				--cooldown ingame got ready before our recharge here in the addon
+				--may happen if latency get too high
 				local schedule = Cooldowns.CooldownSchedules [Cooldowns.GetPlayerSpellId (player, spell)]
 				if (schedule) then
-					--> canceling the call of CooldownReady() for this spell
-					--> since it already ready to use
+					--canceling the call of CooldownReady() for this spell
+					--since it already ready to use
 					Cooldowns:CancelTimer (schedule)
 				end
 				Cooldowns.CooldownSchedules [Cooldowns.GetPlayerSpellId (player, spell)] = nil
-				
-				--> flag it as free of recharge progress, so we can start a new recharge from zero
+
+				--flag it as free of recharge progress, so we can start a new recharge from zero
 				spell.charges_next = 0
 			else
 				spell.charges_amt = spell.charges_amt - 1
 			end
-			
-			local spell_blueprint = spell_list [class_name] [player.spec] [spellid]
+
+			local spell_blueprint = spellList [className] [player.spec] [spellid]
 			local cooldown = spell_blueprint.cooldown
 			local type = spell_blueprint.type
 
 			local spellname = GetSpellInfo (spellid)
-			
-			--> if not zero, means a charge is already loading up and we doesn't need trigger a cooldown
+
+			--if not zero, means a charge is already loading up and we doesn't need trigger a cooldown
 			if (spell.charges_next == 0) then
-				--> no cooldown in progress, start one
+				--no cooldown in progress, start one
 				Cooldowns.TriggerCooldown (player, spell, cooldown)
 			end
-			
-			--> if we still have charges, only decrease the charges number on the bar
+
+			--if we still have charges, only decrease the charges number on the bar
 			if (spell.charges_amt > 0) then
 				for id, panel in pairs (Cooldowns.ScreenPanels) do
 					if (panel.Spells [spellid]) then --> this panel is allowed to show this spell
@@ -1103,7 +1131,7 @@ function Cooldowns.BarControl (update_type, unitid, spellid)
 					end
 				end
 			else
-				--> we have zero charges, the bar needs to be shown and trigger an animation
+				--we have zero charges, the bar needs to be shown and trigger an animation
 				for id, panel in pairs (Cooldowns.ScreenPanels) do
 					if (panel.Spells [spellid]) then --> this panel is allowed to show this spell
 						local bar = panel:GetBar (Cooldowns.GetPlayerSpellId (player, spell))
@@ -1115,52 +1143,52 @@ function Cooldowns.BarControl (update_type, unitid, spellid)
 				end
 			end
 		end
-	
-	elseif (update_type == "roster_update") then
+
+	elseif (updateType == "roster_update") then
 		for id, panel in pairs (Cooldowns.ScreenPanels) do
-			local cooldown_raid = Cooldowns.db.cooldowns_panels [id].cooldowns_raid
+			local cooldownRaid = Cooldowns.db.cooldowns_panels [id].cooldowns_raid
 			local cooldown_external = Cooldowns.db.cooldowns_panels [id].cooldowns_external
-			
-			--> update allowed spells in this panel
-			Cooldowns.BarControlUpdatePanelSpells (panel, cooldown_raid, cooldown_external)
+
+			--update allowed spells in this panel
+			Cooldowns.BarControlUpdatePanelSpells (panel, cooldownRaid, cooldown_external)
 			Cooldowns.BarControlCleanUpCache (panel)
-			
+
 			local bar_index = 1
-			
-			--> get members 
-			for index, class_id_table in pairs (Cooldowns.Roster) do
-				--> construct spells
-				local players, spells, spells_added = {}, {}, {}
-				
-				for name, player in pairs (class_id_table) do
+
+			--get members
+			for index, classIdTable in pairs (Cooldowns.Roster) do
+				--construct spells
+				local players, spells, spellsAdded = {}, {}, {}
+
+				for name, player in pairs (classIdTable) do
 					if (player.raidgroup <= 6) then
-						local can_add = false
+						local canAdd = false
 						for spellid, spelltable in pairs (player.spells) do
 							--panel.Spells is empty
 							if (panel.Spells [spellid]) then
-								if (not spells_added [spellid]) then
+								if (not spellsAdded [spellid]) then
 									tinsert (spells, spellid)
-									spells_added [spellid] = true
+									spellsAdded [spellid] = true
 								end
-								can_add = true
+								canAdd = true
 							end
 						end
-						if (can_add) then
+						if (canAdd) then
 							tinsert (players, player)
 						end
 					end
 				end
-				
+
 				table.sort (players, sort_alphabetical)
 				table.sort (spells, sort_ascending)
-				
-				--> display on the bar
+
+				--display on the bar
 				for i, spellid in ipairs (spells) do
 					for _, player in ipairs (players) do
 						local bar = panel:GetBar (bar_index)
-						local spell = player.spells [spellid]
-						--> the loop doesn't know the player spec, so this
-						--> player can be a holy priest and the loop iterating through vampiric embrace from a shadow priest.
+						local spell = player.spells[spellid]
+						--the loop doesn't know the player spec, so this
+						--player can be a holy priest and the loop iterating through vampiric embrace from a shadow priest.
 						if (spell) then
 							bar:SetupPlayer (panel, player, spell, bar_index)
 							bar_index = bar_index + 1
@@ -1168,13 +1196,12 @@ function Cooldowns.BarControl (update_type, unitid, spellid)
 					end
 				end
 			end
-			
-			--> set panel height
+
+			--set panel height
 			panel.Background:SetHeight (max ( ((bar_index-1) * (Cooldowns.db.bar_height+1)) + 3, 20))
 			panel:CleanUp (bar_index)
 		end
 	end
-	
 end
 
 function Cooldowns.OnShowOnOptionsPanel()
@@ -1204,13 +1231,11 @@ end
 
 
 function Cooldowns.BuildOptions (frame)
-	--> window object
-	
 	if (Cooldowns.OptionsIsBuilt) then
 		return
 	end
 	Cooldowns.OptionsIsBuilt = true
-	
+
 	local main_frame = frame
 	main_frame:SetSize (822, 480)
 	Cooldowns.OptionsFrame = frame
@@ -1220,74 +1245,76 @@ function Cooldowns.BuildOptions (frame)
 
 	Cooldowns.CheckIfNoPanel()
 
-	local current_editing_panel = Cooldowns.db.cooldowns_panels [1]
-	local current_editing_index = 1
-	
-	--> panel dropdown
-	local label_cooldown_panel = Cooldowns:CreateLabel (main_frame, "Cooldown Panel:", Cooldowns:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-	
+	local currentEditingPanel = Cooldowns.db.cooldowns_panels [1]
+	local currentEditingIndex = 1
+
+	--panel dropdown
+	local labelCooldownPanel = Cooldowns:CreateLabel (main_frame, "Cooldown Panel:", Cooldowns:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+
 	local update_panels_config = function()
 		CooldownsOptionsHolder1:RefreshOptions()
 		Cooldowns.CheckForShowPanels ("PANEL_OPTIONS_UPDATE")
 	end
-	
-	function Cooldowns.SelectPanel (self, fixed_value, selected_value)
-		current_editing_panel = Cooldowns.db.cooldowns_panels [selected_value]
-		current_editing_index = selected_value
+
+	function Cooldowns.SelectPanel (_, _, selectedValue)
+		currentEditingPanel = Cooldowns.db.cooldowns_panels [selectedValue]
+		currentEditingIndex = selectedValue
 		update_panels_config()
 		Cooldowns.RefreshMainDropdown()
 	end
 
-	local build_panel_list = function()
+	local buildPanelList = function()
 		local t = {}
 		for index, panel in ipairs (Cooldowns.db.cooldowns_panels) do
 			t [#t+1] = {label = panel.name, value = index, onclick = Cooldowns.SelectPanel}
 		end
 		return t
 	end
-	local dropdown_cooldown_panel = Cooldowns:CreateDropDown (main_frame, build_panel_list, 1, 140, 20, "dropdown_cooldown_panel", _, Cooldowns:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
-	label_cooldown_panel:SetPoint (0, 0)
-	dropdown_cooldown_panel:SetPoint ("left", label_cooldown_panel, "right", 2, 0)
-	
-	--> new button
-	local create_func = function()
+
+	local dropdownCooldownPanel = Cooldowns:CreateDropDown (main_frame, buildPanelList, 1, 140, 20, "dropdownCooldownPanel", _, Cooldowns:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+	labelCooldownPanel:SetPoint (0, 0)
+	dropdownCooldownPanel:SetPoint ("left", labelCooldownPanel, "right", 2, 0)
+
+	--new button
+	local createFunc = function()
 		Cooldowns.CreateNewPanel()
-		current_editing_panel = Cooldowns.db.cooldowns_panels [#Cooldowns.db.cooldowns_panels]
-		current_editing_index = #Cooldowns.db.cooldowns_panels
+		currentEditingPanel = Cooldowns.db.cooldowns_panels [#Cooldowns.db.cooldowns_panels]
+		currentEditingIndex = #Cooldowns.db.cooldowns_panels
 		update_panels_config()
 		Cooldowns.RefreshMainDropdown()
 	end
-	local button_create_panel = Cooldowns:CreateButton (main_frame, create_func, 80, 20, "New Panel", _, _, _, "button_create", _, _, Cooldowns:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), Cooldowns:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-	button_create_panel:SetPoint ("left", dropdown_cooldown_panel, "right", 10 , 0)
-	button_create_panel:SetIcon ([[Interface\BUTTONS\UI-CheckBox-Up]], 16, 16, "overlay", {3/32, 28/32, 4/32, 27/32}, {1, 1, 1}, 2, 1, 0)
-	
-	--> delete button
+
+	local buttonCreatePanel = Cooldowns:CreateButton (main_frame, createFunc, 80, 20, "New Panel", _, _, _, "button_create", _, _, Cooldowns:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), Cooldowns:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	buttonCreatePanel:SetPoint ("left", dropdownCooldownPanel, "right", 10 , 0)
+	buttonCreatePanel:SetIcon ([[Interface\BUTTONS\UI-CheckBox-Up]], 16, 16, "overlay", {3/32, 28/32, 4/32, 27/32}, {1, 1, 1}, 2, 1, 0)
+
+	--delete button
 	function Cooldowns.DeletePanel (self, button, param1)
-		tremove (Cooldowns.db.cooldowns_panels, current_editing_index)
+		tremove (Cooldowns.db.cooldowns_panels, currentEditingIndex)
 		Cooldowns.CheckIfNoPanel()
-		
-		current_editing_panel = Cooldowns.db.cooldowns_panels [#Cooldowns.db.cooldowns_panels]
-		current_editing_index = #Cooldowns.db.cooldowns_panels
-		
+
+		currentEditingPanel = Cooldowns.db.cooldowns_panels [#Cooldowns.db.cooldowns_panels]
+		currentEditingIndex = #Cooldowns.db.cooldowns_panels
+
 		update_panels_config()
 		Cooldowns.RefreshMainDropdown()
 	end
-	local button_delete_panel = Cooldowns:CreateButton (main_frame, Cooldowns.DeletePanel, 80, 20, "Remove", _, _, _, "button_delete", _, _, Cooldowns:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), Cooldowns:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-	button_delete_panel:SetPoint ("left", button_create_panel, "right", 10 , 0)
-	button_delete_panel:SetIcon ([[Interface\BUTTONS\UI-StopButton]], 14, 14, "overlay", {0, 1, 0, 1}, {1, 1, 1}, 2, 1, 0)
-	
-	
+
+	local buttonDeletePanel = Cooldowns:CreateButton (main_frame, Cooldowns.DeletePanel, 80, 20, "Remove", _, _, _, "button_delete", _, _, Cooldowns:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), Cooldowns:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	buttonDeletePanel:SetPoint ("left", buttonCreatePanel, "right", 10 , 0)
+	buttonDeletePanel:SetIcon ([[Interface\BUTTONS\UI-StopButton]], 14, 14, "overlay", {0, 1, 0, 1}, {1, 1, 1}, 2, 1, 0)
+
 	local f = CreateFrame ("frame", "CooldownsOptionsHolder1", main_frame, "BackdropTemplate")
 	f:SetSize (1, 1)
 	f:SetPoint ("topleft", 0, 0)
-	
-	local single_options = {
+
+	local singleOptions = {
 		{
 			type = "toggle",
-			get = function() return current_editing_panel.enabled end,
-			set = function (self, fixedparam, value) 
-				current_editing_panel.enabled = value; 
-				Cooldowns.CheckForShowPanels ("PANEL_ENABLED_TOGGLE"); 
+			get = function() return currentEditingPanel.enabled end,
+			set = function (self, fixedparam, value)
+				currentEditingPanel.enabled = value
+				Cooldowns.CheckForShowPanels("PANEL_ENABLED_TOGGLE")
 				update_panels_config()
 				if (value) then
 					C_Timer.After (0.150, showScreenPanelAnchor)
@@ -1297,14 +1324,14 @@ function Cooldowns.BuildOptions (frame)
 		},
 		{
 			type = "toggle",
-			get = function() return current_editing_panel.cooldowns_raid end,
-			set = function (self, fixedparam, value) current_editing_panel.cooldowns_raid = value; Cooldowns.CheckForShowPanels ("TOGGLE_OPTIONS"); update_panels_config() end,
+			get = function() return currentEditingPanel.cooldowns_raid end,
+			set = function (self, fixedparam, value) currentEditingPanel.cooldowns_raid = value; Cooldowns.CheckForShowPanels ("TOGGLE_OPTIONS"); update_panels_config() end,
 			name = L["S_PLUGIN_COOLDOWNS_RAID_CDS"],
 		},
 		{
 			type = "toggle",
-			get = function() return current_editing_panel.cooldowns_external end,
-			set = function (self, fixedparam, value) current_editing_panel.cooldowns_external = value; Cooldowns.CheckForShowPanels ("TOGGLE_OPTIONS"); update_panels_config() end,
+			get = function() return currentEditingPanel.cooldowns_external end,
+			set = function (self, fixedparam, value) currentEditingPanel.cooldowns_external = value; Cooldowns.CheckForShowPanels ("TOGGLE_OPTIONS"); update_panels_config() end,
 			name = L["S_PLUGIN_COOLDOWNS_EXTERNAL_CDS"],
 		},
 	}
@@ -1315,7 +1342,7 @@ function Cooldowns.BuildOptions (frame)
 	local options_slider_template = Cooldowns:GetTemplate ("slider", "OPTIONS_SLIDER_TEMPLATE")
 	local options_button_template = Cooldowns:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE")
 	
-	RA:BuildMenu (f, single_options, 0, -25, 480, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)	
+	RA:BuildMenu (f, singleOptions, 0, -25, 480, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)	
 
 	local on_select_text_font = function (self, fixed_value, value)
 		Cooldowns.db.text_font = value
@@ -1327,7 +1354,7 @@ function Cooldowns.BuildOptions (frame)
 		Cooldowns.UpdatePanels()
 		update_panels_config()
 	end
-	
+
 	local SharedMedia = LibStub:GetLibrary ("LibSharedMedia-3.0")
 	local textures = SharedMedia:HashTable ("statusbar")
 	local texTable = {}
@@ -1335,19 +1362,19 @@ function Cooldowns.BuildOptions (frame)
 		texTable[#texTable+1] = {value = name, label = name, statusbar = texturePath, onclick = set_bar_texture}
 	end
 	table.sort (texTable, function (t1, t2) return t1.label < t2.label end)
-	
-	
+
 	local advise_panel = CreateFrame ("frame", nil, f, "BackdropTemplate")
 	advise_panel:SetPoint ("topleft", f, "topleft", 120, -22)
 	advise_panel:SetSize (260, 58)
-	advise_panel:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
-	advise_panel:SetBackdropColor (0, 0, 0, .3)
-	advise_panel:SetBackdropBorderColor (.3, .3, .3, .3)
+--	advise_panel:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
+--	advise_panel:SetBackdropColor (0, 0, 0, .3)
+--	advise_panel:SetBackdropBorderColor (.3, .3, .3, .3)
 	local advise_panel_text = advise_panel:CreateFontString (nil, "overlay", "GameFontNormal")
 	advise_panel_text:SetPoint ("center", advise_panel, "center")
 	advise_panel_text:SetText ("You may create a new panel if you want\nseparate Raid Cooldowns and\nExternal Cooldowns in two panels.")
+	DetailsFramework:SetFontColor(advise_panel_text, "silver")
 	Cooldowns:SetFontSize (advise_panel_text, 10)
-	
+
 	--> options:
 	local options_list = {
 		{type = "label", get = function() return "Frame:" end, text_template = Cooldowns:GetTemplate ("font", "ORANGE_FONT_TEMPLATE")},
@@ -1381,10 +1408,9 @@ function Cooldowns.BuildOptions (frame)
 			name = "Width",
 		},
 
-		
 		{type = "blank"},
 		{type = "label", get = function() return "Show Cooldown Panels When:" end, text_template = Cooldowns:GetTemplate ("font", "ORANGE_FONT_TEMPLATE")},
-		
+
 		{
 			type = "toggle",
 			get = function() return Cooldowns.db.only_in_group end,
@@ -1457,7 +1483,7 @@ function Cooldowns.BuildOptions (frame)
 			end,
 			name = L["S_PLUGIN_TEXT_SHADOW"],
 		},
-		
+
 		{type = "label", get = function() return "Bar:" end, text_template = Cooldowns:GetTemplate ("font", "ORANGE_FONT_TEMPLATE")},
 
 		{
@@ -1490,7 +1516,6 @@ function Cooldowns.BuildOptions (frame)
 			name = "Texture",
 		},
 
---[
 		{
 			type = "toggle",
 			get = function() return Cooldowns.db.bar_class_color end,
@@ -1513,55 +1538,54 @@ function Cooldowns.BuildOptions (frame)
 				update_panels_config()
 			end,
 			name = L["S_COLOR"],
-		},	
-
+		},
 	}
-	
+
 	RA:BuildMenu (main_frame, options_list, 0, -110, 500, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
-	
-	--> refresh widgets
+
+	--refresh widgets
 	function Cooldowns.RefreshMainDropdown()
-		dropdown_cooldown_panel:Select (current_editing_index, true)
+		dropdownCooldownPanel:Select (currentEditingIndex, true)
 	end
 	Cooldowns.RefreshMainDropdown()
-	
+
 ---------- Cooldowns -----------
 -- ~cooldowns ~list
-	
+
 	local cooldowns_raid = {}
 	local cooldowns_external = {}
-	
+
 	for spellId, _ in pairs (DetailsFramework.CooldownsExternals) do
 		local spellName = GetSpellInfo (spellId)
 		if (spellName) then
 			tinsert (cooldowns_external, {spellId, spellName})
 		end
 	end
-	
+
 	for spellId, _ in pairs (DetailsFramework.CooldownsRaid) do
 		local spellName = GetSpellInfo (spellId)
 		if (spellName) then
 			tinsert (cooldowns_raid, {spellId, spellName})
 		end
 	end
-	
+
 	table.sort (cooldowns_external, DetailsFramework.SortOrder2R)
 	table.sort (cooldowns_raid, DetailsFramework.SortOrder2R)
-	
+
 	--raid wide
 	local index = 1
 	local x = 420
 	local build_menu_raid = {}
 	local backdrop_table = {bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true}
 	local frame_level = main_frame:GetFrameLevel()
-	
+
 	local on_enter = function (self) 
 		self:SetBackdropColor (.3, .3, .3, 0.5) 
 		GameTooltip:SetOwner (self, "ANCHOR_RIGHT")
 		GameTooltip:SetSpellByID (self.spellid)
 		GameTooltip:Show()
 	end
-	
+
 	local on_leave = function (self) 
 		if (self.BackgroundColor) then
 			local r, g, b = unpack (self.BackgroundColor)
@@ -1571,24 +1595,22 @@ function Cooldowns.BuildOptions (frame)
 		end
 		GameTooltip:Hide()
 	end
-	
-	local label_raid_cooldowns = Cooldowns:CreateLabel (main_frame, L["S_PLUGIN_COOLDOWNS_RAID_CDS"], Cooldowns:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
-	local label_external_cooldowns = Cooldowns:CreateLabel (main_frame, L["S_PLUGIN_COOLDOWNS_EXTERNAL_CDS"], Cooldowns:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
-	
-	label_raid_cooldowns:SetPoint ("topleft", main_frame, "topleft", 10+x, -0)
-	label_external_cooldowns:SetPoint ("topleft", main_frame, "topleft", 10+x+180, -0)
-	
+
+	local labelRaidCooldowns = Cooldowns:CreateLabel (main_frame, L["S_PLUGIN_COOLDOWNS_RAID_CDS"], Cooldowns:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
+	local labelExternalCooldowns = Cooldowns:CreateLabel (main_frame, L["S_PLUGIN_COOLDOWNS_EXTERNAL_CDS"], Cooldowns:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
+	labelRaidCooldowns:SetPoint ("topleft", main_frame, "topleft", 10+x, -0)
+	labelExternalCooldowns:SetPoint ("topleft", main_frame, "topleft", 10+x+180, -0)
+
 	for _, spellTable in ipairs (cooldowns_raid) do
-	
 		local spellid = spellTable [1]
 		local spellname, _, spellicon = GetSpellInfo (spellid)
-		
+
 		if (spellname) then
 			local background = CreateFrame ("frame", nil, main_frame, "BackdropTemplate")
 			background:SetBackdrop (backdrop_table)
 			background:SetFrameLevel (frame_level+1)
 			background:SetBackdropColor (.1, .1, .1, 0.4)
-			
+
 			local class = DetailsFramework:FindClassForCooldown (spellid)
 			if (class) then
 				local classColor = RAID_CLASS_COLORS [class]
@@ -1602,14 +1624,14 @@ function Cooldowns.BuildOptions (frame)
 			background:SetScript ("OnEnter", on_enter)
 			background:SetScript ("OnLeave", on_leave)
 			background.spellid = spellid
-		
+
 			local func = function (self, fixedparam, value) Cooldowns.db.cooldowns_enabled [spellid] = value; Cooldowns.BarControl ("roster_update") end
 			local checkbox, label = Cooldowns:CreateSwitch (main_frame, func, Cooldowns.db.cooldowns_enabled [spellid], _, _, _, _, _, "CooldownsDropdown" .. spellid .. "RaidWide", _, _, _, "|T" .. spellicon .. ":14:14:0:0:64:64:5:59:5:59|t " .. spellname, Cooldowns:GetTemplate ("switch", "OPTIONS_CHECKBOX_TEMPLATE"), Cooldowns:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 			checkbox:SetAsCheckBox()
 			checkbox.tooltip = format (L["S_PLUGIN_COOLDOWNS_SPELLNAME"], spellname)
 			checkbox:ClearAllPoints(); label:ClearAllPoints()
 			checkbox:SetFrameLevel (frame_level+2)
-			
+
 			background:SetPoint ("topleft", main_frame, "topleft", 5+x, -20 + ((index-1) * -20))
 			label:SetPoint ("topleft", main_frame, "topleft", 10+x, -23 + ((index-1) * -20))
 			checkbox:SetPoint ("topleft", main_frame, "topleft", 150+x, -20 + ((index-1) * -20))
@@ -1617,23 +1639,23 @@ function Cooldowns.BuildOptions (frame)
 			index = index + 1
 		end
 	end
-	
+
 	--external cooldowns
 	local x = 600
 	index = 1
-	
+
 	for _, spellTable in ipairs (cooldowns_external) do
-	
+
 		local spellid = spellTable [1]
-	
+
 		local spellname, _, spellicon = GetSpellInfo (spellid)
 		if (spellname) then
 			local background = CreateFrame ("frame", nil, main_frame, "BackdropTemplate")
 			background:SetBackdrop (backdrop_table)
 			background:SetFrameLevel (frame_level+1)
-			
+
 			background:SetBackdropColor (.1, .1, .1, 0.4)
-			
+
 			local class = DetailsFramework:FindClassForCooldown (spellid)
 			if (class) then
 				local classColor = RAID_CLASS_COLORS [class]
@@ -1642,19 +1664,19 @@ function Cooldowns.BuildOptions (frame)
 					background.BackgroundColor = {classColor.r, classColor.g, classColor.b}
 				end
 			end
-			
+
 			background:SetSize (166, 18)
 			background:SetScript ("OnEnter", on_enter)
 			background:SetScript ("OnLeave", on_leave)
 			background.spellid = spellid
-		
+
 			local func = function (self, fixedparam, value) Cooldowns.db.cooldowns_enabled [spellid] = value; Cooldowns.BarControl ("roster_update") end
 			local checkbox, label = Cooldowns:CreateSwitch (main_frame, func, Cooldowns.db.cooldowns_enabled [spellid], _, _, _, _, _, "CooldownsDropdown" .. spellid .. "External", _, _, _, "|T" .. spellicon .. ":14:14:0:0:64:64:5:59:5:59|t " .. spellname, Cooldowns:GetTemplate ("switch", "OPTIONS_CHECKBOX_TEMPLATE"), Cooldowns:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 			checkbox:SetAsCheckBox()
 			checkbox.tooltip = format (L["S_PLUGIN_COOLDOWNS_SPELLNAME"], spellname)
 			checkbox:ClearAllPoints(); label:ClearAllPoints()
 			checkbox:SetFrameLevel (frame_level+2)
-			
+
 			background:SetPoint ("topleft", main_frame, "topleft", 5+x, -20 + ((index-1) * -20))
 			label:SetPoint ("topleft", main_frame, "topleft", 10+x, -23 + ((index-1) * -20))
 			checkbox:SetPoint ("topleft", main_frame, "topleft", 150+x, -20 + ((index-1) * -20))

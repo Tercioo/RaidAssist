@@ -9,13 +9,13 @@ end
 
 --/run RaidAssist.OpenMainOptions()
 
-local CONST_OPTIONS_FRAME_WIDTH = 1280
+local CONST_OPTIONS_FRAME_WIDTH = 1080
 local CONST_OPTIONS_FRAME_HEIGHT = 720
 
 local CONST_MENU_SCROLL_WIDTH = 170
 local CONST_MENU_SCROLL_HEIGHT = 616
 local CONST_MENU_BUTTON_WIDTH = 166
-local CONST_MENU_BUTTON_HEIGHT = 24
+local CONST_MENU_BUTTON_HEIGHT = 30
 
 local CONST_MENU_MAX_BUTTONS = 25
 local CONST_MENU_STARTPOS_X = 5
@@ -26,9 +26,9 @@ local CONST_OPTIONSPANEL_STARTPOS_Y = -36
 
 local CONST_MENU_FONT_SIZE = 12
 
-local CACHE_ALL_PLUGINS_INSTALLED = {}
+local allButtons = {}
 
-function RA.OpenMainOptions (plugin)
+function RA.OpenMainOptions(plugin)
 
 	--if a plugin object has been passed, open the options panel for it
 	if (RaidAssistOptionsPanel) then
@@ -57,11 +57,9 @@ function RA.OpenMainOptions (plugin)
 		DetailsFramework:ApplyStandardBackdrop (statusBar)
 		statusBar:SetAlpha (0.8)
 		DetailsFramework:BuildStatusbarAuthorInfo (statusBar)
-	
 
 	--keybind to open the panel
 		RA.CreateHotkeyFrame(f)
-	
 
 	--create the left menu
 		--when the player select a plugin in the plugin scroll
@@ -77,13 +75,18 @@ function RA.OpenMainOptions (plugin)
 				plugin.OnShowOnOptionsPanel()
 				plugin.OptionsPanel:Show()
 			end
+
+			for i, thisButton in ipairs(allButtons) do
+				DetailsFramework:ApplyStandardBackdrop(thisButton)
+			end
+
+			button:SetBackdropColor(.75, .75, .75, .9)
 		end
 	
 		--change the selected plugin from inside plugins
 		RA.OpenMainOptionsForPlugin = function (plugin)
 			return onSelectPlugin (nil, nil, plugin)
 		end
-
 
 	--hide all panels for all addons
 		function f:ResetButtonsAndPanels()
@@ -94,7 +97,6 @@ function RA.OpenMainOptions (plugin)
 				button.textcolor = "white"
 			end
 		end
-	
 
 	--load the plugins
 		local plugins_list = RA:GetSortedPluginsInPriorityOrder()
@@ -112,15 +114,13 @@ function RA.OpenMainOptions (plugin)
 				tinsert (bossmods_sorted_list, plugin)
 			end
 		end
-	
+
 		table.sort (plugins_sorted_list, function (plugin1, plugin2) return ( (plugin1 and plugin1.db.menu_priority) or 1) > ( (plugin2 and plugin2.db.menu_priority) or 1) end)
 		table.sort (bossmods_sorted_list, function (plugin1, plugin2) return ( (plugin1 and plugin1.db.menu_priority) or 1) > ( (plugin2 and plugin2.db.menu_priority) or 1) end)
-	
 
 	--create the menu scroll box
 		--this function refreshes the scroll options
 		local refreshLeftMenuScrollBox = function(self, data, offset, totalLines)
-
 			--update the scroll
 			for i = 1, totalLines do
 				local index = i + offset
@@ -155,9 +155,10 @@ function RA.OpenMainOptions (plugin)
 		--create the left menu scroll
 		local createMenuScrollBoxLine = function (parent, index)
 			local newButton = RA:CreateButton (parent, onSelectPlugin, CONST_MENU_BUTTON_WIDTH, CONST_MENU_BUTTON_HEIGHT, "", 0, nil, nil, nil, nil, 1, button_template, button_text_template)
-			--newButton:SetTextSize(CONST_MENU_FONT_SIZE)
+			DetailsFramework:ApplyStandardBackdrop(newButton)
 			newButton.textsize = CONST_MENU_FONT_SIZE
 			newButton:SetPoint("topleft", parent, "topleft", 2, -1 + ((index - 1) * -CONST_MENU_BUTTON_HEIGHT))
+			allButtons[#allButtons+1] = newButton
 			return newButton
 		end
 
@@ -176,15 +177,13 @@ function RA.OpenMainOptions (plugin)
 		for i = 1, #allPlugin do
 			local plugin = allPlugin[i]
 
-			local optionsFrame = CreateFrame ("frame", "RaidAssistOptionsPanel" .. (plugin.pluginname or math.random (1, 1000000)), f, "BackdropTemplate")
+			local optionsFrame = CreateFrame("frame", "RaidAssistOptionsPanel" .. (plugin.pluginname or math.random (1, 1000000)), f, "BackdropTemplate")
 			optionsFrame:Hide()
 			optionsFrame:SetSize (1, 1)
 			optionsFrame:SetPoint ("topleft", f, "topleft", CONST_OPTIONSPANEL_STARTPOS_X, CONST_OPTIONSPANEL_STARTPOS_Y)
 			
 			plugin.OptionsPanel = optionsFrame
 			f.AllOptionsPanels [ #f.AllOptionsPanels + 1 ] = optionsFrame
-
-			CACHE_ALL_PLUGINS_INSTALLED [plugin] = optionsFrame
 		end
 
 		local menuScrollBox = DF:CreateScrollBox (f, "$parentScrollBox", refreshLeftMenuScrollBox, allPlugin, CONST_MENU_SCROLL_WIDTH, CONST_MENU_SCROLL_HEIGHT, CONST_MENU_MAX_BUTTONS, CONST_MENU_BUTTON_HEIGHT)
@@ -200,13 +199,12 @@ function RA.OpenMainOptions (plugin)
 
 	--reset everything to start
 		f:ResetButtonsAndPanels()
-	
+
 		--if a plugin requested to open its options
 		if (plugin) then
 			onSelectPlugin (nil, nil, plugin)
 		end
 end
-
 
 function RA.CreateHotkeyFrame(f)
 
@@ -214,7 +212,7 @@ function RA.CreateHotkeyFrame(f)
 
 	local keyBindListener = CreateFrame ("frame", "RaidAssistBindListenerFrame", f, "BackdropTemplate")
 	keyBindListener.IsListening = false
-	
+
 	local enter_the_key = CreateFrame ("frame", nil, keyBindListener, "BackdropTemplate")
 	enter_the_key:SetFrameStrata ("tooltip")
 	enter_the_key:SetSize (200, 60)
