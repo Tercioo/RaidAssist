@@ -18,7 +18,7 @@ local default_config = {
 	menu_priority = 1,
 	cooldowns_enabled = {},
 	cooldowns_panels = {},
-	
+
 	--> general config
 	locked = false,
 	text_font = "Friz Quadrata TT",
@@ -30,17 +30,21 @@ local default_config = {
 	bar_grow_inverse = false,
 	bar_height = 20,
 	bar_texture = "Iskar Serenity",
-	
+
 	panel_background_color = {r=0, g=0, b=0, a=0.1},
 	panel_background_border_color = {r=0, g=0, b=0, a=0.3},
 	panel_width = 200,
 	panel_positions = {},
-	
+
 	only_in_group = true,
 	only_inside_instances = false,
 	only_in_raid_group = true,
 	only_in_combat = false,
 	only_in_raid_encounter = false,
+
+	roster_cache = {},
+	tracking_spells_cache = {},
+	units_in_the_group = {},
 }
 
 --> check for new cooldowns
@@ -71,6 +75,9 @@ Cooldowns.CooldownSchedules = {}
 Cooldowns.RosterIsEnabled = false
 Cooldowns.InstanceType = "none"
 
+local trackingSpells = {}
+local unitsInTheGroup = {}
+
 --> store the time where the unit last casted a cooldown, this avoid triggering multiple cooldowns when a channel spell spam cast_success
 Cooldowns.UnitLastCast = {}
 
@@ -89,23 +96,12 @@ Cooldowns.OnInstall = function (plugin)
 	Cooldowns:RegisterEvent ("PLAYER_REGEN_ENABLED")
 	Cooldowns:RegisterEvent ("ENCOUNTER_START")
 	Cooldowns:RegisterEvent ("ENCOUNTER_END")
-	
+	Cooldowns:RegisterEvent ("PLAYER_LOGOUT")
+
 	Cooldowns:RegisterEvent ("UNIT_SPELLCAST_SUCCEEDED", Cooldowns.HandleSpellCast)
-
-	--C_Timer.After (2, Cooldowns.BuildOptions) --debug
-	local f = CreateFrame("frame")
-	f:RegisterEvent ("PLAYER_LOGIN")
-	f:SetScript ("OnEvent", function(self, event, ...)
-		C_Timer.After (1, Cooldowns.CheckForShowPanels)
-		C_Timer.After (2, function() Cooldowns.RosterUpdate (true) end)
-		C_Timer.After (8, function() Cooldowns.RosterUpdate (true) end)
-		C_Timer.After (10, function() Cooldowns.RosterUpdate (true) end)
-	end)
-
-	C_Timer.After (1, Cooldowns.CheckForShowPanels)
 end
 
-local TrackingSpells = {}
+
 
 local getUnitName = function (unitid)
 	local name = GetUnitName(unitid, true)
@@ -244,7 +240,7 @@ function Cooldowns.OnLeaveRaidGroup()
 	if (not IsInGroup()) then
 		Cooldowns.playerIsInParty = false
 	end
-	
+
 	Cooldowns.in_raid = false
 	Cooldowns.CheckForShowPanels ("LEFT_RAID_GROUP")
 end
@@ -284,9 +280,66 @@ function Cooldowns:ENCOUNTER_START()
 	Cooldowns.CheckForShowPanels ("ENCOUNTER_START")
 end
 
+function Cooldowns:PLAYER_LOGOUT()
+	--cleanup schedules objects
+
+	for i = 1, 12 do --12 classes
+		local classTable = Cooldowns.Roster[i]
+		for playerName, _ in pairs (classTable) do
+			local player = classTable [playerName]
+			if (player) then
+				local playerSpells = player.spells
+				for spellId, spellTable in pairs(playerSpells) do
+					spellTable.schedule = nil
+				end
+			end
+		end
+	end
+end
+
 function Cooldowns:ENCOUNTER_END()
+	if (IsInRaid()) then
+		--reset cooldowns
+
+		for i = 1, 12 do --12 classes
+			local classTable = Cooldowns.Roster[i]
+			for playerName, _ in pairs (classTable) do
+				local player = classTable [playerName]
+				if (player) then
+					local playerSpells = player.spells
+					for spellId, spellTable in pairs(playerSpells) do
+						spellTable.latest_usage = 0
+						spellTable.charges_amt = 1
+					end
+				end
+			end
+		end
+	end
+
 	Cooldowns.in_raid_encounter = false
 	Cooldowns.CheckForShowPanels ("ENCOUNTER_END")
+end
+
+Cooldowns.PLAYER_LOGIN = function()
+	for i = 1, 12 do --12 classes
+		Cooldowns.Roster[i] = {}
+	end
+
+	--copy the roster from previous session into this session
+	DetailsFramework.table.deploy(Cooldowns.Roster, Cooldowns.db.roster_cache)
+	Cooldowns.db.roster_cache = Cooldowns.Roster
+
+	DetailsFramework.table.deploy(trackingSpells, Cooldowns.db.tracking_spells_cache)
+	Cooldowns.db.tracking_spells_cache = trackingSpells
+
+	DetailsFramework.table.deploy(unitsInTheGroup, Cooldowns.db.units_in_the_group)
+	Cooldowns.db.units_in_the_group = unitsInTheGroup
+
+	C_Timer.After (1, Cooldowns.CheckForShowPanels)
+
+	C_Timer.After (2, function() Cooldowns.RosterUpdate() end)
+	C_Timer.After (8, function() Cooldowns.RosterUpdate() end)
+	C_Timer.After (10, function() Cooldowns.RosterUpdate() end)
 end
 
 local panel_prototype = {
@@ -299,8 +352,6 @@ function Cooldowns.CheckValues (panel)
 	Cooldowns.table.deploy (panel, panel_prototype)
 end
 
-local unitsInTheGroup = {}
-
 function Cooldowns:LibGroupInSpecT_UpdateReceived()
 	Cooldowns.RosterUpdate()
 end
@@ -308,14 +359,17 @@ end
 function Cooldowns.ResetRoster()
 	--reset roster
 	wipe (Cooldowns.Roster)
+
 	for i = 1, 12 do --12 classes
 		Cooldowns.Roster [i] = {}
 	end
+
 	--cancel all schedules
 	for playerId, schedule in pairs (Cooldowns.CooldownSchedules) do
 		Cooldowns:CancelTimer (schedule)
 		Cooldowns.CooldownSchedules [playerId] = nil
 	end
+
 	--cancel bar timers
 	for id, panel in pairs (Cooldowns.ScreenPanels) do
 		for _, bar in ipairs (panel.Bars) do
@@ -331,16 +385,14 @@ function Cooldowns.CheckForRosterReset (event)
 		local _, instanceType = GetInstanceInfo()
 		if (instanceType ~= Cooldowns.InstanceType) then
 			if (instanceType == "pvp" or instanceType == "arena") then
-				--> player entered into an battleground or arena
-				--print ("===> Reseting the Roster", event)
-				Cooldowns.RosterUpdate (true)
+				--player entered into an battleground or arena
+				Cooldowns.RosterUpdate()
 			end
 		end
 		Cooldowns.InstanceType = instanceType
-		
+
 	elseif (event == "ENCOUNTER_END" or event == "PANEL_OPTIONS_UPDATE") then
-		--print ("===> Reseting the Roster", event)
-		Cooldowns.RosterUpdate (true)
+		Cooldowns.RosterUpdate()
 	end
 end
 
@@ -370,7 +422,6 @@ function Cooldowns.CheckUnitCooldowns (unitID, groupType, groupIndex)
 	end
 
 	if (info and info.class_id and info.global_spec_id and info.global_spec_id > 0) then
-
 		local name = getUnitName(unitID)
 		local unitTable = Cooldowns.Roster [info.class_id] [name]
 		local _, class = UnitClass(unitID)
@@ -379,9 +430,9 @@ function Cooldowns.CheckUnitCooldowns (unitID, groupType, groupIndex)
 		local spellsAdded = {}
 
 		for spellId, spelltable in pairs (unitSpells or {}) do
-
 			local canAdd = true
 
+			--check if a talent is required
 			if (spelltable.need_talent and not info.talents [spelltable.need_talent]) then
 				canAdd = false
 			end
@@ -408,7 +459,7 @@ function Cooldowns.CheckUnitCooldowns (unitID, groupType, groupIndex)
 				unitTable.spells[spellId].spellid = spellId
 				
 				spellsAdded [spellId] = true
-				TrackingSpells [spellId] = true
+				trackingSpells [spellId] = true
 			end
 		end
 
@@ -452,13 +503,13 @@ function Cooldowns.CheckUnitCooldowns (unitID, groupType, groupIndex)
 	end
 end
 
-function Cooldowns.RosterUpdate (needReset)
+function Cooldowns.RosterUpdate(needReset)
 	if (needReset) then
 		Cooldowns.ResetRoster()
 	end
 
-	wipe(unitsInTheGroup)
-	wipe(TrackingSpells)
+	--wipe(unitsInTheGroup)
+	--wipe(trackingSpells)
 
 	if (IsInRaid() or IsInGroup()) then
 		local GroupId
@@ -468,7 +519,21 @@ function Cooldowns.RosterUpdate (needReset)
 			GroupId = "party"
 		end
 
-		--built the spell list for each actor
+		--quick clean up removing players that isn't in the group anymore
+		for i = 1, 12 do --12 classes
+			local classTable = Cooldowns.Roster[i]
+			if (classTable) then
+				for playerName, _ in pairs (classTable) do
+					if (not UnitInRaid(playerName)) then
+						--remove the player from the roster
+						classTable[playerName] = nil
+						unitsInTheGroup[playerName] = nil
+					end
+				end
+			end
+		end
+
+		--built the spell list for each player
 		if (GroupId == "party") then
 			for i = 1, GetNumGroupMembers()-1 do
 				local unitid = GroupId .. i
@@ -485,11 +550,11 @@ function Cooldowns.RosterUpdate (needReset)
 			Cooldowns.CheckUnitCooldowns("player", 1)
 		end
 
-		--check which actors isn't on the raid anymore
+		--check what players isn't on the raid anymore
 		for index, classIdTable in pairs (Cooldowns.Roster) do
 			for name, _ in pairs (classIdTable) do
 				if (not unitsInTheGroup[name]) then
-					--check for schedules for this actor
+					--check for schedules for this player
 					for playerId, schedule in pairs (Cooldowns.CooldownSchedules) do
 						local playername = Cooldowns.UnpackPlayerSpellId(playerId)
 						if (playername == name) then
@@ -561,6 +626,8 @@ local setupPlayerBar = function (self, panel, player, spell, bar_index)
 	if (playerSpellid ~= self.player_spellid) then
 		if (spell.charges_amt < 1) then
 			--if the charges are charging, set the timer
+			--print(playerSpellid)
+			print("time:", spell.charges_next - spell.charges_start_time, " ", select(1, GetSpellInfo(spell.spellid)))
 			self:SetTimer (spell.charges_start_time, spell.charges_next)
 		else
 			self:CancelTimerBar()
@@ -609,9 +676,6 @@ local refreshBarSettings = function (self)
 		self.color = Cooldowns.db.bar_fixed_color
 	end
 
-	--Details:Dump(self)
-
-	--self.icontexture:SetSize(height, height)
 	self._icon:SetSize(height-1, height-1)
 
 	self.icon_death:SetSize (height, height)
@@ -656,6 +720,12 @@ local panelGetBar = function (self, barIndex)
 			bar.icon_offline:SetAlpha (0.8)
 			bar.icon_offline:SetPoint ("right", bar.icon_death, "left", 0, 0)
 			bar.icon_offline:Hide()
+
+			bar.cooldownUpBar = Cooldowns:CreateBar(bar, nil, bar:GetWidth(), Cooldowns.db.bar_height, 100)
+			bar.cooldownUpBar.color = "green"
+			bar.cooldownUpBar.texture = [[Interface\AddOns\RaidAssist\media\bar_serenity]]
+			bar.cooldownUpBar:SetAllPoints()
+			bar.cooldownUpBar:Hide()
 
 			bar:SetHook ("OnTimerEnd", Cooldowns.OnEndBarTimer)
 			bar.UpdateSettings = refreshBarSettings
@@ -905,7 +975,7 @@ function Cooldowns.ShowPanelInScreen (panel, show, event)
 
 			Cooldowns.HealthCheck = C_Timer.NewTicker(2, playerHealthCheck)
 
-			Cooldowns.RosterUpdate (true)
+			Cooldowns.RosterUpdate()
 			local _, instanceType = GetInstanceInfo()
 			Cooldowns.InstanceType = instanceType
 		else
@@ -973,7 +1043,7 @@ function Cooldowns.UpdatePanels()
 end
 
 function Cooldowns.HandleSpellCast (event, unit, castGUID, spellID)
-	if (TrackingSpells [spellID]) then
+	if (trackingSpells [spellID]) then
 
 		--check for cast_success spam from channel spells
 		local unitCastCooldown = Cooldowns.UnitLastCast [UnitGUID (unit)]
@@ -983,7 +1053,7 @@ function Cooldowns.HandleSpellCast (event, unit, castGUID, spellID)
 		end
 
 		if (not unitCastCooldown [spellID] or unitCastCooldown [spellID]+5 < GetTime()) then
-			 unitCastCooldown [spellID] = GetTime()
+			unitCastCooldown [spellID] = GetTime()
 			--trigger a cooldown usage
 			Cooldowns.BarControl ("spell_cast", unit, spellID)
 		end
@@ -1112,9 +1182,6 @@ function Cooldowns.BarControl (updateType, unitid, spellid)
 
 			local spell_blueprint = spellList [className] [player.spec] [spellid]
 			local cooldown = spell_blueprint.cooldown
-			local type = spell_blueprint.type
-
-			local spellname = GetSpellInfo (spellid)
 
 			--if not zero, means a charge is already loading up and we doesn't need trigger a cooldown
 			if (spell.charges_next == 0) then
@@ -1128,17 +1195,40 @@ function Cooldowns.BarControl (updateType, unitid, spellid)
 					if (panel.Spells [spellid]) then --> this panel is allowed to show this spell
 						local bar = panel:GetBar (Cooldowns.GetPlayerSpellId (player, spell))
 						Cooldowns.SetBarRightText (bar, spell.charges_amt)
+
+						local spellInfo = DetailsFramework.CooldownsInfo[spellid]
+						if (spellInfo and type(spellInfo.duration) == "number") then
+							bar.cooldownUpBar:SetTimer(spellInfo.duration)
+							bar.cooldownUpBar:Show()
+							local spellName, _, spellIcon = GetSpellInfo(spellid)
+							bar.cooldownUpBar.lefttext = Cooldowns:RemoveRealName(name)
+							bar.cooldownUpBar.icon = spellIcon
+							bar.cooldownUpBar._icon:SetTexCoord(12/64, 52/64, 12/64, 52/64)
+							C_Timer.After(spellInfo.duration, function() bar.cooldownUpBar:Hide() end)
+						end
 					end
 				end
 			else
 				--we have zero charges, the bar needs to be shown and trigger an animation
 				for id, panel in pairs (Cooldowns.ScreenPanels) do
 					if (panel.Spells [spellid]) then --> this panel is allowed to show this spell
-						local bar = panel:GetBar (Cooldowns.GetPlayerSpellId (player, spell))
+						local bar = panel:GetBar(Cooldowns.GetPlayerSpellId(player, spell))
 						if (not bar) then
 							return
 						end
 						bar:SetTimer (spell.charges_next - GetTime() - 0.1)
+
+						local spellInfo = DetailsFramework.CooldownsInfo[spellid]
+						if (spellInfo and type(spellInfo.duration) == "number") then
+							bar.cooldownUpBar:SetTimer(spellInfo.duration)
+							bar.cooldownUpBar:Show()
+							local spellName, _, spellIcon = GetSpellInfo(spellid)
+							bar.cooldownUpBar.lefttext = Cooldowns:RemoveRealName(name)
+							bar.cooldownUpBar.icon = spellIcon
+							bar.cooldownUpBar._icon:SetSize(bar.cooldownUpBar:GetHeight()-1, bar.cooldownUpBar:GetHeight()-1)
+							bar.cooldownUpBar._icon:SetTexCoord(12/64, 52/64, 12/64, 52/64)
+							C_Timer.After(spellInfo.duration, function() bar.cooldownUpBar:Hide() end)
+						end
 					end
 				end
 			end

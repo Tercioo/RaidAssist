@@ -3,13 +3,28 @@
 		"path": "$ROOTPATH$\\plugins\\cooldowns.lua",
 		"bookmarks": [
 			{
-				"line": 369,
+				"line": 305,
+				"column": 21,
+				"label": ""
+			},
+			{
+				"line": 512,
 				"column": 0,
 				"label": ""
 			},
 			{
-				"line": 611,
-				"column": 21,
+				"line": 1145,
+				"column": 26,
+				"label": ""
+			},
+			{
+				"line": 1157,
+				"column": 9,
+				"label": ""
+			},
+			{
+				"line": 1207,
+				"column": 2,
 				"label": ""
 			}
 		]
