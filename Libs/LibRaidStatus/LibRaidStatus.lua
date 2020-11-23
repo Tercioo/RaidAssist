@@ -830,6 +830,10 @@ local CONST_LIB_VERSION = 1
         local playerCooldownList = raidStatusLib.cooldownManager.GetPlayerCooldownList()
         local dataToSend = CONST_COMM_COOLDOWNFULLLIST_PREFIX .. ","
         --pack
+
+        if (not playerCooldownList or type(playerCooldownList) ~= "table") then
+            print("libRaidInfo: invalid table[cooldowns]")
+        end        
         local playerCooldownString = raidStatusLib.PackTable(playerCooldownList)
         dataToSend = dataToSend .. playerCooldownString
 
@@ -1041,6 +1045,15 @@ local CONST_LIB_VERSION = 1
 
         dataToSend = dataToSend .. playerGearInfo[1] .. "," --item level
         dataToSend = dataToSend .. playerGearInfo[2] .. "," --durability
+
+        if (not playerGearInfo[3] or type(playerGearInfo[3]) ~= "table") then
+            print("libRaidInfo: invalid table[3]")
+        end
+
+        if (not playerGearInfo[4] or type(playerGearInfo[4]) ~= "table") then
+            print("libRaidInfo: invalid table[4]")
+        end
+
         dataToSend = dataToSend .. raidStatusLib.PackTable(playerGearInfo[3]) .. "," --slots without enchant
         dataToSend = dataToSend .. raidStatusLib.PackTable(playerGearInfo[4]) -- slots without enchant
 
