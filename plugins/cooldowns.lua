@@ -241,7 +241,11 @@ function Cooldowns.OnLeaveRaidGroup()
 		Cooldowns.playerIsInParty = false
 	end
 
+	wipe(trackingSpells)
+	wipe(unitsInTheGroup)
+
 	Cooldowns.in_raid = false
+	Cooldowns.ResetRoster()
 	Cooldowns.CheckForShowPanels ("LEFT_RAID_GROUP")
 end
 
@@ -255,6 +259,7 @@ function Cooldowns.OnLeavePartyGroup()
 	if (not IsInRaid()) then
 		Cooldowns.in_raid = false
 	end
+	Cooldowns.ResetRoster()
 	Cooldowns.CheckForShowPanels ("LEFT_PARTY_GROUP")
 end
 
@@ -299,25 +304,25 @@ end
 
 function Cooldowns:ENCOUNTER_END()
 	if (IsInRaid()) then
-		--reset cooldowns
+		--cancel all schedules
+		for playerId, schedule in pairs(Cooldowns.CooldownSchedules) do
+			Cooldowns:CancelTimer(schedule)
+			Cooldowns.CooldownSchedules[playerId] = nil
+		end
 
-		for i = 1, 12 do --12 classes
-			local classTable = Cooldowns.Roster[i]
-			for playerName, _ in pairs (classTable) do
-				local player = classTable [playerName]
-				if (player) then
-					local playerSpells = player.spells
-					for spellId, spellTable in pairs(playerSpells) do
-						spellTable.latest_usage = 0
-						spellTable.charges_amt = 1
-					end
-				end
+		--cancel bar timers
+		for id, panel in pairs(Cooldowns.ScreenPanels) do
+			for _, bar in ipairs(panel.Bars) do
+				bar:CancelTimerBar()
+				bar.player_spellid = nil
+				bar:Hide()
 			end
 		end
 	end
 
+	Cooldowns.RosterUpdate()
 	Cooldowns.in_raid_encounter = false
-	Cooldowns.CheckForShowPanels ("ENCOUNTER_END")
+	Cooldowns.CheckForShowPanels("ENCOUNTER_END")
 end
 
 Cooldowns.PLAYER_LOGIN = function()
@@ -325,15 +330,29 @@ Cooldowns.PLAYER_LOGIN = function()
 		Cooldowns.Roster[i] = {}
 	end
 
-	--copy the roster from previous session into this session
-	DetailsFramework.table.deploy(Cooldowns.Roster, Cooldowns.db.roster_cache)
-	Cooldowns.db.roster_cache = Cooldowns.Roster
+	if (IsInGroup()) then
+		--copy the roster from previous session into this session
+		DetailsFramework.table.deploy(Cooldowns.Roster, Cooldowns.db.roster_cache)
+		Cooldowns.db.roster_cache = Cooldowns.Roster
 
-	DetailsFramework.table.deploy(trackingSpells, Cooldowns.db.tracking_spells_cache)
-	Cooldowns.db.tracking_spells_cache = trackingSpells
+		DetailsFramework.table.deploy(trackingSpells, Cooldowns.db.tracking_spells_cache)
+		Cooldowns.db.tracking_spells_cache = trackingSpells
 
-	DetailsFramework.table.deploy(unitsInTheGroup, Cooldowns.db.units_in_the_group)
-	Cooldowns.db.units_in_the_group = unitsInTheGroup
+		DetailsFramework.table.deploy(unitsInTheGroup, Cooldowns.db.units_in_the_group)
+		Cooldowns.db.units_in_the_group = unitsInTheGroup
+
+	else
+		--wipe caches
+		wipe(Cooldowns.db.tracking_spells_cache)
+		Cooldowns.db.tracking_spells_cache = trackingSpells
+
+		wipe(Cooldowns.db.units_in_the_group)
+		Cooldowns.db.units_in_the_group = unitsInTheGroup
+
+		wipe(Cooldowns.db.roster_cache)
+		Cooldowns.db.roster_cache = Cooldowns.Roster
+		Cooldowns.ResetRoster()
+	end
 
 	C_Timer.After (1, Cooldowns.CheckForShowPanels)
 
@@ -606,7 +625,7 @@ local setupPlayerBar = function (self, panel, player, spell, bar_index)
 	local _, _, spellicon = GetSpellInfo (spell.spellid)
 	iconTable[1] = spellicon
 	self.icon = iconTable
-	
+
 	self.lefttext = Cooldowns:RemoveRealName (player.name)
 	self.righttext = spell.charges_amt > 1 and spell.charges_amt or ""
 	self.spellid = spell.spellid
