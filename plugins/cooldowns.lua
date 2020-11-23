@@ -627,7 +627,7 @@ local setupPlayerBar = function (self, panel, player, spell, bar_index)
 		if (spell.charges_amt < 1) then
 			--if the charges are charging, set the timer
 			--print(playerSpellid)
-			print("time:", spell.charges_next - spell.charges_start_time, " ", select(1, GetSpellInfo(spell.spellid)))
+			--print("time:", spell.charges_next - spell.charges_start_time, " ", select(1, GetSpellInfo(spell.spellid)))
 			self:SetTimer (spell.charges_start_time, spell.charges_next)
 		else
 			self:CancelTimerBar()
