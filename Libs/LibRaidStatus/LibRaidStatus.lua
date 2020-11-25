@@ -18,7 +18,7 @@ local CONST_LIB_VERSION = 1
     raidStatusLib.CanReceiveComms = false
 
     --print failures (when the function return an error) results to chat
-    local CONST_DIAGNOSTIC_ERRORS = false
+    local CONST_DIAGNOSTIC_ERRORS = true
     --print the data to be sent and data received from comm
     local CONST_DIAGNOSTIC_COMM = false
 
@@ -832,8 +832,8 @@ local CONST_LIB_VERSION = 1
         --pack
 
         if (not playerCooldownList or type(playerCooldownList) ~= "table") then
-            print("libRaidInfo: invalid table[cooldowns]")
-        end        
+            print("libRaidInfo: invalid table[cooldowns]", type(playerCooldownList))
+        end
         local playerCooldownString = raidStatusLib.PackTable(playerCooldownList)
         dataToSend = dataToSend .. playerCooldownString
 
