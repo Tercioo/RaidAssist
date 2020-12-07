@@ -77,6 +77,15 @@ LIB_RAID_STATUS_GEM_IDS = {
     [173128] = true, --Quick Jewel Cluster (blue, haste)
 }
 
+LIB_RAID_STATUS_WEAPON_ENCHANT_IDS = {
+	[6188] = true, --shadowcore oil
+	[6190] = true, --embalmer's oil
+	[6201] = true, --weighted
+	[6200] = true, --sharpened
+	[5400] = true, --flametongue
+	[5401] = true, --windfury
+}
+
 LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 	-- 1 attack cooldown
 	-- 2 personal defensive cooldown

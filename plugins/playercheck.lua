@@ -2,14 +2,14 @@
 
 local RA = RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
-local _ 
-local default_priority = 19
-
-local LibGroupInSpecT = LibStub:GetLibrary ("LibGroupInSpecT-1.1")
+local DF = DetailsFramework
+local _
+local defaultPriority = 119
 
 if (_G ["RaidAssistPlayerCheck"]) then
 	return
 end
+
 local PlayerCheck = {
 	last_data_sent = 0,
 	player_data = {},
@@ -18,17 +18,11 @@ local PlayerCheck = {
 }
 _G ["RaidAssistPlayerCheck"] = PlayerCheck
 
---PlayerCheck.IsDisabled = true
-local can_install = false
-local can_install = true
+local canInstall = true
 
 local default_config = {
 	leader_request_interval = 600,
 }
-
-local COMM_REQUEST_DATA = "PCR"
-local COMM_RECEIVED_DATA = "PCD"
-local COMM_RECEIVED_LATENCY = "PCL"
 
 local icon_texcoord = {l=0, r=1, t=0, b=1}
 local icon_texture = [[Interface\CURSOR\thumbsup]]
@@ -37,9 +31,9 @@ local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
 
 PlayerCheck.menu_text = function (plugin)
 	if (PlayerCheck.db.enabled) then
-		return icon_texture, icon_texcoord, "Player Check", text_color_enabled
+		return icon_texture, icon_texcoord, "Player Check (dev)", text_color_enabled
 	else
-		return icon_texture, icon_texcoord, "Player Check", text_color_disabled
+		return icon_texture, icon_texcoord, "Player Check (dev)", text_color_disabled
 	end
 end
 
@@ -52,77 +46,18 @@ PlayerCheck.menu_popup_hide = function (plugin, ct_frame, param1, param2)
 end
 
 PlayerCheck.menu_on_click = function (plugin)
-	--if (not PlayerCheck.options_built) then
-	--	PlayerCheck.BuildOptions()
-	--	PlayerCheck.options_built = true
-	--end
-	--PlayerCheck.main_frame:Show()
-	
 	RA.OpenMainOptions (PlayerCheck)
-end
-
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
---> every 30 seconds if out of combat, send a latency update.
-local func_latency_ticker = function()
-	local w, h = PlayerCheck:GetLatency()
-	PlayerCheck:SendPluginCommMessage (COMM_RECEIVED_LATENCY, "RAID-NOINSTANCE", _, _, PlayerCheck:GetPlayerNameWithRealm(), w, h)
-end
-
-function PlayerCheck:StartLatencyTicker()
-	if (not PlayerCheck.LatencyTicker or PlayerCheck.LatencyTicker._cancelled) then
-		PlayerCheck.LatencyTicker = C_Timer.NewTicker (30, func_latency_ticker)
-	end
-end
-
-function PlayerCheck:StopLatencyTicker()
-	if (PlayerCheck.LatencyTicker and not PlayerCheck.LatencyTicker._cancelled) then
-		PlayerCheck.LatencyTicker:Cancel()
-	end
-end
-
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
---> if we are the leader, we can ask for information when out of combat
-local func_requestdata_ticker = function()
-	if (not InCombatLockdown()) then
-		PlayerCheck:SendPluginCommMessage (COMM_REQUEST_DATA, "RAID-NOINSTANCE", _, _, PlayerCheck:GetPlayerNameWithRealm())
-	end
-end
-
-function PlayerCheck:StartDataRequestTicker()
-	if (not PlayerCheck.LeaderRequestTicker or PlayerCheck.LeaderRequestTicker._cancelled) then
-		PlayerCheck.LeaderRequestTicker = C_Timer.NewTicker (PlayerCheck.db.leader_request_interval, func_requestdata_ticker)
-	end
-end
-
-function PlayerCheck:StopDataRequestTicker()
-	if (PlayerCheck.LeaderRequestTicker and not PlayerCheck.LeaderRequestTicker._cancelled) then
-		PlayerCheck.LeaderRequestTicker:Cancel()
-	end
-end
-
-function PlayerCheck:CheckLeadership()
-	if (UnitIsGroupLeader ("player")) then
-		PlayerCheck:StartDataRequestTicker()
-	else
-		PlayerCheck:StopDataRequestTicker()
-	end	
 end
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 PlayerCheck.OnInstall = function (plugin)
-	PlayerCheck.db.menu_priority = default_priority
+	PlayerCheck.db.menu_priority = defaultPriority
 
-	local popup_frame = PlayerCheck.popup_frame
-	local main_frame = PlayerCheck.main_frame
-	
-	PlayerCheck:RegisterPluginComm (COMM_REQUEST_DATA, PlayerCheck.PluginCommReceived)
-	PlayerCheck:RegisterPluginComm (COMM_RECEIVED_DATA, PlayerCheck.PluginCommReceived)
-	PlayerCheck:RegisterPluginComm (COMM_RECEIVED_LATENCY, PlayerCheck.PluginCommReceived)
-	LibGroupInSpecT.RegisterCallback (PlayerCheck, "GroupInSpecT_Update", "LibGroupInSpecT_UpdateReceived")
-	
-	main_frame:RegisterEvent ("GROUP_ROSTER_UPDATE")
-	main_frame:SetScript ("OnEvent", function (self, event, ...)
+	local mainFrame = PlayerCheck.main_frame
+
+	mainFrame:RegisterEvent ("GROUP_ROSTER_UPDATE")
+	mainFrame:SetScript ("OnEvent", function (self, event, ...)
 		if (event == "GROUP_ROSTER_UPDATE") then
 			PlayerCheck:GroupUpdate()
 		end
@@ -130,49 +65,27 @@ PlayerCheck.OnInstall = function (plugin)
 	PlayerCheck:GroupUpdate()
 end
 
---> after joining a raid group, send a welcome with our base data
-local delayed_send_data = function()
-	if (IsInRaid (LE_PARTY_CATEGORY_HOME)) then
-		PlayerCheck:SendData()
-	end
-end
-
---> on group roster update
+--on group roster update
 function PlayerCheck:GroupUpdate()
 	if (IsInRaid (LE_PARTY_CATEGORY_HOME)) then
 		if (not PlayerCheck.InGroup) then
-			--> we are in group now
+			--in group now
 			PlayerCheck.InGroup = true
-			--> random delay to send the initial welcome data
-			--C_Timer.After (10 + math.random (10), delayed_send_data)
-			C_Timer.After (3, delayed_send_data)
-			--> send the latency periodically
-			PlayerCheck:StartLatencyTicker()
 		end
 	else
 		if (PlayerCheck.InGroup) then
 			PlayerCheck.InGroup = false
-			PlayerCheck:StopLatencyTicker()
 		end
 	end
-	
-	PlayerCheck:CheckLeadership()
 end
 
 PlayerCheck.OnEnable = function (plugin)
-	-- enabled from the options panel.
-	PlayerCheck.OnInstall (plugin)
+	--enabled from the options panel
+	PlayerCheck.OnInstall(plugin)
 end
 
 PlayerCheck.OnDisable = function (plugin)
-	-- disabled from the options panel.
-	PlayerCheck:UnregisterPluginComm (COMM_REQUEST_DATA, PlayerCheck.PluginCommReceived)
-	PlayerCheck:UnregisterPluginComm (COMM_RECEIVED_DATA, PlayerCheck.PluginCommReceived)
-	PlayerCheck:UnregisterPluginComm (COMM_RECEIVED_LATENCY, PlayerCheck.PluginCommReceived)
-	LibGroupInSpecT.UnregisterCallback (PlayerCheck, "GroupInSpecT_Update")
-	PlayerCheck.main_frame:UnregisterEvent ("GROUP_ROSTER_UPDATE")
-	PlayerCheck:StopLatencyTicker()
-	PlayerCheck:StopDataRequestTicker()
+	PlayerCheck.main_frame:UnregisterEvent("GROUP_ROSTER_UPDATE")
 end
 
 PlayerCheck.OnProfileChanged = function (plugin)
@@ -181,281 +94,419 @@ PlayerCheck.OnProfileChanged = function (plugin)
 	else
 		PlayerCheck.OnDisable (plugin)
 	end
-	
+
 	if (plugin.options_built) then
 		plugin.main_frame:RefreshOptions()
 	end
 end
 
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
---get the player item level
-function PlayerCheck:GetItemLevel()
-	local overall, equipped = GetAverageItemLevel()
-	return equipped, overall
-end
-
---get the player ping
-function PlayerCheck:GetLatency()
-	local bandwidthIn, bandwidthOut, latencyHome, latencyWorld = GetNetStats()
-	return latencyWorld, latencyHome
-end
-
---get the% of repair and missing gems and enchants
-function PlayerCheck:GetRepairAndMissingAdds()
-	local repair_percent = PlayerCheck:GetRepairStatus()
-	local missing_enchants, missing_gems = PlayerCheck:GetSloppyEquipment()
-	return repair_percent, missing_enchants, missing_gems
-end
-
----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
---local spec_id, spec_name, spec_description, spec_icon, spec_background, spec_role, spec_class = GetSpecializationInfoByID (spec or 0)
---local talentID, name, texture, selected, available = GetTalentInfoByID (talents [i])
-
---> raid leader requested data
-function PlayerCheck:SendData()
-	if (PlayerCheck.last_data_sent + 20 < time()) then
-		local worldLatency, homeLatency = PlayerCheck:GetLatency()
-		local equippedILevel, totalIlevel = PlayerCheck:GetItemLevel()
-		local repairPercent, noEnchants, noGems = PlayerCheck:GetRepairAndMissingAdds()
-		for id, slot in ipairs (noGems) do
-			tinsert (noEnchants, slot)
-		end
-		local specTalents = PlayerCheck:GetTalents()
-	
-		PlayerCheck:SendPluginCommMessage (COMM_RECEIVED_DATA, "RAID-NOINSTANCE", _, _, PlayerCheck:GetPlayerNameWithRealm(), worldLatency, homeLatency, equippedILevel, totalIlevel, repairPercent, noEnchants, specTalents)
-		PlayerCheck.last_data_sent = time()
-	end
-end
-
-local postpone_send_data = function()
-	if (not PlayerCheck.PostponeTicker or PlayerCheck.PostponeTicker._cancelled) then
-		PlayerCheck.PostponeTicker = C_Timer.NewTicker (10, PlayerCheck.PostponeSendData)
-	end
-end
-function PlayerCheck:PostponeSendData()
-	if (not InCombatLockdown() and IsInRaid (LE_PARTY_CATEGORY_HOME)) then
-		PlayerCheck:SendData()
-		if (PlayerCheck.PostponeTicker and not PlayerCheck.PostponeTicker._cancelled) then
-			PlayerCheck.PostponeTicker:Cancel()
-		end
-	elseif (not IsInRaid (LE_PARTY_CATEGORY_HOME)) then
-		if (PlayerCheck.PostponeTicker and not PlayerCheck.PostponeTicker._cancelled) then
-			PlayerCheck.PostponeTicker:Cancel()
-		end
-	end
-end
-
---> on receive a comm
-function PlayerCheck.PluginCommReceived (prefix, sourcePluginVersion, player_name, lag_w, lag_l, ilvl_e, ilvl_t, repair, missing_adds, spec_stalents)
-
---	print (player_name, lag_w, lag_l, ilvl_e, ilvl_t, repair, missing_adds, spec_stalents)
-	
-	if (prefix == COMM_REQUEST_DATA) then
-		--> leader requested data
-		if (PlayerCheck:UnitIsRaidLeader (player_name)) then
-			if (InCombatLockdown()) then
-				postpone_send_data()
-			else
-				PlayerCheck:SendData()
+--[=[]]
+		if (RaidAssistOptionsPanelPlayerCheck) then
+			if (RaidAssistOptionsPanelPlayerCheck.playerInfoScroll and RaidAssistOptionsPanelPlayerCheck.playerInfoScroll:IsShown()) then
+				RaidAssistOptionsPanelPlayerCheck.playerInfoScroll.RefreshData()
 			end
 		end
-		
-	elseif (prefix == COMM_RECEIVED_LATENCY) then
-		--only latency
-		local t = PlayerCheck.player_data [player_name] or {}
-		
-		t [1] = t [1] or 0
-		t [2] = t [2] or 0
-		t [3] = lag_w
-		t [4] = lag_l
-		t [5] = t [5] or 0
-		t [6] = t [6] or {}
-		t [7] = t [7] or {0}
-		
-		PlayerCheck.player_data [player_name] = t
-		
-		if (PlayerCheckFillPanel and PlayerCheckFillPanel:IsShown()) then
-			if (PlayerCheck.update_PlayerCheck and PlayerCheck.fill_panel) then
-				PlayerCheck.update_PlayerCheck (PlayerCheck.fill_panel)
-			end
-		end
-		
-	elseif (prefix == COMM_RECEIVED_DATA) then
-		--entire data
-		local t = PlayerCheck.player_data [player_name] or {}
-		
-		t [1] = ilvl_e or t [1] or 0
-		t [2] = ilvl_t or t [2] or 0
-		t [3] = lag_w or t [3] or 0
-		t [4] = lag_l or t [4] or 0
-		t [5] = repair or t [5] or 0
-		t [6] = missing_adds or t [6] or {}
-		t [7] = spec_stalents or t [7] or {0}
-		
-		PlayerCheck.player_data [player_name] = t
-		
-		if (PlayerCheckFillPanel and PlayerCheckFillPanel:IsShown()) then
-			if (PlayerCheck.update_PlayerCheck and PlayerCheck.fill_panel) then
-				PlayerCheck.update_PlayerCheck (PlayerCheck.fill_panel)
-			end
-		end
-	end
-end
-
-function PlayerCheck:LibGroupInSpecT_UpdateReceived (event, guid, unitid, info)
-
-	if (info and info.name) then
-		local name = info.name:find ("%-") and info.name:gsub ("%-.*", "") or info.name
-		name = info.name .. "-" .. (info.realm or GetRealmName())
-		
-		local t = PlayerCheck.player_data [name] or {}
-		t [1] = t [1] or 0
-		t [2] = t [2] or 0
-		t [3] = t [3] or 0
-		t [4] = t [4] or 0
-		t [5] = t [5] or 0
-		t [6] = t [6] or {}
-		t [7] = t [7] or {}
-		
-		local talents = t [7] or {0}
-		local i = 2
-		talents [1] = info.global_spec_id or t [7][1]
-		for talentId, _ in pairs (info.talents) do 
-			talents [i] = talentId
-			i = i + 1
-		end
-		t [7] = talents
-		
-		if (PlayerCheckFillPanel and PlayerCheckFillPanel:IsShown()) then
-			if (PlayerCheck.update_PlayerCheck and PlayerCheck.fill_panel) then
-				PlayerCheck.update_PlayerCheck (PlayerCheck.fill_panel)
-			end
-		end
-	end
-end
+--]=]
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 function PlayerCheck.OnShowOnOptionsPanel()
 	local OptionsPanel = PlayerCheck.OptionsPanel
-	PlayerCheck.BuildOptions (OptionsPanel)
+	PlayerCheck.BuildOptions(OptionsPanel)
 end
 
-PlayerCheck.update_PlayerCheck = function (fill_panel, export)
-
-	local current_db = PlayerCheck.player_data
-	if (current_db) then
-	
-		--> alphabetical order
-		local alphabetical_players = {}
-		for playername, table in pairs (current_db) do
-			tinsert (alphabetical_players, {playername, table})
-		end
-		
-		table.sort (alphabetical_players, function (t1, t2) return t2[1] < t1[1] end)			
-
-		--add the two initial headers for player name and total PlayerCheck
-		local header = {
-			{name = "Player Name", type = "text", width = 120},
-			{name = "Latency", type = "text", width = 60},
-			{name = "Item Level", type = "text", width = 60},
-			{name = "Repair %", type = "text", width = 60},
-			{name = "No Enchant/Gem", type = "text", width = 120},
-			{name = "Talents", type = "text", width = 120},
-		}
-
-		local get_latency_color = function (latency)
-			if (latency < 300) then
-				return "|cFF33FF33" .. latency .. "|r"
-			elseif (latency < 600) then
-				return "|cFFFFFF33" .. latency .. "|r"
-			else
-				return "|cFFFF3333" .. latency .. "|r"
-			end
-		end
-		
-		local get_repair_color = function (repair_percent)
-			local r, g, b = PlayerCheck:PercentColor (repair_percent)
-			r = RA:Hex (floor (r*255))
-			g = RA:Hex (floor (g*255))
-			b = RA:Hex (floor (b*255))
-			return "|cFF" .. r .. g .. b .. repair_percent .. "|r"
-		end
-		
-		local get_missing_color = function (amt)
-			if (amt == 0) then
-				return ""
-			elseif (amt < 3) then
-				return "|cFFFFFF33" .. amt .. "|r"
-			else
-				return "|cFFFF3333" .. amt .. "|r"
-			end
-		end
-		
-		fill_panel:SetFillFunction (function (index) 
-			
-			local name = Ambiguate (alphabetical_players [index][1], "none")
-			local t = alphabetical_players [index][2]
-			
-			local latency = get_latency_color (t[3] or 0) .. " | " .. get_latency_color (t[4] or 0)
-			
-			local item_level = floor (t[1] or 0) .. " | " .. floor (t[2] or 0)
-			local repair = get_repair_color (floor (t[5] or 0))
-			
-			local missing_enchants = ""
-			local missing_enchants_amt = 0
-			for index, slot in ipairs (t [6] or {}) do
-				missing_enchants = missing_enchants .. slot .. " "
-				missing_enchants_amt = missing_enchants_amt + 1
-			end
-			
-			missing_enchants_amt = get_missing_color (missing_enchants_amt)
-			
-			local talents = ""
-			for i = 2, #t[7] do
-				local talentID, name, texture, selected, available = GetTalentInfoByID (t[7][i] or 0)
-				if (texture) then
-					talents = talents ..  " |T" .. texture .. ":" .. 15 .. ":" .. 15 ..":0:0:64:64:4:60:4:60|t"
-				end
-			end
-
-			local spec_id, spec_name, spec_description, spec_icon, spec_background, spec_role, spec_class = GetSpecializationInfoByID (t[7][1] or 0)
-			if (spec_icon) then
-				name = "|T" .. spec_icon .. ":" .. 16 .. ":" .. 16 ..":0:0:64:64:4:60:4:60|t " .. (name or "Unknown")
-			else
-				name = name or "Unknown"
-			end
-
-			return {name, latency, item_level, repair, missing_enchants_amt, talents}
-		end)
-
-		fill_panel:SetTotalFunction (function() return #alphabetical_players end)
-		fill_panel:SetSize (math.min (GetScreenWidth()-200, (#header*60) + 60), 450)
-		fill_panel:UpdateRows (header)
-		fill_panel:Refresh()
-	end
-end
-
-function PlayerCheck.BuildOptions (frame)
-	
+function PlayerCheck.BuildOptions(frame)
 	if (frame.FirstRun) then
 		return
 	end
 	frame.FirstRun = true
-	
-	local fill_panel = PlayerCheck:CreateFillPanel (frame, {}, 790, 460, false, false, false, {rowheight = 16}, "fill_panel", "PlayerCheckFillPanel")
-	PlayerCheck.fill_panel = fill_panel
-	fill_panel:SetPoint ("topleft", frame, "topleft", 10, 0)
 
-	frame:SetScript ("OnShow", function()
-		PlayerCheck.update_PlayerCheck (PlayerCheck.fill_panel)
+	--libRaidStatus
+	local raidStatusLib = LibStub:GetLibrary("LibRaidStatus-1.0")
+
+	--register callback on libRaidStatus
+	function PlayerCheck.OnGearDurabilityUpdate(playerName, durability, gearTable)
+		if (frame.playerInfoScroll:IsShown()) then
+			frame.playerInfoScroll.RefreshData()
+		end
+	end
+	raidStatusLib.RegisterCallback(PlayerCheck, "GearDurabilityUpdate", "OnGearDurabilityUpdate")
+
+	function PlayerCheck.OnGearUpdate(playerName, playerGearInfo, gearTable)
+		if (frame.playerInfoScroll:IsShown()) then
+			frame.playerInfoScroll.RefreshData()
+		end
+	end
+	raidStatusLib.RegisterCallback(PlayerCheck, "GearUpdate", "OnGearUpdate")
+
+	function PlayerCheck.OnGearListWiped(gearTable)
+		if (frame.playerInfoScroll:IsShown()) then
+			frame.playerInfoScroll.RefreshData()
+		end
+	end
+	raidStatusLib.RegisterCallback(PlayerCheck, "GearListWiped", "OnGearListWiped")
+
+	--spell scroll options
+	local scroll_width = 848
+	local scroll_height = 620
+	local scroll_line_height = 20
+	local scroll_lines = floor(scroll_height / scroll_line_height) - 1
+	local lineSeparatorHeight = scroll_height
+	local lineSeparatorWidth = 1
+
+	local backdrop_color = {.2, .2, .2, 0.2}
+	local backdrop_color_on_enter = {.8, .8, .8, 0.4}
+	local y = 0
+	local headerY = y - 0
+	local scrollY = headerY - 20
+	local line_colors = {{1, 1, 1, .1}, {1, 1, 1, 0}}
+
+	local headerSizeSmall = 50
+	local headerSizeMedium = 65
+	local headerSizeBig = 120
+
+	local defaultTextColor = {.89, .89, .89, .89}
+	local overHoverTextColor = {.99, .99, .99, .99}
+
+	--header
+	local columnAlign = "left"
+	local columnAlignOffset = 0
+
+	--create the header and the scroll frame
+	local headerTable = {
+		{text = "Spec", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC", selected = true},
+		{text = "Name", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
+		{text = "iLevel", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
+		{text = "Repair", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
+		{text = "Enchant", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
+		{text = "Gems", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
+		{text = "Talents", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
+		{text = "Renown", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
+		{text = "Conduit", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
+	}
+
+	local headerOnClickCallback = function(headerFrame, columnHeader)
+		--need to change this to make a refresh in the scroll frame
+		_G[frame:GetName() .. "playerInfoScroll"].RefreshData()
+	end
+
+	local headerOptions = {
+		padding = 2,
+		header_backdrop_color = {.3, .3, .3, .8},
+		header_backdrop_color_selected = {.5, .5, .5, 0.8},
+		use_line_separators = true,
+		line_separator_color = {.1, .1, .1, .6},
+		line_separator_width = lineSeparatorWidth,
+		line_separator_height = lineSeparatorHeight,
+		line_separator_gap_align = true,
+		header_click_callback = headerOnClickCallback,
+	}
+
+	local header = DF:CreateHeader(frame, headerTable, headerOptions, "RaidAssistPlayerCheckHeader")
+	header:SetPoint ("topleft", frame, "topleft", 0, headerY)
+
+	local currentSelectedColumn = 1
+
+	local line_onenter = function (self)
+		self:SetBackdropColor (unpack (backdrop_color_on_enter))
+	end
+
+	local line_onleave = function (self)
+		self:SetBackdropColor (unpack (self.BackgroundColor))
+	end
+
+	--create line for the spell scroll
+	local scroll_createline = function (self, index)
+
+		local line = CreateFrame ("button", "$parentLine" .. index, self, "BackdropTemplate")
+		line:SetPoint ("topleft", self, "topleft", 1, -((index-1) * (scroll_line_height+1)) - 1)
+		line:SetSize (scroll_width, scroll_line_height)
+		line.id = index
+
+		line:SetScript ("OnEnter", line_onenter)
+		line:SetScript ("OnLeave", line_onleave)
+
+		line:SetBackdrop ({bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
+		line:SetBackdropColor (unpack (backdrop_color))
+
+		if (index % 2 == 0) then
+			line:SetBackdropColor (unpack (line_colors [1]))
+			line.BackgroundColor = line_colors [1]
+		else
+			line:SetBackdropColor (unpack (line_colors [2]))
+			line.BackgroundColor = line_colors [2]
+		end
+
+		DF:Mixin (line, DF.HeaderFunctions)
+
+		local playerNameFrame = CreateFrame("frame", nil, line, "BackdropTemplate")
+		playerNameFrame:SetSize (headerTable [1].width + columnAlignOffset, header.options.header_height)
+		playerNameFrame:EnableMouse (false)
+
+		--player information
+
+			--spec icon
+			local specIcon = DF:CreateImage(line, "", line:GetHeight() - 2, line:GetHeight() - 2)
+			specIcon.texcoord = {.1, .9, .1, .9}
+			--specIcon:SetPoint ("left", 0, 0)
+			specIcon:SetColorTexture(1, 1, 1, 1)
+			specIcon.originalWidth = specIcon.width
+			specIcon.originalHeight = specIcon.height
+			specIcon.hoverWidth = specIcon.width * 1.15
+			specIcon.hoverHeight = specIcon.height * 1.15
+
+			--player name
+			local playerName = DF:CreateLabel(line)
+			playerName:SetText("player name here")
+
+			--ilevel
+			local itemLevel = DF:CreateLabel(line)
+
+			--repair
+			local repairPct = DF:CreateLabel(line)
+
+			--enchant missing
+			local enchantMissing = DF:CreateLabel(line)
+
+			--gems missing
+			local gemMissing = DF:CreateLabel(line)
+
+			--talents
+			local talentsFrame = CreateFrame("frame", "$parentTalents", line)
+			talentsFrame:SetSize(headerSizeBig, line:GetHeight() - 2)
+			talentsFrame.frames = {}
+			for i = 1, 7 do
+				local talentFrame = CreateFrame("frame", "$parentTalent" .. i, talentsFrame)
+				talentFrame:SetPoint("left", talentsFrame, "left", (i-1)*scroll_line_height, 0)
+				tinsert(talentsFrame.frames, talentFrame)
+				talentFrame:SetSize(scroll_line_height - 2, scroll_line_height - 2)
+				local talentIcon = talentFrame:CreateTexture(nil, "artwork")
+				talentIcon:SetAllPoints()
+				talentFrame.icon = talentIcon
+			end
+
+			--renown
+			local renownLevel = DF:CreateLabel(line)
+
+			--conduits
+			local conduitsFrame = CreateFrame("frame", "$parentConduits", line)
+			conduitsFrame:SetSize(headerSizeBig, line:GetHeight() - 2)
+			conduitsFrame.frames = {}
+			for i = 1, 7 do
+				local conduitFrame = CreateFrame("frame", "$parentConduit" .. i, conduitsFrame)
+				conduitFrame:SetPoint("left", conduitsFrame, "left", (i-1)*scroll_line_height, 0)
+				tinsert(conduitsFrame.frames, conduitFrame)
+				conduitFrame:SetSize(scroll_line_height - 2, scroll_line_height - 2)
+				local conduitIcon = conduitFrame:CreateTexture(nil, "artwork")
+				conduitIcon:SetAllPoints()
+				conduitFrame.icon = conduitIcon
+			end
+
+		--store the labels into the line object
+		line.specIcon = specIcon
+		line.playerName = playerName
+		line.itemLevel = itemLevel
+		line.repairPct = repairPct
+		line.enchantMissing = enchantMissing
+		line.gemMissing = gemMissing
+		line.talentsFrame = talentsFrame
+		line.renownLevel = renownLevel
+		line.conduitsFrame = conduitsFrame
+
+		line.playerName.fontcolor = defaultTextColor
+		line.itemLevel.fontcolor = defaultTextColor
+		line.repairPct.fontcolor = defaultTextColor
+		line.enchantMissing.fontcolor = defaultTextColor
+		line.gemMissing.fontcolor = defaultTextColor
+		line.talentsFrame.fontcolor = defaultTextColor
+		line.renownLevel.fontcolor = defaultTextColor
+		line.conduitsFrame.fontcolor = defaultTextColor
+
+		--align with the header
+		line:AddFrameToHeaderAlignment(specIcon)
+		line:AddFrameToHeaderAlignment(playerName)
+		line:AddFrameToHeaderAlignment(itemLevel)
+		line:AddFrameToHeaderAlignment(repairPct)
+		line:AddFrameToHeaderAlignment(enchantMissing)
+		line:AddFrameToHeaderAlignment(gemMissing)
+		line:AddFrameToHeaderAlignment(talentsFrame)
+		line:AddFrameToHeaderAlignment(renownLevel)
+		line:AddFrameToHeaderAlignment(conduitsFrame)
+
+		line:AlignWithHeader(header, "left")
+
+		return line
+	end
+
+	--refresh player list
+	local refreshPlayerInfoScroll = function (self, data, offset, totalLines)
+		for i = 1, totalLines do
+			local index = i + offset
+			local dataTable = data[index]
+
+			if (dataTable) then
+				local line = self:GetLine(i)
+				line.index = index
+
+				local specId = dataTable[7]
+				if (specId and specId > 0) then 
+					local _, _, _, specIcon = GetSpecializationInfoByID(specId)
+					line.specIcon:SetTexture(specIcon)
+				else
+					--todo: try to get the class icon
+					line.specIcon:SetTexture("")
+				end
+
+				--player name
+				line.playerName:SetText(dataTable[1])
+
+				--item level
+				line.itemLevel:SetText(dataTable[3])
+
+				--repair
+				line.repairPct:SetText(dataTable[2] .. "%")
+
+				--enchant missing
+				local missingEnchants = dataTable[6]
+				if (#missingEnchants == 0) then
+					line.enchantMissing:SetText("")
+				else
+					local s = ""
+					for i = 1, #missingEnchants do
+						local equipSlotIcon = DF:GetArmorIconByArmorSlot(missingEnchants[i])
+						local iconString = "|T" .. equipSlotIcon .. ":" .. (scroll_line_height-2) .. ":" .. (scroll_line_height-2) .. ":0:0:64:64:" .. 0.1*64 .. ":" .. 0.9*64 .. ":" .. 0.1*64 .. ":" .. 0.9*64 .. "|t"
+						s = s .. iconString
+					end
+					line.enchantMissing:SetText(s)
+				end
+
+				--gem missing
+				local missingGems = dataTable[5]
+				if (#missingGems == 0) then
+					line.gemMissing:SetText("")
+				else
+					local s = ""
+					for i = 1, #missingGems do
+						local equipSlotIcon = DF:GetArmorIconByArmorSlot(missingGems[i])
+						local iconString = "|T" .. equipSlotIcon .. ":" .. (scroll_line_height-2) .. ":" .. (scroll_line_height-2) .. ":0:0:64:64:" .. 0.1*64 .. ":" .. 0.9*64 .. ":" .. 0.1*64 .. ":" .. 0.9*64 .. "|t"
+						s = s .. iconString
+					end
+					line.gemMissing:SetText(s)
+				end
+
+				--talents
+				local talents = {}
+				if (#talents == 0) then
+					for i = 1, #line.talentsFrame.frames do
+						line.talentsFrame.frames[i]:Hide()
+					end
+				else
+					for i = 1, #line.talentsFrame.frames do
+						local talentId = talents[i]
+						local talentWidget = line.talentsFrame.frames[i]
+
+						if (talentId) then
+							talentWidget:Show()
+							local _, _, texture = GetTalentInfoByID(talentId)
+							talentWidget.icon:SetTexture(texture)
+							talentWidget.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
+							talentWidget.talentId = talentId
+
+						else
+							talentWidget:Hide()
+						end
+					end
+				end
+
+				--renown
+				line.renownLevel:SetText(dataTable[8])
+
+				--conduits
+				--line.conduitsFrame = conduitsFrame
+			end
+		end
+	end
+
+	--create the player info scroll
+	local playerInfoScroll = DF:CreateScrollBox(frame, "$parentplayerInfoScroll", refreshPlayerInfoScroll, {}, scroll_width, scroll_height, scroll_lines, scroll_line_height)
+	DF:ReskinSlider (playerInfoScroll)
+	playerInfoScroll:SetPoint ("topleft", frame, "topleft", 0, scrollY)
+
+	--create lines for the spell scroll
+	for i = 1, scroll_lines do
+		playerInfoScroll:CreateLine(scroll_createline)
+	end
+	--store the scroll within the frame tab
+	frame.playerInfoScroll = playerInfoScroll
+
+	function playerInfoScroll.RefreshData()
+		--get the information needed
+		local raidStatusLib = LibStub:GetLibrary("LibRaidStatus-1.0")
+		local gearInfo = raidStatusLib.gearManager.GetGearTable()
+
+		--get which column is currently selected and the sort order
+		local columnIndex, order = DetailsPlayerBreakdownHeader:GetSelectedColumn()
+
+		local result = {}
+		local sortByIndex = 1
+
+		for playerName, gearTable in pairs(gearInfo) do
+			local durability =  gearTable.durability
+			local iLevel = gearTable.ilevel
+			local weaponEnchant = gearTable.weaponEnchant
+			local noGems = gearTable.noGems
+			local noEnchants = gearTable.noEnchants
+
+			--place holders
+			local specId = math.random(1, 300)
+			local renown = math.random(1, 300)
+			local talents = {}
+			local conduitsFrame = {}
+
+			result[#result+1] = {playerName, durability, iLevel, weaponEnchant, noGems, noEnchants, specId, renown}
+		end
+
+		--sort by spec
+		if (columnIndex == 1) then
+			sortByIndex = 7
+
+		--player name
+		elseif (columnIndex == 2) then
+			sortByIndex = 1
+
+		--item level
+		elseif (columnIndex == 3) then
+			sortByIndex = 3
+
+		--durability
+		elseif (columnIndex == 4) then
+			sortByIndex = 2
+
+		--renown
+		elseif (columnIndex == 8) then
+			sortByIndex = 8
+
+		end
+
+		if (order == "DESC") then
+			table.sort (result, function (t1, t2) return t1[sortByIndex] > t2[sortByIndex] end)
+		else
+			table.sort (result, function (t1, t2) return t1[sortByIndex] < t2[sortByIndex] end)
+		end
+
+		playerInfoScroll:SetData(result)
+		playerInfoScroll:Refresh()
+	end
+
+	C_Timer.After(0.5, function()
+		playerInfoScroll.RefreshData()
 	end)
-	
-	PlayerCheck.update_PlayerCheck (PlayerCheck.fill_panel)
+
+	frame:SetScript("OnShow", function()
+		playerInfoScroll.RefreshData()
+	end)
 end
 
-if (can_install) then
-	local install_status = RA:InstallPlugin ("Player Check", "RAPlayerCheck", PlayerCheck, default_config)
+if (canInstall) then
+	local installStatus = RA:InstallPlugin ("Player Check", "RAPlayerCheck", PlayerCheck, default_config)
 end

@@ -1,4 +1,15 @@
 
+Functions:
+
+local playerGearInfo = raidStatusLib.gearManager.GetPlayerGearTable(playerName)
+playerGearInfo = {
+    .durability = number
+    .ilevel = number
+    .noGems = {socketId}
+    .noEnchants = {socketId}
+}
+
+
 
 Callbacks available
 
@@ -53,3 +64,36 @@ end
 raidStatusLib.RegisterCallback(MyAddonObject, "CooldownListWiped", "OnCooldownListWipe")
 
 
+"GearDurabilityUpdate": when a player in the group revives, the gear durability is sent
+
+function MyAddonObject.OnGearDurabilityUpdate(playerName, durability, gearTable)
+    print(playerName .. " durability is now " .. durability)
+end
+raidStatusLib.RegisterCallback(MyAddonObject, "GearDurabilityUpdate", "OnGearDurabilityUpdate")
+
+
+"GearUpdate": when received an update from a player with all information about the gear
+
+function MyAddonObject.OnGearUpdate(playerName, playerGearInfo, gearTable)
+    local itemLevelNumber = playerGearInfo.ilevel
+    local durabilityNumber = playerGearInfo.durability
+    --hasWeaponEnchant is 1 have enchant or 0 is don't
+    local hasWeaponEnchantNumber = playerGearInfo.weaponEnchant
+    local noEnchantTable = playerGearInfo.noEnchants
+    local noGemsTable = playerGearInfo.noGems
+
+    for index, slotIdWithoutEnchant in ipairs (noEnchantTable) do
+    end
+
+    for index, slotIdWithEmptyGemSocket in ipairs (noGemsTable) do
+    end
+end
+raidStatusLib.RegisterCallback(MyAddonObject, "GearUpdate", "OnGearUpdate")
+
+
+"GearListWiped": when the list of gear get a wipe, usually when the player leave the group
+
+function MyAddonObject.OnGearListWiped(gearTable)
+    print ("is nil:", next(gearTable))
+end
+raidStatusLib.RegisterCallback(MyAddonObject, "GearListWiped", "OnGearListWiped")

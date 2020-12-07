@@ -3,7 +3,7 @@
 local RA = _G.RaidAssist
 local L = _G.LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
-local default_priority = 20
+local default_priority = 120
 local DF = DetailsFramework
 
 if (_G ["RaidAssistNotepad"]) then

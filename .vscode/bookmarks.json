@@ -38,5 +38,50 @@
 				"label": ""
 			}
 		]
+	},
+	{
+		"path": "$ROOTPATH$\\plugins\\playercheck.lua",
+		"bookmarks": [
+			{
+				"line": 128,
+				"column": 12,
+				"label": ""
+			},
+			{
+				"line": 174,
+				"column": 22,
+				"label": ""
+			},
+			{
+				"line": 367,
+				"column": 0,
+				"label": ""
+			},
+			{
+				"line": 432,
+				"column": 0,
+				"label": ""
+			}
+		]
+	},
+	{
+		"path": "f:\\World of Warcraft\\_retail_\\Interface\\AddOns\\Details_AdvancedPlayerBreakdown\\Details_AdvancedPlayerBreakdown.lua",
+		"bookmarks": [
+			{
+				"line": 2585,
+				"column": 13,
+				"label": ""
+			}
+		]
+	},
+	{
+		"path": "$ROOTPATH$\\plugins\\raidgroups.lua",
+		"bookmarks": [
+			{
+				"line": 268,
+				"column": 1,
+				"label": ""
+			}
+		]
 	}
 ]

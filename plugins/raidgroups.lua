@@ -3,7 +3,7 @@
 local RA = RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
-local default_priority = 23
+local default_priority = 95
 
 if (_G ["RaidAssistRaidGroups"]) then
 	return
@@ -17,8 +17,12 @@ local ROSTER_PLAYERNAME = 1
 local ROSTER_RAIDRANK = 2
 local ROSTER_RAIDGROUP = 3
 
-local group_sizeX, group_sizeY, group_spacing_vertical = 234, 99, 15
+local group_sizeX, group_sizeY, group_spacing_vertical = 264, 122, 15
+local slot_height = 23
 local slot_iconsize = 14
+local right_panel_x = 546
+local filter_start_y = -225
+local helpbox_start_y = -274
 local slot_backdrop = {edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true}
 local slot_backdropcolor = {0, 0, 0, .55}
 local slot_backdropcolor_filled = {.13, .13, .13, 1}
@@ -26,7 +30,6 @@ local slot_bordercolor = {0, 0, 0, 0}
 local slot_bordercolor_filled = {1, 1, 0, 0.1}
 local slot_bordercolor_filtered = {1, 1, 0, 0.25}
 local slot_bordercolor_onenter = {1, 1, 0, 0.30}
-local slot_height = 19
 
 local default_config = {
 	enabled = true,
@@ -263,7 +266,7 @@ function RaidGroups.BuildOptions (frame)
 	label:SetSize (300, 90)
 	label:SetAlpha (.8)
 	label:SetJustifyV ("top")
-	help_frame:SetPoint ("bottomright", RaidAssistOptionsPanel, "bottomright", -10, 119)
+	help_frame:SetPoint ("topleft", frame, "topleft", right_panel_x, helpbox_start_y)
 	
 	local OnDragStart = function (self)
 		local cursorX, cursorY = GetCursorPosition()
@@ -689,8 +692,6 @@ function RaidGroups.BuildOptions (frame)
 		end
 	end
 	
-	local right_panel_x = 490
-	
 	local apply_button =  RaidGroups:CreateButton (frame, apply_func, 100, 20, "Apply", _, _, _, "button_apply", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	apply_button:SetPoint ("topleft", frame, "topleft", right_panel_x, 0)
 	apply_button:SetScript ("OnUpdate", apply_onupdate)
@@ -814,7 +815,7 @@ function RaidGroups.BuildOptions (frame)
 	local filter_current_label = RaidGroups:CreateLabel (frame, "", RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"), _, _, "label_filter2")
 	filter_current_label.textcolor = "orange"
 	
-	filter_label:SetPoint ("topleft", frame, "topleft", right_panel_x, -285)
+	filter_label:SetPoint ("topleft", frame, "topleft", right_panel_x, filter_start_y)
 	filter_current_label:SetPoint ("left", filter_label, "right", 2, 0)
 	RaidGroups.CurrentFilter = filter_current_label
 	
@@ -836,13 +837,16 @@ function RaidGroups.BuildOptions (frame)
 		RaidGroups.UpdateFilterLabel()
 		RaidGroups.UpdateVirtualGroups()
 	end
+
 	local clear_filter_button =  RaidGroups:CreateButton (frame, apply_filter_func, 6, 20, "X", false, _, _, "button_clear_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-	clear_filter_button:SetPoint ("topleft", frame, "topleft", right_panel_x, -300)
+	clear_filter_button:SetPoint ("topleft", filter_label, "bottomleft", 0, -5)
 	
 	local healer_filter_button =  RaidGroups:CreateButton (frame, apply_filter_func, 60, 20, "Healers", "HEALER", _, _, "button1_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	healer_filter_button:SetPoint ("left", clear_filter_button, "right", 2, 0)
+
 	local tank_filter_button =  RaidGroups:CreateButton (frame, apply_filter_func, 60, 20, "Tanks", "TANK", _, _, "button2_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	tank_filter_button:SetPoint ("left", healer_filter_button, "right", 2, 0)
+	
 	local dps_filter_button =  RaidGroups:CreateButton (frame, apply_filter_func, 60, 20, "Dps", "DPS", _, _, "button3_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	dps_filter_button:SetPoint ("left", tank_filter_button, "right", 2, 0)
 	

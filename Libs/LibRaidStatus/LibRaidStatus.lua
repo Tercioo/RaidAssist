@@ -4,7 +4,7 @@
 --terminei de fazer a restruturação da comm dos cooldowns, agora não existe mais o comando _FULL, cooldowns sempre são mandados separadamente
 
 local major = "LibRaidStatus-1.0"
-local CONST_LIB_VERSION = 1
+local CONST_LIB_VERSION = 3
 
 --declae the library within the LibStub
     local libStub = _G.LibStub
@@ -20,12 +20,13 @@ local CONST_LIB_VERSION = 1
     --print failures (when the function return an error) results to chat
     local CONST_DIAGNOSTIC_ERRORS = true
     --print the data to be sent and data received from comm
-    local CONST_DIAGNOSTIC_COMM = false
+    local CONST_DIAGNOSTIC_COMM = true
 
     local CONST_COMM_PREFIX = "LRS"
     local CONST_COMM_COOLDOWNUPDATE_PREFIX = "U"
     local CONST_COMM_COOLDOWNFULLLIST_PREFIX = "C"
-    local CONST_COMM_GEARINFOFULL_PREFIX = "G"
+    local CONST_COMM_GEARINFO_FULL_PREFIX = "G"
+    local CONST_COMM_GEARINFO_DURABILITY_PREFIX = "R"
     local CONST_COMM_PLAYER_DEAD_PREFIX = "D"
     local CONST_COMM_PLAYER_ALIVE_PREFIX = "A"
 
@@ -231,7 +232,8 @@ local CONST_LIB_VERSION = 1
                                             --when transmiting
         [CONST_COMM_COOLDOWNFULLLIST_PREFIX] = {}, --all cooldowns of a player
         [CONST_COMM_COOLDOWNUPDATE_PREFIX] = {}, --an update of a single cooldown
-        [CONST_COMM_GEARINFOFULL_PREFIX] = {}, --an update of a single cooldown
+        [CONST_COMM_GEARINFO_FULL_PREFIX] = {}, --an update of gear information
+        [CONST_COMM_GEARINFO_DURABILITY_PREFIX] = {}, --an update of the player gear durability
         [CONST_COMM_PLAYER_DEAD_PREFIX] = {}, --player is dead
         [CONST_COMM_PLAYER_ALIVE_PREFIX] = {}, --player is alive
     }
@@ -268,9 +270,9 @@ local CONST_LIB_VERSION = 1
         local payload = tickerObject.payload
         local callback = tickerObject.callback
     
-        local result, errortext = pcall(callback, unpack(payload))
+        local result, errortext = pcall(callback, _G.unpack(payload))
         if (not result) then
-            print("raidStatusLib: error on scheduler: ", tickerObject.path, tickerObject.name, errortext)
+            print("raidStatusLib: error on scheduler:", tickerObject.scheduleName, tickerObject.stack, errortext)
         end
 
         if (tickerObject.isUnique) then
@@ -288,6 +290,7 @@ local CONST_LIB_VERSION = 1
         local newTimer = C_Timer.NewTimer(time, triggerScheduledTick)
         newTimer.payload = payload
         newTimer.callback = callback
+        newTimer.stack = debugstack()
         return newTimer
     end
 
@@ -299,6 +302,7 @@ local CONST_LIB_VERSION = 1
         local newTimer = raidStatusLib.Schedules.NewTimer(time, callback, ...)
         newTimer.namespace = namespace
         newTimer.scheduleName = scheduleName
+        newTimer.stack = debugstack()
         newTimer.isUnique = true
 
         local registeredUniqueTimers = raidStatusLib.Schedules.registeredUniqueTimers
@@ -342,6 +346,9 @@ local CONST_LIB_VERSION = 1
         "CooldownUpdate",
         "OnPlayerDeath",
         "OnPlayerRess",
+        "GearListWiped",
+        "GearUpdate",
+        "GearDurabilityUpdate",
     }
 
     --save build the table to avoid lose registered events on older versions
@@ -478,7 +485,7 @@ local CONST_LIB_VERSION = 1
                 end
             end
 
-            if (not eventTriggered) then
+            if (not eventTriggered and raidStatusLib.IsInGroup()) then --the player didn't left or enter a group
                 --the group has changed, trigger a long timer to send full data
                 --as the timer is unique, a new change to the group will replace and refresh the time
                 --using random time, players won't trigger all at the same time
@@ -763,7 +770,6 @@ local CONST_LIB_VERSION = 1
         raidStatusLib.publicCallback.TriggerCallback("CooldownUpdate", sourceName, spellId, cooldownTimer, charges, raidStatusLib.cooldownManager.playerData)
     end)
 
-
     --when the player is ressed while in a group, send the cooldown list
     function raidStatusLib.cooldownManager.OnPlayerRess()
         --check if is in group
@@ -831,9 +837,6 @@ local CONST_LIB_VERSION = 1
         local dataToSend = CONST_COMM_COOLDOWNFULLLIST_PREFIX .. ","
         --pack
 
-        if (not playerCooldownList or type(playerCooldownList) ~= "table") then
-            print("libRaidInfo: invalid table[cooldowns]", type(playerCooldownList))
-        end
         local playerCooldownString = raidStatusLib.PackTable(playerCooldownList)
         dataToSend = dataToSend .. playerCooldownString
 
@@ -899,15 +902,39 @@ local CONST_LIB_VERSION = 1
                     end
                 end
             end
-
             return cooldowns
+        else
+            return {}
         end
     end
 
 --------------------------------------------------------------------------------------------------------------------------------
 --> ~equipment
 
-    raidStatusLib.gearManager = {}
+    raidStatusLib.gearManager = {
+        --structure:
+        --[playerName] = {ilevel = 100, durability = 100, weaponEnchant = 0, noGems = {}, noEnchants = {}}
+        playerData = {},
+    }
+
+    function raidStatusLib.gearManager.GetGearTable()
+        return raidStatusLib.gearManager.playerData
+    end
+
+    function raidStatusLib.gearManager.GetPlayerGearTable(playerName, createNew)
+        local playerGearInfo = raidStatusLib.gearManager.playerData[playerName]
+        if (not playerGearInfo and createNew) then
+            playerGearInfo = {
+                ilevel = 0,
+                durability = 0,
+                weaponEnchant = 0,
+                noGems = {},
+                noEnchants = {},
+            }
+            raidStatusLib.gearManager.playerData[playerName] = playerGearInfo
+        end
+        return playerGearInfo
+    end
 
     --return an integer between zero and one hundret indicating the player gear durability
     function raidStatusLib.gearManager.GetGearDurability()
@@ -928,6 +955,56 @@ local CONST_LIB_VERSION = 1
         return floor(durabilityTotalPercent / totalItems)
     end
 
+    --clear data stored
+    function raidStatusLib.gearManager.EraseData()
+        table.wipe(raidStatusLib.gearManager.playerData)
+    end
+
+    function raidStatusLib.gearManager.OnLeaveGroup()
+        --clear the data
+        raidStatusLib.gearManager.EraseData()
+
+        --trigger a public callback
+        raidStatusLib.publicCallback.TriggerCallback("GearListWiped", raidStatusLib.gearManager.playerData)
+    end
+    raidStatusLib.internalCallback.RegisterCallback("onLeaveGroup", raidStatusLib.gearManager.OnLeaveGroup)
+
+    --when the player is ressed while in a group, send the cooldown list
+    function raidStatusLib.gearManager.OnPlayerRess()
+        --check if is in group
+        if (raidStatusLib.IsInGroup()) then
+            raidStatusLib.Schedules.NewUniqueTimer(1.0 + math.random(0.0, 6.0), raidStatusLib.gearManager.SendDurability, "gearManager", "sendDurability_Schedule")
+        end
+    end
+    raidStatusLib.internalCallback.RegisterCallback("onPlayerRess", raidStatusLib.gearManager.OnPlayerRess)
+
+    --send only the gear durability
+    function raidStatusLib.gearManager.SendDurability()
+        local dataToSend = CONST_COMM_GEARINFO_DURABILITY_PREFIX .. ","
+        local playerGearDurability = raidStatusLib.gearManager.GetGearDurability()
+
+        dataToSend = dataToSend .. playerGearDurability
+
+        --send the data
+        raidStatusLib.commHandler.SendCommData(dataToSend)
+        diagnosticComm("SendGearDurabilityData| " .. dataToSend) --debug
+    end
+
+    function raidStatusLib.gearManager.OnReceiveGearDurability(data, source)
+        local durability = tonumber(data[1])
+        raidStatusLib.gearManager.UpdateUnitGearDurability(source, durability)
+    end
+    raidStatusLib.commHandler.RegisterComm(CONST_COMM_GEARINFO_DURABILITY_PREFIX, raidStatusLib.gearManager.OnReceiveGearDurability)
+
+    --on receive the durability (sent when the player get a ress)
+    function raidStatusLib.gearManager.UpdateUnitGearDurability(playerName, durability)
+        local playerGearInfo = raidStatusLib.gearManager.GetPlayerGearTable(playerName)
+        if (playerGearInfo) then
+            playerGearInfo.durability = durability
+            raidStatusLib.publicCallback.TriggerCallback("GearDurabilityUpdate", playerName, durability, raidStatusLib.gearManager.GetGearTable())
+        end
+    end
+
     --get gear information from what the player has equipped at the moment
     function raidStatusLib.gearManager.GetPlayerGearInfo()
 
@@ -938,7 +1015,7 @@ local CONST_LIB_VERSION = 1
         local specMainAttribute = raidStatusLib.specAttribute[playerClass][specId] --1 int, 2 dex, 3 str
 
         if (not specId or not specMainAttribute) then
-            return
+            return {0, 0, 0, {}, {}}
         end
 
         --item level
@@ -947,6 +1024,16 @@ local CONST_LIB_VERSION = 1
 
         --repair status
             local gearDurability = raidStatusLib.gearManager.GetGearDurability()
+
+        --get weapon enchant
+            local weaponEnchant = 0
+            local _, _, _, mainHandEnchantId, _, _, _, offHandEnchantId = GetWeaponEnchantInfo()
+            if (LIB_RAID_STATUS_WEAPON_ENCHANT_IDS[mainHandEnchantId]) then
+                weaponEnchant = 1
+
+            elseif(LIB_RAID_STATUS_WEAPON_ENCHANT_IDS[offHandEnchantId]) then
+                weaponEnchant = 1
+            end
 
         --enchants and gems
             --hold equipmentSlotId of equipment with a gem socket but it's empty
@@ -1020,47 +1107,103 @@ local CONST_LIB_VERSION = 1
                             end
                         end
                 end
-            end
-        --end of enchants and gems
-        
+            end --end of enchants and gems
+
         --build the table with the gear information
         local playerGearInfo = {}
         playerGearInfo[#playerGearInfo+1] = itemLevel           --[1]
         playerGearInfo[#playerGearInfo+1] = gearDurability      --[2]
-        playerGearInfo[#playerGearInfo+1] = slotsWithoutEnchant --[3]
-        playerGearInfo[#playerGearInfo+1] = slotsWithoutGems    --[4]
+        playerGearInfo[#playerGearInfo+1] = weaponEnchant       --[3]
+        playerGearInfo[#playerGearInfo+1] = slotsWithoutEnchant --[4]
+        playerGearInfo[#playerGearInfo+1] = slotsWithoutGems    --[5]
+
+        --update the player table
+        raidStatusLib.gearManager.AddUnitGearInfoList(UnitName("player"), itemLevel, gearDurability, weaponEnchant, slotsWithoutEnchant, slotsWithoutGems)
 
         return playerGearInfo
     end
+
+    --when received the gear update from another player, store it and trigger a callback
+    function raidStatusLib.gearManager.AddUnitGearInfoList(playerName, itemLevel, durability, weaponEnchant, noEnchantTable, noGemsTable)
+        local playerGearInfo = raidStatusLib.gearManager.GetPlayerGearTable(playerName, true)
+
+        playerGearInfo.ilevel = itemLevel
+        playerGearInfo.durability = durability
+        playerGearInfo.weaponEnchant = weaponEnchant
+        playerGearInfo.noGems = noGemsTable
+        playerGearInfo.noEnchants = noEnchantTable
+
+        raidStatusLib.publicCallback.TriggerCallback("GearUpdate", playerName, playerGearInfo, raidStatusLib.gearManager.GetGearTable())
+    end
+
+    --triggered when the lib receives a gear information from another player in the raid
+    --@data: table received from comm
+    --@source: player name
+    function raidStatusLib.gearManager.OnReceiveGearFullInfo(data, source)
+        local itemLevel = tonumber(data[1])
+        local durability = tonumber(data[2])
+        local weaponEnchant = tonumber(data[3])
+
+        local noEnchantTableSize = tonumber(data[4])
+        local noGemsTableIndex = tonumber(noEnchantTableSize + 5)
+        local noGemsTableSize = data[noGemsTableIndex]
+
+        --raidStatusLib.UnpackTable(table, index, isPair, valueIsTable, amountOfValues)
+
+        --unpack the enchant data as a ipairs table
+        local noEnchantTableUnpacked = raidStatusLib.UnpackTable(data, 4, false, false, noEnchantTableSize)
+        --unpack the enchant data as a ipairs table
+        local noGemsTableUnpacked = raidStatusLib.UnpackTable(data, noGemsTableIndex, false, false, noGemsTableSize)
+
+        --add to the list of gear information
+        raidStatusLib.gearManager.AddUnitGearInfoList(source, itemLevel, durability, weaponEnchant, noEnchantTableUnpacked, noGemsTableUnpacked)
+    end
+    raidStatusLib.commHandler.RegisterComm(CONST_COMM_GEARINFO_FULL_PREFIX, raidStatusLib.gearManager.OnReceiveGearFullInfo)
 
     function raidStatusLib.gearManager.SendAllGearInfo()
         --get gear information, gear info has 4 indexes:
         --[1] int item level
         --[2] int durability
+        --[3] int weapon enchant
         --[3] table with integers of equipSlot without enchant
         --[4] table with integers of equipSlot which has a gem slot but the slot is empty            
 
-        local dataToSend = CONST_COMM_GEARINFOFULL_PREFIX .. ","
+        local dataToSend = CONST_COMM_GEARINFO_FULL_PREFIX .. ","
         local playerGearInfo = raidStatusLib.gearManager.GetPlayerGearInfo()
 
         dataToSend = dataToSend .. playerGearInfo[1] .. "," --item level
         dataToSend = dataToSend .. playerGearInfo[2] .. "," --durability
-
-        if (not playerGearInfo[3] or type(playerGearInfo[3]) ~= "table") then
-            print("libRaidInfo: invalid table[3]")
-        end
-
-        if (not playerGearInfo[4] or type(playerGearInfo[4]) ~= "table") then
-            print("libRaidInfo: invalid table[4]")
-        end
-
-        dataToSend = dataToSend .. raidStatusLib.PackTable(playerGearInfo[3]) .. "," --slots without enchant
-        dataToSend = dataToSend .. raidStatusLib.PackTable(playerGearInfo[4]) -- slots without enchant
+        dataToSend = dataToSend .. playerGearInfo[3] .. "," --weapon enchant
+        dataToSend = dataToSend .. raidStatusLib.PackTable(playerGearInfo[4]) .. "," --slots without enchant
+        dataToSend = dataToSend .. raidStatusLib.PackTable(playerGearInfo[5]) -- slots with empty gem sockets
 
         --send the data
         raidStatusLib.commHandler.SendCommData(dataToSend)
         diagnosticComm("SendGearFullData| " .. dataToSend) --debug
     end
+
+
+--------------------------------------------------------------------------------------------------------------------------------
+--> ~player general info
+
+raidStatusLib.playerInfoManager = {}
+
+function raidStatusLib.playerInfoManager.GetPlayerInfo()
+    local playerInfo = {}
+    --name
+    playerInfo[1] = UnitName("player")
+
+    --spec
+
+    --talents
+
+    --renown
+
+    --conduits
+
+end
+
+
 
 
 --------------------------------------------------------------------------------------------------------------------------------
