@@ -4,7 +4,8 @@
 --terminei de fazer a restruturação da comm dos cooldowns, agora não existe mais o comando _FULL, cooldowns sempre são mandados separadamente
 
 local major = "LibRaidStatus-1.0"
-local CONST_LIB_VERSION = 3
+local CONST_LIB_VERSION = 4
+LIB_RAID_STATUS_CAN_LOAD = false
 
 --declae the library within the LibStub
     local libStub = _G.LibStub
@@ -12,6 +13,8 @@ local CONST_LIB_VERSION = 3
     if (not raidStatusLib) then
         return
     end
+
+    LIB_RAID_STATUS_CAN_LOAD = true
 
 --default values
     raidStatusLib.inGroup = false
@@ -497,7 +500,9 @@ local CONST_LIB_VERSION = 3
 
         ["UNIT_SPELLCAST_SUCCEEDED"] = function(...)
             local unitId, castGUID, spellId = ...
-            raidStatusLib.internalCallback.TriggerEvent("playerCast", spellId)
+            C_Timer.After(0.1, function()
+                raidStatusLib.internalCallback.TriggerEvent("playerCast", spellId)
+            end)
         end,
 
         ["PLAYER_ENTERING_WORLD"] = function(...)
@@ -727,13 +732,14 @@ local CONST_LIB_VERSION = 3
         return raidStatusLib.cooldownManager.playerData[playerName]
     end
 
-    function raidStatusLib.cooldownManager.OnPlayerCast(spellId)
+    function raidStatusLib.cooldownManager.OnPlayerCast(event, spellId)
         --player casted a spell, check if the spell is registered as cooldown
         local playerSpec = raidStatusLib.GetPlayerSpecId()
         if (playerSpec) then
-            if (LIB_RAID_STATUS_COOLDOWNS_BY_SPEC[spellId]) then
+            if (LIB_RAID_STATUS_COOLDOWNS_BY_SPEC[playerSpec] and LIB_RAID_STATUS_COOLDOWNS_BY_SPEC[playerSpec][spellId]) then
                 --get the cooldown time for this spell
                 local timeLeft, charges = raidStatusLib.cooldownManager.GetCooldownStatus(spellId)
+
                 local playerName = UnitName("player")
 
                 --update the time left
@@ -756,7 +762,7 @@ local CONST_LIB_VERSION = 3
     --received a cooldown update from another unit (sent by the function above)
     raidStatusLib.commHandler.RegisterComm(CONST_COMM_COOLDOWNUPDATE_PREFIX, function(data, sourceName)
         --get data
-        local dataAsArray = {strsplit(",", data)}
+        local dataAsArray = data
         local spellId = tonumber(dataAsArray[2])
         local cooldownTimer = tonumber(dataAsArray[3])
         local charges = tonumber(dataAsArray[4])

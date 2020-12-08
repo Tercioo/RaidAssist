@@ -1,6 +1,10 @@
 
 --data which main need maintenance over time
 
+if (not LIB_RAID_STATUS_CAN_LOAD) then
+	return
+end
+
 --which gear slots can be enchanted on the latest retail version of the game
 --when the value is a number, the slot only receives enchants for a specific attribute
 LIB_RAID_STATUS_ENCHANT_SLOTS = {
