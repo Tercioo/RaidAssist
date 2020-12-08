@@ -382,6 +382,7 @@ local CONST_LIB_VERSION = 3
     --payload is sent together within the call
     function raidStatusLib.publicCallback.TriggerCallback(event, ...)
         local callbacks = raidStatusLib.publicCallback.events[event]
+
         for i = 1, #callbacks do
             local addonObject = callbacks[i][1]
             local functionName = callbacks[i][2]
@@ -400,7 +401,7 @@ local CONST_LIB_VERSION = 3
     function raidStatusLib.RegisterCallback(addonObject, event, callbackMemberName)
         --check of integrity
         local integrity = checkRegisterDataIntegrity(addonObject, event, callbackMemberName)
-        if (integrity and integrity ~= "boolean") then
+        if (integrity and type(integrity) ~= "boolean") then
             return integrity
         end
 
@@ -412,7 +413,7 @@ local CONST_LIB_VERSION = 3
     function raidStatusLib.UnregisterCallback(addonObject, event, callbackMemberName)
         --check of integrity
         local integrity = checkRegisterDataIntegrity(addonObject, event, callbackMemberName)
-        if (integrity and integrity ~= "boolean") then
+        if (integrity and type(integrity) ~= "boolean") then
             return integrity
         end
 
@@ -716,6 +717,14 @@ local CONST_LIB_VERSION = 3
         spellIdTable[1] = newTimeLeft
         spellIdTable[2] = newCharges
         unitCooldownTable[spellId] = spellIdTable
+    end
+
+    function raidStatusLib.cooldownManager.GetCooldownTable()
+        return raidStatusLib.cooldownManager.playerData
+    end
+
+    function raidStatusLib.cooldownManager.GetPlayerCooldownTable(playerName)
+        return raidStatusLib.cooldownManager.playerData[playerName]
     end
 
     function raidStatusLib.cooldownManager.OnPlayerCast(spellId)
