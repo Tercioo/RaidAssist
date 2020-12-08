@@ -23,7 +23,7 @@ LIB_RAID_STATUS_CAN_LOAD = false
     --print failures (when the function return an error) results to chat
     local CONST_DIAGNOSTIC_ERRORS = true
     --print the data to be sent and data received from comm
-    local CONST_DIAGNOSTIC_COMM = true
+    local CONST_DIAGNOSTIC_COMM = false
 
     local CONST_COMM_PREFIX = "LRS"
     local CONST_COMM_COOLDOWNUPDATE_PREFIX = "U"
