@@ -445,7 +445,7 @@ function PlayerCheck.BuildOptions(frame)
 		local gearInfo = raidStatusLib.gearManager.GetGearTable()
 
 		--get which column is currently selected and the sort order
-		local columnIndex, order = DetailsPlayerBreakdownHeader:GetSelectedColumn()
+		local columnIndex, order = RaidAssistPlayerCheckHeader:GetSelectedColumn()
 
 		local result = {}
 		local sortByIndex = 1
