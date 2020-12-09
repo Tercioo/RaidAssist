@@ -329,12 +329,14 @@ function LeaderToolbar.CreateScreenPanel()
 	fill_panel:SetPoint ("topleft", status_frame, "topleft", 0, 0)
 
 	status_button:SetHook ("OnEnter", function()
+		--[=[
 		local PlayerCheck = _G ["RaidAssistPlayerCheck"]
 		if (PlayerCheck) then
 			PlayerCheck.update_PlayerCheck (fill_panel)
 			status_frame:Show()
 			status_frame:SetPoint ("bottom", status_button.widget, "top", 0, 2)
 		end
+		--]=]
 	end)
 	status_button:SetHook ("OnLeave", function()
 		status_frame:Hide()
