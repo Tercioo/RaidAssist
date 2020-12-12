@@ -716,6 +716,7 @@ local panelGetBar = function (self, barIndex)
 		if (not self.Bars [barIndex]) then
 			local bar = Cooldowns:CreateBar (self, nil, self:GetWidth(), Cooldowns.db.bar_height, 100, nil, "$parentBar" .. barIndex)
 
+
 			bar:SetFrameLevel(self:GetFrameLevel()+1)
 			bar.RightTextIsTimer = true
 			bar.BarIsInverse = true
@@ -742,6 +743,9 @@ local panelGetBar = function (self, barIndex)
 			bar.icon_offline:Hide()
 
 			bar.cooldownUpBar = Cooldowns:CreateBar(bar, [[Interface\AddOns\RaidAssist\media\bar_serenity]], bar:GetWidth(), Cooldowns.db.bar_height, 100)
+
+			--local newBar = DF:CreateTimeBar(screenPanel, [[Interface\AddOns\Details\images\bar_serenity]], width-2, bar_height-2, 100, nil, "DetailsOCDBar" .. cooldownIndex)
+
 			bar.cooldownUpBar.color = "green"
 			bar.cooldownUpBar.texture = [[Interface\AddOns\RaidAssist\media\bar_serenity]]
 			bar.cooldownUpBar:SetAllPoints()
