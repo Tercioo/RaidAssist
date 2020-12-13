@@ -1,17 +1,17 @@
 
 local RA = RaidAssist
-local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
-local LibGroupInSpecT = LibStub:GetLibrary ("LibGroupInSpecT-1.1")
+local L = LibStub("AceLocale-3.0"):GetLocale("RaidAssistAddon")
+local LibGroupInSpecT = LibStub:GetLibrary("LibGroupInSpecT-1.1")
 local default_priority = 9
 local _ 
 
-local LibWindow = LibStub ("LibWindow-1.1")
+local LibWindow = LibStub("LibWindow-1.1")
+local SharedMedia = _G.LibStub:GetLibrary("LibSharedMedia-3.0")
 local debugMode = false
 
 local GetUnitName = GetUnitName
 local Ambiguate = Ambiguate
 local UnitExists = UnitExists
-
 
 local default_config = {
 	enabled = true,
@@ -622,20 +622,21 @@ end
 
 local iconTable = {"", {5/64, 59/64, 5/64, 59/64}}
 local setupPlayerBar = function (self, panel, player, spell, bar_index)
-	local _, _, spellicon = GetSpellInfo (spell.spellid)
+	local spellicon = GetSpellTexture(spell.spellid)
 	iconTable[1] = spellicon
-	self.icon = iconTable
+	self:SetIcon(spellicon, .1, .9, .1, .9)
 
-	self.lefttext = Cooldowns:RemoveRealName (player.name)
-	self.righttext = spell.charges_amt > 1 and spell.charges_amt or ""
+	self:SetLeftText(Cooldowns:RemoveRealName(player.name))
+	self:SetRightText(spell.charges_amt > 1 and spell.charges_amt or "")
+
 	self.spellid = spell.spellid
 	self.playername = player.name
 	self.player = player
 
 	if (Cooldowns.db.bar_class_color) then
-		self.color = player.class
+		self:SetStatusBarColor(Cooldowns:ParseColors(player.class))
 	else
-		self.color = Cooldowns.db.bar_fixed_color
+		self:SetStatusBarColor(Cooldowns:ParseColors(Cooldowns.db.bar_fixed_color))
 	end
 
 	local playerSpellid = Cooldowns.GetPlayerSpellId(player, spell)
@@ -649,7 +650,7 @@ local setupPlayerBar = function (self, panel, player, spell, bar_index)
 			--print("time:", spell.charges_next - spell.charges_start_time, " ", select(1, GetSpellInfo(spell.spellid)))
 			self:SetTimer (spell.charges_start_time, spell.charges_next)
 		else
-			self:CancelTimerBar()
+			self:StopTimer()
 			--if the spell has charges, set it to full
 			self.value = 100
 		end
@@ -679,32 +680,34 @@ local playerBarEnabled = function (self, on)
 	end
 end
 
-local refreshBarSettings = function (self)
+local refreshBarSettings = function(self)
 	--text font
-	self.textfont = Cooldowns.db.text_font
-	self.textsize = Cooldowns.db.text_size
-	self.textcolor = Cooldowns.db.text_color
-	self.shadow = Cooldowns.db.text_shadow
+	local textfont = Cooldowns.db.text_font
+	local textsize = Cooldowns.db.text_size
+	local textcolor = Cooldowns.db.text_color
+	local shadow = Cooldowns.db.text_shadow
+	self:SetFont(textfont, textsize, textcolor, shadow)
 
 	--bar settings
 	local height = Cooldowns.db.bar_height
 	self.height = height
 	self.width = self:GetParent():GetWidth()
+
 	self.BarIsInverse = not Cooldowns.db.bar_grow_inverse
 	if (not Cooldowns.db.bar_class_color) then
 		self.color = Cooldowns.db.bar_fixed_color
 	end
-
-	self._icon:SetSize(height-1, height-1)
-
+	
+	self:SetIconSize(height-1, height-1)
 	self.icon_death:SetSize (height, height)
 	self.icon_offline:SetSize (height, height)
 
-	self.texture = Cooldowns.db.bar_texture
+	local texture = SharedMedia:Fetch("statusbar", Cooldowns.db.bar_texture)
+	self:SetTexture(texture)
 
 	PixelUtil.SetPoint (self, "topleft", self:GetParent(), "topleft", 2, (-(self.MyIndex-1)*(Cooldowns.db.bar_height+1)) + (-2))
 	PixelUtil.SetPoint (self, "topright", self:GetParent(), "topright", -2, (-(self.MyIndex-1)*(Cooldowns.db.bar_height+1)) + (-2))
-
+	
 	self:EnableMouse (false)
 end
 
@@ -714,8 +717,8 @@ local panelGetBar = function (self, barIndex)
 
 	else
 		if (not self.Bars [barIndex]) then
-			local bar = Cooldowns:CreateBar (self, nil, self:GetWidth(), Cooldowns.db.bar_height, 100, nil, "$parentBar" .. barIndex)
-
+			--local bar = Cooldowns:CreateBar (self, nil, self:GetWidth(), Cooldowns.db.bar_height, 100, nil, "$parentBar" .. barIndex)
+			local bar = DetailsFramework:CreateTimeBar(self, [[Interface\AddOns\Details\images\bar_serenity]], self:GetWidth(), Cooldowns.db.bar_height, 100, nil, "$parentBar" .. barIndex)
 
 			bar:SetFrameLevel(self:GetFrameLevel()+1)
 			bar.RightTextIsTimer = true
@@ -723,7 +726,7 @@ local panelGetBar = function (self, barIndex)
 			bar.MyIndex = barIndex
 			bar.SetupPlayer = setupPlayerBar
 			bar.PlayerEnabled = playerBarEnabled
-			bar:EnableMouse (false)
+			bar:EnableMouse(false)
 
 			bar.backgroundInUse = bar:CreateTexture(nil, "background")
 			bar.backgroundInUse:SetColorTexture(1, .1, .1, .4)
@@ -742,16 +745,18 @@ local panelGetBar = function (self, barIndex)
 			bar.icon_offline:SetPoint ("right", bar.icon_death, "left", 0, 0)
 			bar.icon_offline:Hide()
 
-			bar.cooldownUpBar = Cooldowns:CreateBar(bar, [[Interface\AddOns\RaidAssist\media\bar_serenity]], bar:GetWidth(), Cooldowns.db.bar_height, 100)
-
-			--local newBar = DF:CreateTimeBar(screenPanel, [[Interface\AddOns\Details\images\bar_serenity]], width-2, bar_height-2, 100, nil, "DetailsOCDBar" .. cooldownIndex)
-
-			bar.cooldownUpBar.color = "green"
-			bar.cooldownUpBar.texture = [[Interface\AddOns\RaidAssist\media\bar_serenity]]
+			--bar.cooldownUpBar = Cooldowns:CreateBar(bar, [[Interface\AddOns\RaidAssist\media\bar_serenity]], bar:GetWidth(), Cooldowns.db.bar_height, 100)
+			bar.cooldownUpBar = DetailsFramework:CreateTimeBar(bar, [[Interface\AddOns\Details\images\bar_serenity]], bar:GetWidth(), Cooldowns.db.bar_height, 100, nil, "RaidAssistCDInUseBar" .. barIndex)
+			bar.cooldownUpBar:SetStatusBarColor(0, 1, 0)
+			bar.cooldownUpBar:SetTexture([[Interface\AddOns\RaidAssist\media\bar_serenity]])
 			bar.cooldownUpBar:SetAllPoints()
 			bar.cooldownUpBar:Hide()
 
-			bar:SetHook ("OnTimerEnd", Cooldowns.OnEndBarTimer)
+			bar.cooldownUpBar:SetHook("OnTimerEnd", function(statusBar)
+				bar.cooldownUpBar:Hide()
+			end)
+
+			--bar:SetHook ("OnTimerEnd", Cooldowns.OnEndBarTimer)
 			bar.UpdateSettings = refreshBarSettings
 			bar:UpdateSettings()
 			self.Bars [barIndex] = bar
@@ -1243,14 +1248,16 @@ function Cooldowns.BarControl (updateType, unitid, spellid)
 						bar:SetTimer (spell.charges_next - GetTime() - 0.1)
 
 						local spellInfo = DetailsFramework.CooldownsInfo[spellid]
+
+						--trigger the upbar with the cooldown effect duration
 						if (spellInfo and type(spellInfo.duration) == "number") then
 							bar.cooldownUpBar:SetTimer(spellInfo.duration)
 							bar.cooldownUpBar:Show()
-							local spellName, _, spellIcon = GetSpellInfo(spellid)
-							bar.cooldownUpBar.lefttext = Cooldowns:RemoveRealName(name)
-							bar.cooldownUpBar.icon = spellIcon
-							bar.cooldownUpBar._icon:SetSize(bar.cooldownUpBar:GetHeight()-1, bar.cooldownUpBar:GetHeight()-1)
-							bar.cooldownUpBar._icon:SetTexCoord(12/64, 52/64, 12/64, 52/64)
+
+							local spellIcon = GetSpellTexture(spellid)
+							bar.cooldownUpBar:SetLeftText(DetailsFramework:RemoveRealName(name))
+							bar.cooldownUpBar:SetIcon(spellIcon, 12/64, 52/64, 12/64, 52/64)
+							bar.cooldownUpBar:SetIconSize(bar.cooldownUpBar:GetHeight()-1, bar.cooldownUpBar:GetHeight()-1)
 							C_Timer.After(spellInfo.duration, function() bar.cooldownUpBar:Hide() end)
 						end
 					end

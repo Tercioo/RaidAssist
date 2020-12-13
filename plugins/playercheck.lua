@@ -162,8 +162,9 @@ function PlayerCheck.BuildOptions(frame)
 	local line_colors = {{1, 1, 1, .1}, {1, 1, 1, 0}}
 
 	local headerSizeSmall = 50
-	local headerSizeMedium = 65
+	local headerSizeMedium = 75
 	local headerSizeBig = 120
+	local headerSizeBigPlus = 140
 
 	local defaultTextColor = {.89, .89, .89, .89}
 	local overHoverTextColor = {.99, .99, .99, .99}
@@ -179,8 +180,8 @@ function PlayerCheck.BuildOptions(frame)
 		{text = "iLevel", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "Repair", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "Enchant", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
-		{text = "Gems", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
-		{text = "Talents", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
+		{text = "Gems", width = headerSizeMedium, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
+		{text = "Talents", width = headerSizeBigPlus, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
 		{text = "Renown", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "Conduit", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
 	}
@@ -213,6 +214,36 @@ function PlayerCheck.BuildOptions(frame)
 
 	local line_onleave = function (self)
 		self:SetBackdropColor (unpack (self.BackgroundColor))
+	end
+
+	local talentIconOnEnter = function(self)
+		local talentId = self.talentId
+		if (talentId) then
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip:SetTalent(talentId, false, self)
+			self.UpdateTooltip = PlayerTalentFrameTalent_OnEnter
+			GameTooltip:Show()
+			self.icon:SetBlendMode("ADD")
+		end
+	end
+
+	local talentIconOnLeave = function(self)
+		GameTooltip:Hide()
+		self.icon:SetBlendMode("BLEND")
+	end
+
+	local conduitIconOnEnter = function(self)
+		if (self.spellId) then
+			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
+			GameTooltip:SetSpellByID(self.spellId)
+			GameTooltip:Show()
+			self.icon:SetBlendMode("ADD")
+		end
+	end
+
+	local conduitIconOnLeave = function(self)
+		GameTooltip:Hide()
+		self.icon:SetBlendMode("BLEND")
 	end
 
 	--create line for the spell scroll
@@ -283,6 +314,9 @@ function PlayerCheck.BuildOptions(frame)
 				local talentIcon = talentFrame:CreateTexture(nil, "artwork")
 				talentIcon:SetAllPoints()
 				talentFrame.icon = talentIcon
+				talentFrame:Hide()
+				talentFrame:SetScript("OnEnter", talentIconOnEnter)
+				talentFrame:SetScript("OnLeave", talentIconOnLeave)
 			end
 
 			--renown
@@ -292,7 +326,7 @@ function PlayerCheck.BuildOptions(frame)
 			local conduitsFrame = CreateFrame("frame", "$parentConduits", line)
 			conduitsFrame:SetSize(headerSizeBig, line:GetHeight() - 2)
 			conduitsFrame.frames = {}
-			for i = 1, 7 do
+			for i = 1, 16 do
 				local conduitFrame = CreateFrame("frame", "$parentConduit" .. i, conduitsFrame)
 				conduitFrame:SetPoint("left", conduitsFrame, "left", (i-1)*scroll_line_height, 0)
 				tinsert(conduitsFrame.frames, conduitFrame)
@@ -300,6 +334,9 @@ function PlayerCheck.BuildOptions(frame)
 				local conduitIcon = conduitFrame:CreateTexture(nil, "artwork")
 				conduitIcon:SetAllPoints()
 				conduitFrame.icon = conduitIcon
+				conduitFrame:Hide()
+				conduitFrame:SetScript("OnEnter", conduitIconOnEnter)
+				conduitFrame:SetScript("OnLeave", conduitIconOnLeave)
 			end
 
 		--store the labels into the line object
@@ -349,7 +386,7 @@ function PlayerCheck.BuildOptions(frame)
 				line.index = index
 
 				local specId = dataTable[7]
-				if (specId and specId > 0) then 
+				if (specId and specId > 0) then
 					local _, _, _, specIcon = GetSpecializationInfoByID(specId)
 					line.specIcon:SetTexture(specIcon)
 				else
@@ -395,7 +432,7 @@ function PlayerCheck.BuildOptions(frame)
 				end
 
 				--talents
-				local talents = {}
+				local talents = dataTable[9] or {}
 				if (#talents == 0) then
 					for i = 1, #line.talentsFrame.frames do
 						line.talentsFrame.frames[i]:Hide()
@@ -404,14 +441,12 @@ function PlayerCheck.BuildOptions(frame)
 					for i = 1, #line.talentsFrame.frames do
 						local talentId = talents[i]
 						local talentWidget = line.talentsFrame.frames[i]
-
 						if (talentId) then
 							talentWidget:Show()
 							local _, _, texture = GetTalentInfoByID(talentId)
 							talentWidget.icon:SetTexture(texture)
 							talentWidget.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
 							talentWidget.talentId = talentId
-
 						else
 							talentWidget:Hide()
 						end
@@ -423,6 +458,31 @@ function PlayerCheck.BuildOptions(frame)
 
 				--conduits
 				--line.conduitsFrame = conduitsFrame
+				local conduits = dataTable[10] or {}
+				for i = 1, #line.conduitsFrame.frames do
+					line.conduitsFrame.frames[i]:Hide()
+				end
+
+				if (#conduits > 0) then
+					local conduitIndex = 1
+					for i = 1, #conduits, 2 do
+						local conduitSpellId = conduits[i]
+						local conduitItemLevel = conduits[i+1]
+
+						local conduitWidget = line.conduitsFrame.frames[conduitIndex]
+						if (conduitSpellId) then
+							conduitWidget:Show()
+							local texture = GetSpellTexture(conduitSpellId)
+							conduitWidget.icon:SetTexture(texture)
+							conduitWidget.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
+							conduitWidget.spellId = conduitSpellId
+						else
+							conduitWidget:Hide()
+						end
+
+						conduitIndex = conduitIndex + 1
+					end
+				end
 			end
 		end
 	end
@@ -443,6 +503,7 @@ function PlayerCheck.BuildOptions(frame)
 		--get the information needed
 		local raidStatusLib = LibStub:GetLibrary("LibRaidStatus-1.0")
 		local gearInfo = raidStatusLib.gearManager.GetGearTable()
+		local playerInfo = raidStatusLib.playerInfoManager.GetPlayerInfo()
 
 		--get which column is currently selected and the sort order
 		local columnIndex, order = RaidAssistPlayerCheckHeader:GetSelectedColumn()
@@ -456,14 +517,27 @@ function PlayerCheck.BuildOptions(frame)
 			local weaponEnchant = gearTable.weaponEnchant
 			local noGems = gearTable.noGems
 			local noEnchants = gearTable.noEnchants
+			result[#result+1] = {
+				playerName, --1
+				durability, --2
+				iLevel, --3
+				weaponEnchant, --4
+				noGems, --5
+				noEnchants --6
+			}
+		end
 
-			--place holders
-			local specId = math.random(1, 300)
-			local renown = math.random(1, 300)
-			local talents = {}
-			local conduitsFrame = {}
+		for playerName, infoTable in pairs(playerInfo) do
+			local specId = infoTable.specId
+			local renown = infoTable.renown
+			local talents = infoTable.talents
+			local conduits = infoTable.conduits
 
-			result[#result+1] = {playerName, durability, iLevel, weaponEnchant, noGems, noEnchants, specId, renown}
+			local lastResult = result[#result]
+			tinsert(lastResult, specId) --7
+			tinsert(lastResult, renown) --8
+			tinsert(lastResult, talents) --9
+			tinsert(lastResult, conduits) --10
 		end
 
 		--sort by spec
