@@ -517,7 +517,8 @@ function PlayerCheck.BuildOptions(frame)
 			local weaponEnchant = gearTable.weaponEnchant
 			local noGems = gearTable.noGems
 			local noEnchants = gearTable.noEnchants
-			result[#result+1] = {
+
+			local thisResult = {
 				playerName, --1
 				durability, --2
 				iLevel, --3
@@ -525,19 +526,28 @@ function PlayerCheck.BuildOptions(frame)
 				noGems, --5
 				noEnchants --6
 			}
+
+			local playerGeneralInfo = playerInfo[playerName] or {}
+			local specId = playerGeneralInfo.specId or 0
+			local renown = playerGeneralInfo.renown or 1
+			local talents = playerGeneralInfo.talents or {}
+			local conduits = playerGeneralInfo.conduits or {}
+
+			tinsert(thisResult, specId) --7
+			tinsert(thisResult, renown) --8
+			tinsert(thisResult, talents) --9
+			tinsert(thisResult, conduits) --10
+
+			result[#result+1] = thisResult
 		end
 
 		for playerName, infoTable in pairs(playerInfo) do
-			local specId = infoTable.specId
-			local renown = infoTable.renown
-			local talents = infoTable.talents
-			local conduits = infoTable.conduits
+
 
 			local lastResult = result[#result]
-			tinsert(lastResult, specId) --7
-			tinsert(lastResult, renown) --8
-			tinsert(lastResult, talents) --9
-			tinsert(lastResult, conduits) --10
+
+
+			print(playerName, lastResult[7], lastResult[8], lastResult[9], lastResult[10], "sort", columnIndex)
 		end
 
 		--sort by spec

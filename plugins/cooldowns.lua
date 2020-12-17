@@ -313,7 +313,7 @@ function Cooldowns:ENCOUNTER_END()
 		--cancel bar timers
 		for id, panel in pairs(Cooldowns.ScreenPanels) do
 			for _, bar in ipairs(panel.Bars) do
-				bar:CancelTimerBar()
+				bar:StopTimer()
 				bar.player_spellid = nil
 				bar:Hide()
 			end
