@@ -392,7 +392,7 @@ function Cooldowns.ResetRoster()
 	--cancel bar timers
 	for id, panel in pairs (Cooldowns.ScreenPanels) do
 		for _, bar in ipairs (panel.Bars) do
-			bar:CancelTimerBar()
+			--bar:CancelTimerBar()
 			bar.player_spellid = nil
 			bar:Hide()
 		end
@@ -648,7 +648,8 @@ local setupPlayerBar = function (self, panel, player, spell, bar_index)
 			--if the charges are charging, set the timer
 			--print(playerSpellid)
 			--print("time:", spell.charges_next - spell.charges_start_time, " ", select(1, GetSpellInfo(spell.spellid)))
-			self:SetTimer (spell.charges_start_time, spell.charges_next)
+			self:SetTimer (spell.charges_next - spell.charges_start_time)
+			--print("3", spell.charges_start_time, spell.charges_next, "dunno, starting cooldown?")
 		else
 			self:StopTimer()
 			--if the spell has charges, set it to full
@@ -1234,6 +1235,8 @@ function Cooldowns.BarControl (updateType, unitid, spellid)
 							bar.cooldownUpBar.icon = spellIcon
 							bar.cooldownUpBar._icon:SetTexCoord(12/64, 52/64, 12/64, 52/64)
 							C_Timer.After(spellInfo.duration, function() bar.cooldownUpBar:Hide() end)
+
+							print("1", spellInfo.duration, spellName)
 						end
 					end
 				end
@@ -1246,6 +1249,7 @@ function Cooldowns.BarControl (updateType, unitid, spellid)
 							return
 						end
 						bar:SetTimer (spell.charges_next - GetTime() - 0.1)
+						print("2", spell.charges_next - GetTime() - 0.1, "not known")
 
 						local spellInfo = DetailsFramework.CooldownsInfo[spellid]
 

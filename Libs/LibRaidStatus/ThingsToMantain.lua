@@ -151,9 +151,8 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 			[64844] = 4, --Divine Hymn
 			[64901] = 4, --Symbol of Hope
 			[265202] = 4, --Holy Word: Salvation (talent)
-			[88625] = 5, --Holy Word: Chastise
-			[34861] = 5, --Holy Word: Sanctify
-			[2050] = 5, --Holy Word: Serenity
+			--[88625] = 5, --Holy Word: Chastise
+			--[34861] = 5, --Holy Word: Sanctify
 			[19236] = 5, --Desperate Prayer
 			[8122] = 5, --Psychic Scream
 		},
@@ -166,7 +165,7 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 			[47585] = 2, --Dispersion
 			[15286] = 4, --Vampiric Embrace
 			[19236] = 5, --Desperate Prayer
-			[64044] = 5, --Psychic Horror
+			--[64044] = 5, --Psychic Horror
 			[8122] = 5, --Psychic Scream
 			[205369] = 5, --Mind Bomb
 		},
@@ -212,8 +211,8 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 			[205180] = 1, --Summon Darkglare
 			[342601] = 1, --Ritual of Doom
 			[113860] = 1, --Dark Soul: Misery (talent)
-			[104773] = 2, --Unending Resolve			
-			[108416] = 2, --Dark Pact (talent)			
+			[104773] = 2, --Unending Resolve
+			[108416] = 2, --Dark Pact (talent)
 			[30283] = 5, --Shadowfury
 			[6789] = 5, --Mortal Coil (talent)
 			[333889] = 5, --Fel Domination
@@ -238,9 +237,9 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 		[267] = {
 			[1122] = 1, --Summon Infernal
 			[342601] = 1, --Ritual of Doom
-			[113858] = 1, --Dark Soul: Instability (talent)			
+			[113858] = 1, --Dark Soul: Instability (talent)
 			[104773] = 2, --Unending Resolve
-			[108416] = 2, --Dark Pact (talent)			
+			[108416] = 2, --Dark Pact (talent)
 			[6789] = 5, --Mortal Coil (talent)
 			[30283] = 5, --Shadowfury
 			[333889] = 5, --Fel Domination
@@ -249,13 +248,13 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 	--WARRIOR
 		--Arms
 		[71] = {
-			[107574] = 1, --Avatar (talent)			
+			[107574] = 1, --Avatar (talent)
 			[227847] = 1, --Bladestorm
 			[152277] = 1, --Ravager (talent)
 			[118038] = 2, --Die by the Sword
 			[97462] = 4, --Rallying Cry
 			[64382] = 5, --Shattering Throw
-			[18499] = 5, --Berserker Rage
+			--[18499] = 5, --Berserker Rage
 			[5246] = 5, --Intimidating Shout
 		},
 		--Fury
@@ -265,7 +264,7 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 			[184364] = 2, --Enraged Regeneration
 			[97462] = 4, --Rallying Cry
 			[64382] = 5, --Shattering Throw
-			[18499] = 5, --Berserker Rage
+			--[18499] = 5, --Berserker Rage
 			[5246] = 5, --Intimidating Shout
 		},
 		--Protection
@@ -276,7 +275,7 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 			[871] = 2, --Shield Wall
 			[97462] = 4, --Rallying Cry
 			[64382] = 5, --Shattering Throw
-			[18499] = 5, --Berserker Rage
+			--[18499] = 5, --Berserker Rage
 			[5246] = 5, --Intimidating Shout
 		},
 	
@@ -284,7 +283,7 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 		--holy
 		[65] = {
 			[31884] = 1, --Avenging Wrath
-			[216331] = 1, --Avenging Crusader (talent)			
+			[216331] = 1, --Avenging Crusader (talent)
 			[498] = 2, --Divine Protection
 			[642] = 2, --Divine Shield
 			[105809] = 2, --Holy Avenger (talent)
@@ -395,7 +394,7 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 			[221562] = 5, --Asphyxiate
 			[212552] = 5, --Wraith walk (talent)
 		},
-	
+
 	--DRUID
 		--Balance
 		[102] = {
@@ -405,7 +404,7 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 			[108238] = 2, --Renewal (talent)
 			[29166] = 3, --Innervate
 			[77761] = 4, --Stampeding Roar
-			[99] = 5, --Incapacitating Roar
+			--[99] = 5, --Incapacitating Roar
 			[319454] = 5, --Heart of the Wild (talent)
 			[132469] = 5, --Typhoon
 			[78675] = 5, --Solar Beam
@@ -431,7 +430,7 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 			[108238] = 2, --Renewal (talent)
 			[77761] = 4, --Stampeding Roar
 			[132469] = 5, --Typhoon
-			[99] = 5, --Incapacitating Roar
+			--[99] = 5, --Incapacitating Roar
 			[319454] = 5, --Heart of the Wild (talent)
 		},
 		--Restoration
@@ -677,6 +676,7 @@ LIB_RAID_STATUS_COOLDOWNS_INFO = {
 	[186289] = {cooldown = 72, duration = 15, talent = false, charges = 1, class = "HUNTER", type = 5}, --Aspect of the eagle
 
 	--> druid
+	[77761] = {cooldown = 120, duration = 8, talent = false, charges = 1, class = "DRUID", type = 4}, --Stampeding Roar
 	[194223] = {cooldown = 180, duration = 20, talent = false, charges = 1, class = "DRUID", type = 1}, --Celestial Alignment
 	[102560] = {cooldown = 180, duration = 30, talent = 21702, charges = 1, class = "DRUID", type = 1}, --Incarnation: Chosen of Elune (talent)
 	[22812] = {cooldown = 60, duration = 12, talent = false, charges = 1, class = "DRUID", type = 2}, --Barkskin
