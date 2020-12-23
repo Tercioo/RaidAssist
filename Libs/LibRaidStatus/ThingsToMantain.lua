@@ -165,7 +165,7 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 			[47585] = 2, --Dispersion
 			[15286] = 4, --Vampiric Embrace
 			[19236] = 5, --Desperate Prayer
-			--[64044] = 5, --Psychic Horror
+			[64044] = 5, --Psychic Horror
 			[8122] = 5, --Psychic Scream
 			[205369] = 5, --Mind Bomb
 		},
@@ -214,7 +214,7 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 			[104773] = 2, --Unending Resolve
 			[108416] = 2, --Dark Pact (talent)
 			[30283] = 5, --Shadowfury
-			[6789] = 5, --Mortal Coil (talent)
+			--[6789] = 5, --Mortal Coil (talent)
 			[333889] = 5, --Fel Domination
 		},
 		--demonology
@@ -229,7 +229,7 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 			[108416] = 2, --Dark Pact (talent)
 			
 			[30283] = 5, --Shadowfury
-			[6789] = 5, --Mortal Coil (talent)
+			--[6789] = 5, --Mortal Coil (talent)
 			[5484] = 5, --Howl of Terror (talent)
 			[333889] = 5, --Fel Domination
 		},
@@ -240,7 +240,7 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 			[113858] = 1, --Dark Soul: Instability (talent)
 			[104773] = 2, --Unending Resolve
 			[108416] = 2, --Dark Pact (talent)
-			[6789] = 5, --Mortal Coil (talent)
+			--[6789] = 5, --Mortal Coil (talent)
 			[30283] = 5, --Shadowfury
 			[333889] = 5, --Fel Domination
 		},
@@ -533,7 +533,7 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 			[108271] = 2, --Astral Shift
 			[108281] = 4, --Ancestral Guidance (talent)
 			[198103] = 2, --Earth Elemental
-			[79206] = 5, --Spiritwalkers grace
+			--[79206] = 5, --Spiritwalkers grace
 			[65992] = 5, --Tremor Totem
 			[192058] = 5, --Capacitor Totem
 			[192077] = 5, --Wind Rush Totem (talent)
@@ -619,7 +619,8 @@ LIB_RAID_STATUS_COOLDOWNS_INFO = {
 	[113858] = {cooldown = 120, duration = 20, talent = 23092, charges = 1, class = "WARLOCK", type = 1}, --Dark Soul: Instability (talent)
 	[30283] = {cooldown = 60, duration = 3, talent = false, charges = 1, class = "WARLOCK", type = 5}, --Shadowfury
 	[333889] = {cooldown = 180, duration = 15, talent = false, charges = 1, class = "WARLOCK", type = 5}, --Fel Domination
-	
+	--[6789] = {cooldown = 45, duration = 3, talent = 19291, charges = 1, class = "WARLOCK", type = 5}, --Mortal Coil (talent)
+
 	--> shaman
 	[198067] = {cooldown = 150, duration = 30, talent = false, charges = 1, class = "SHAMAN", type = 1}, --Fire Elemental
 	[192249] = {cooldown = 150, duration = 30, talent = 19272, charges = 1, class = "SHAMAN", type = 1}, --Storm Elemental (talent)
@@ -695,6 +696,7 @@ LIB_RAID_STATUS_COOLDOWNS_INFO = {
 	[197721] = {cooldown = 90, duration = 8, talent = 22404, charges = 1, class = "DRUID", type = 4}, --Flourish (talent)
 	[132469] = {cooldown = 30, duration = false, talent = false, charges = 1, class = "DRUID", type = 5}, --Typhoon
 	[319454] = {cooldown = 300, duration = 45, talent = 18577, charges = 1, class = "DRUID", type = 5}, --Heart of the Wild (talent)
+	[102793] = {cooldown = 60, duration = 10, talent = false, charges = 1, class = "DRUID", type = 5}, --Ursol's Vortex
 
 	--> death knight
 	[275699] = {cooldown = 90, duration = 15, talent = false, charges = 1, class = "DEATHKNIGHT", type = 1}, --Apocalypse
@@ -721,7 +723,6 @@ LIB_RAID_STATUS_COOLDOWNS_INFO = {
 	[200166] = {cooldown = 240, duration = 30, talent = false, charges = 1, class = "DEMONHUNTER", type = 1}, --Metamorphosis
 	[198589] = {cooldown = 60, duration = 10, talent = false, charges = 1, class = "DEMONHUNTER", type = 2}, --Blur
 	[196555] = {cooldown = 120, duration = 5, talent = 21865, charges = 1, class = "DEMONHUNTER", type = 2}, --Netherwalk (talent)
-	[196718] = {cooldown = 180, duration = 8, talent = false, charges = 1, class = "DEMONHUNTER", type = 4}, --Darkness
 	[187827] = {cooldown = 180, duration = 15, talent = false, charges = 1, class = "DEMONHUNTER", type = 2}, --Metamorphosis
 	[196718] = {cooldown = 180, duration = 8, talent = false, charges = 1, class = "DEMONHUNTER", type = 4}, --Darkness
 	[188501] = {cooldown = 30, duration = 10, talent = false, charges = 1, class = "DEMONHUNTER", type = 5}, --Spectral Sight
@@ -770,6 +771,8 @@ LIB_RAID_STATUS_COOLDOWNS_INFO = {
 	[193223] = {cooldown = 240, duration = 60, talent = 21979, charges = 1, class = "PRIEST", type = 1},  --Surrender to Madness (talent)
 	[47585] = {cooldown = 120, duration = 6, talent = false, charges = 1, class = "PRIEST", type = 2},  --Dispersion
 	[15286] = {cooldown = 120, duration = 15, talent = false, charges = 1, class = "PRIEST", type = 4},  --Vampiric Embrace
+	[64044] = {cooldown = 45, duration = 4, talent = 21752, charges = 1, class = "PRIEST", type = 5}, --Psychic Horror
+	[205369] = {cooldown = 30, duration = 6, talent = 23375, charges = 1, class = "PRIEST", type = 5}, --Mind Bomb
 
 	--> rogue
 	[79140] = {cooldown = 120, duration = 20, talent = false, charges = 1, class = "ROGUE", type = 1},  --Vendetta

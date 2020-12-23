@@ -366,6 +366,13 @@ function Invite.BuildOptions (frame)
 		dropdown_schedule_select:SetPoint ("left", label_schedule_select, "right", 2, 0)
 		label_schedule_select:SetPoint (10, -305)
 		
+		--raid leader
+		local msgToSendToPlayers = RA:CreateLabel (panel, "Msg to players: ", Invite:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+		local msgToSendToPlayersEditbox = RA:CreateTextEntry (panel, empty_func, 160, 20, "msgToSendToPlayersEditbox", _, _, Invite:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+		msgToSendToPlayersEditbox:SetJustifyH ("left")
+		msgToSendToPlayers:SetPoint ("topleft", label_schedule_select, "bottomleft", 0, -10)
+		msgToSendToPlayersEditbox:SetPoint ("left", msgToSendToPlayers, "right", 2, 0)
+		
 		function Invite:ResetNewPresetPanel()
 			editbox_preset_name.text = ""
 			for i = 1, #switchers do
@@ -432,7 +439,8 @@ function Invite.BuildOptions (frame)
 			dropdown_keep_auto_invite:Select (preset.keepinvites)
 			auto_invite_switch:SetValue (preset.autostart)
 			dropdown_schedule_select:Select (preset.autostartcore)
-			
+			msgToSendToPlayersEditbox:SetText(Invite.db.invite_msg)
+
 			panel.button_create_preset:SetText ("Save")
 			panel:Show()
 		end
@@ -479,6 +487,7 @@ function Invite.BuildOptions (frame)
 				preset.keepinvites = keep_inviting
 				preset.autostart = auto_start_invites
 				preset.autostartcore = auto_start_core
+				Invite.db.invite_msg = main_frame.msgToSendToPlayersEditbox:GetText()
 			else
 				local preset = {}
 				preset.name = preset_name
@@ -607,6 +616,7 @@ function Invite.BuildOptions (frame)
 			main_frame.dropdown_edit_preset:Select (1, true)
 			main_frame.dropdown_remove_preset:Refresh()
 			main_frame.dropdown_remove_preset:Select (1, true)
+			main_frame.msgToSendToPlayersEditbox:SetText(Invite.db.invite_msg)
 		end
 		
 		--> welcome text 2
@@ -808,6 +818,8 @@ function Invite.BuildOptions (frame)
 		for _, switch in ipairs (switchers) do
 			switch:Disable()
 		end
+
+		panel.msgToSendToPlayersEditbox:Disable()
 	end
 	
 	function Invite:EnableCreatePanel()
@@ -825,6 +837,7 @@ function Invite.BuildOptions (frame)
 			switch:Enable()
 		end
 		
+		panel.msgToSendToPlayersEditbox:Enable()
 		panel.dropdown_schedule:Refresh()
 	end	
 	
@@ -1041,7 +1054,7 @@ function Invite:StartInvitesAuto (preset, remaining)
 		return
 	end
 	
-	GuildRoster()
+	C_GuildInfo.GuildRoster()
 	
 	if (not Invite.auto_invite_frame) then
 		Invite.auto_invite_frame = RA:CreateCleanFrame (Invite, "AutoInviteFrame")
