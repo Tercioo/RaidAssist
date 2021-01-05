@@ -14,7 +14,7 @@ local default_config = {
 	presets = {},
 	invite_msg = "[RA]: invites in 5 seconds.",
 	invite_msg_repeats = true,
-	auto_invite = false,
+	auto_invite = true,
 	auto_invite_limited = true,
 	auto_invite_keywords = {},
 	auto_accept_invites = false,
@@ -124,7 +124,25 @@ local handle_inv_text = function (message, from)
 					end
 				end
 			end
-			C_PartyInfo.InviteUnit(from)
+			if (not UnitIsUnit(from, "player")) then
+				C_PartyInfo.InviteUnit(from)
+			end
+		end
+	end
+end
+
+local invite_guild_friend = function(timerObject)
+	if (timerObject.friendName) then
+		local is_showing_all = GetGuildRosterShowOffline()
+		for i = 1, select(is_showing_all and 1 or 2, GetNumGuildMembers()) do
+			local name, rank, rankIndex, level, classDisplayName, zone, note, officernote, isOnline = GetGuildRosterInfo (i) --, status, class, achievementPoints, achievementRank, isMobile, canSoR, repStanding
+			name = Ambiguate(name, "none")
+			if (isOnline and not isMobile and timerObject.friendName == name) then
+				if (not UnitIsUnit(name, "player")) then
+					C_PartyInfo.InviteUnit(name)
+					break
+				end
+			end
 		end
 	end
 end
@@ -133,12 +151,19 @@ local handle_inv_whisper = function (message, from)
 	if (not from) then
 		return
 	end
+
+	from = Ambiguate(from, "none")
+
 	if (Invite.db.auto_invite) then
 		if (Invite:IsInQueue()) then
 			return
 		elseif (Invite.db.auto_invite_limited) then
-			if (Invite:IsBnetFriend(from) or Invite:IsFriend(from) or Invite:IsGuildFriend (from)) then
+			if (Invite:IsBnetFriend(from) or Invite:IsFriend(from)) then
 				handle_inv_text (message, from)
+			else
+				C_GuildInfo.GuildRoster()
+				local inviteTimer = C_Timer.NewTimer(2, invite_guild_friend)
+				inviteTimer.friendName = from
 			end
 		else
 			handle_inv_text (message, from)
@@ -954,50 +979,63 @@ function Invite:GROUP_ROSTER_UPDATE()
 	end
 end
 
-function Invite.DoInvitesForPreset (preset)
+local doDelayedInvite = function(timerObject)
+	local playerName = timerObject.playerName
+	C_PartyInfo.InviteUnit(playerName)
+end
 
+function Invite.DoInvitesForPreset (preset)
 	if (not preset) then
 		Invite:Msg ("Invite thread is invalid, please cancel and re-start.")
 		return
 	end
 
-	local my_name = UnitName ("player")
-	local is_showing_all = GetGuildRosterShowOffline()
-
-	local in_raid, playerIsInGroup = IsInRaid (LE_PARTY_CATEGORY_HOME), IsInGroup (LE_PARTY_CATEGORY_HOME)
-	if (not in_raid) then
+	local guildRosterIsShowingAll = GetGuildRosterShowOffline()
+	local inRaid, playerIsInGroup = IsInRaid(LE_PARTY_CATEGORY_HOME), IsInGroup(LE_PARTY_CATEGORY_HOME)
+	if (not inRaid) then
 		Invite:RegisterEvent ("GROUP_ROSTER_UPDATE")
 	end
 
-	if (not in_raid) then
-		--> we should invite few guys, converto on raid and invite everyone else after that.
---		print ("Sending only 4 invites...")
-		local invites_sent = 0
-		for i = 1, select (is_showing_all and 1 or 2, GetNumGuildMembers()) do
-			local name, rank, rankIndex, level, classDisplayName, zone, note, officernote, isOnline = GetGuildRosterInfo (i) --, status, class, achievementPoints, achievementRank, isMobile, canSoR, repStanding
+	local invitesSent = 0
+
+	if (not inRaid) then
+		--> we should invite few guys, convert on raid and invite everyone else after that		
+		for i = 1, select(guildRosterIsShowingAll and 1 or 2, GetNumGuildMembers()) do
+			local name, rank, rankIndex, level, classDisplayName, zone, note, officernote, isOnline = GetGuildRosterInfo(i)
+			name = Ambiguate(name, "none")
 			if (preset.ranks [rankIndex+1] and isOnline and not isMobile) then
-				if (my_name ~= name and ((in_raid and not UnitInRaid (Ambiguate (name, "none"))) or (playerIsInGroup and not UnitInParty (Ambiguate (name, "none"))) or (not in_raid and not playerIsInGroup))) then
-					C_PartyInfo.InviteUnit(name)
-					--print ("Inviting", name)
-					invites_sent = invites_sent + 1
-					if (invites_sent >= 4) then
-						break
+				if ((inRaid and not UnitInRaid(name)) or (playerIsInGroup and not UnitInParty (name)) or (not inRaid and not playerIsInGroup)) then
+					if (not UnitIsUnit(name, "player")) then
+						invitesSent = invitesSent + 1
+
+						local delay = invitesSent*500/1000
+						local newTimer = C_Timer.NewTimer(delay, doDelayedInvite)
+						newTimer.playerName = name
+
+						if (invitesSent >= 4) then
+							break
+						end
 					end
 				end
 			end
 		end
 		Invite.CanRedoInvites = true
 	else
-		for i = 1, select (is_showing_all and 1 or 2, GetNumGuildMembers()) do
-			local name, rank, rankIndex, level, classDisplayName, zone, note, officernote, isOnline = GetGuildRosterInfo (i) --, status, class, achievementPoints, achievementRank, isMobile, canSoR, repStanding
+		for i = 1, select (guildRosterIsShowingAll and 1 or 2, GetNumGuildMembers()) do
+			local name, rank, rankIndex, level, classDisplayName, zone, note, officernote, isOnline = GetGuildRosterInfo(i)
+			name = Ambiguate(name, "none")
 			if (preset.ranks [rankIndex+1] and isOnline and not isMobile) then
-				if (my_name ~= name and ((in_raid and not UnitInRaid (Ambiguate (name, "none"))) or (playerIsInGroup and not UnitInParty (Ambiguate (name, "none"))) or (not in_raid and not playerIsInGroup))) then
-					C_PartyInfo.InviteUnit(name)
+				if ((inRaid and not UnitInRaid(name)) or (playerIsInGroup and not UnitInParty(name)) or (not inRaid and not playerIsInGroup)) then
+					if (not UnitIsUnit(name, "player")) then
+						--C_PartyInfo.InviteUnit(name)
+						invitesSent = invitesSent + 1
+						local newTimer = C_Timer.NewTimer(invitesSent*500/1000, doDelayedInvite)
+						newTimer.playerName = name
+					end
 				end
 			end
 		end	
 	end
-
 end
 
 function Invite.AutoInviteTick()
@@ -1005,7 +1043,7 @@ function Invite.AutoInviteTick()
 	Invite.auto_invite_ticks = Invite.auto_invite_ticks - 1
 	
 	if (Invite.auto_invite_wave_time == 15) then
-		GuildRoster()
+		C_GuildInfo.GuildRoster()
 		
 	--elseif (Invite.auto_invite_wave_time == 5) then
 	elseif (Invite.db.invite_msg_repeats and Invite.auto_invite_wave_time == 5) then
@@ -1121,7 +1159,7 @@ function Invite:StartInvites (preset_number)
 			local invite_time = preset.keepinvites * 60
 			return Invite:StartInvitesAuto (preset, invite_time)
 		else
-			GuildRoster()
+			C_GuildInfo.GuildRoster()
 			Invite.invites_in_progress = true
 			Invite.invite_preset = preset
 			Invite:SendInviteAnnouncementMsg()

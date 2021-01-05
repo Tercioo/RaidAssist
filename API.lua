@@ -381,31 +381,40 @@ end
 	RA:IsGuildFriend (character_name): return if the character is in the same guild as the player.
 --]=]
 
-function RA:IsBnetFriend (who)
-	who = RA:RemoveRealName (who)
+function RA:IsBnetFriend(who)
+	who = RA:RemoveRealName(who)
 	local _, bnet_friends_amt = BNGetNumFriends()
 	for i = 1, bnet_friends_amt do
-		local accountInfo = C_BattleNet.GetFriendAccountInfo(i);
-		if (accountInfo and accountInfo.gameAccountInfo and accountInfo.gameAccountInfo.isOnline and accountInfo.gameAccountInfo.characterName == who) then
-			return true
+		local accountInfo = C_BattleNet.GetFriendAccountInfo(i)
+		if (accountInfo and accountInfo.gameAccountInfo and accountInfo.gameAccountInfo.isOnline) then
+			local chrName = accountInfo.gameAccountInfo.characterName
+			if (chrName) then
+				chrName = RA:RemoveRealName(chrName)
+				if (chrName == who) then
+					return true
+				end
+			end
 		end
 	end
 end
 
-function RA:IsFriend (who)
-	local friends_amt = GetNumFriends()
-	for i = 1, friends_amt do
-		local toonName = GetFriendInfo (i)
-		if (who == toonName) then
-			return true
+function RA:IsFriend(who)
+	who = RA:RemoveRealName(who)
+	for i = 1, C_FriendList.GetNumFriends() do
+		local info = C_FriendList.GetFriendInfoByIndex(i)
+		if (info and info.connected and info.name) then
+			local toonName = info.name
+			toonName = RA:RemoveRealName(toonName)
+			if (who == toonName) then
+				return true
+			end
 		end
 	end
 end
-
 
 function RA:IsGuildFriend (who)
 	if (IsInGuild()) then
-		return UnitIsInMyGuild (who) or UnitIsInMyGuild (who:gsub ("%-.*", ""))
+		return UnitIsInMyGuild(who) or UnitIsInMyGuild(who:gsub ("%-.*", ""))
 	end
 end
 

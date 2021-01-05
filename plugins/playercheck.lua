@@ -179,7 +179,7 @@ function PlayerCheck.BuildOptions(frame)
 		{text = "Name", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "iLevel", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "Repair", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
-		{text = "Enchant", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
+		{text = "No Enchant", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "Gems", width = headerSizeMedium, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "Talents", width = headerSizeBigPlus, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
 		{text = "Renown", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
@@ -539,15 +539,6 @@ function PlayerCheck.BuildOptions(frame)
 			tinsert(thisResult, conduits) --10
 
 			result[#result+1] = thisResult
-		end
-
-		for playerName, infoTable in pairs(playerInfo) do
-
-
-			local lastResult = result[#result]
-
-
-			print(playerName, lastResult[7], lastResult[8], lastResult[9], lastResult[10], "sort", columnIndex)
 		end
 
 		--sort by spec

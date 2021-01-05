@@ -93,23 +93,28 @@
 		"path": "$ROOTPATH$\\plugins\\invite.lua",
 		"bookmarks": [
 			{
-				"line": 14,
-				"column": 1,
+				"line": 151,
+				"column": 8,
 				"label": ""
 			},
 			{
-				"line": 372,
+				"line": 401,
 				"column": 12,
 				"label": ""
 			},
 			{
-				"line": 441,
+				"line": 470,
 				"column": 38,
 				"label": ""
 			},
 			{
-				"line": 490,
+				"line": 519,
 				"column": 4,
+				"label": ""
+			},
+			{
+				"line": 1002,
+				"column": 0,
 				"label": ""
 			}
 		]
