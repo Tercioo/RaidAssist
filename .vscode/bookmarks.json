@@ -118,5 +118,15 @@
 				"label": ""
 			}
 		]
+	},
+	{
+		"path": "$ROOTPATH$\\plugins\\aurachecker.lua",
+		"bookmarks": [
+			{
+				"line": 148,
+				"column": 1,
+				"label": ""
+			}
+		]
 	}
 ]

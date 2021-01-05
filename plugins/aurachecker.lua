@@ -15,6 +15,11 @@ local default_config = {
 local text_color_enabled = {r=1, g=1, b=1, a=1}
 local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
 
+local aura_scroll_x_pos = 669
+local top_statusbar_width = 463
+local fillpanel_width = 665
+local fillpanel_height = 630
+
 local toolbar_icon = [[Interface\CHATFRAME\UI-ChatIcon-Share]]
 local icon_texcoord = {l=0, r=1, t=0, b=1}
 
@@ -37,8 +42,8 @@ local RESPONSE_TYPE_NOWA = -1
 local RESPONSE_TYPE_WAITING = -2
 local RESPONSE_TYPE_OFFLINE = -3
 
-local CONST_RESULTAURALIST_ROWS = 20
-local CONST_AURALIST_ROWS = 24
+local CONST_RESULTAURALIST_ROWS = 30
+local CONST_AURALIST_ROWS = 30
 
 local valid_results = {
 	[RESPONSE_TYPE_NOSAMEGUILD] = true,
@@ -159,7 +164,8 @@ function AuraCheck.UpdateAurasFillPanel (fillPanel)
 	end)
 	
 	fillPanel:SetTotalFunction (function() return #alphabeticalPlayers end)
-	fillPanel:SetSize (790, 503)
+	fillPanel:SetSize (fillpanel_width, fillpanel_height)
+
 	fillPanel:UpdateRows (panelHeader)
 	fillPanel:Refresh()
 	
@@ -224,24 +230,24 @@ function AuraCheck.BuildOptions (frame)
 		local aurasFrame = CreateFrame ("frame", "AuraCheckerAurasFrame", frame, "BackdropTemplate")
 		aurasFrame:SetPoint (unpack (framesPoint))
 		aurasFrame:SetSize (unpack (framesSize))
-		
-		local NoAuraLabel = AuraCheck:CreateLabel (aurasFrame, "Select a weakaura on the right scroll box.\nClick on 'Check Aura', to see users who has it in the raid.\nClick on 'Share Aura' to send the aura to all raid members.\nRaid members also must have 'Raid Assist' addon.")
-		NoAuraLabel:SetPoint ("left", RaidAssistOptionsPanel, "left", 195, 160)
+
+		--fillpanel - auras panel
+		local fillPanel = AuraCheck:CreateFillPanel (aurasFrame, {}, fillpanel_width, fillpanel_height, false, false, false, {rowheight = 13}, _, "AuraCheckerAurasFrameFillPanel")
+		fillPanel:SetPoint ("topleft", aurasFrame, "topleft", 0, 0)
+		aurasFrame.fillPanel = fillPanel
+		DetailsFramework:ApplyStandardBackdrop(fillPanel)
+
+		local NoAuraLabel = AuraCheck:CreateLabel (fillPanel, "Select a weakaura on the right scroll box.\nClick on 'Check Aura', to see users who has it in the raid.\nClick on 'Share Aura' to send the aura to all raid members.\nRaid members also must have 'Raid Assist' addon.")
+		NoAuraLabel:SetPoint ("left", RaidAssistOptionsPanel, "left", 225, 160)
 		NoAuraLabel.align = "left"
 		AuraCheck:SetFontSize (NoAuraLabel, 14)
 		AuraCheck:SetFontColor (NoAuraLabel, "silver")
 		
-		local ResultInfoLabel = AuraCheck:CreateLabel (aurasFrame, "When checking or sharing an aura, results can be:\n\n|cFFFF0000guild|r: is not from the same guild\n|cFFFFFF00ok|r: refused but already has the aura installed\n|cFFFF0000declined|r: the user declined the aura\n|cFF55FF55ok|r: the user accepted or already have the aura\n|cFFFF5555-|r: the user DO NOT have the aura\n|cFFFF5555NO WA|r: the user DO NOT have weakauras installed\n|cFF888888?|r: waiting the answer from the raid member\n|cFFFF0000offline|r: the raid member is offline")
-		ResultInfoLabel:SetPoint ("left", RaidAssistOptionsPanel, "left", 195, 30)
+		local ResultInfoLabel = AuraCheck:CreateLabel (fillPanel, "When checking or sharing an aura, results can be:\n\n|cFFFF0000guild|r: is not from the same guild\n|cFFFFFF00ok|r: refused but already has the aura installed\n|cFFFF0000declined|r: the user declined the aura\n|cFF55FF55ok|r: the user accepted or already have the aura\n|cFFFF5555-|r: the user DO NOT have the aura\n|cFFFF5555NO WA|r: the user DO NOT have weakauras installed\n|cFF888888?|r: waiting the answer from the raid member\n|cFFFF0000offline|r: the raid member is offline")
+		ResultInfoLabel:SetPoint ("left", RaidAssistOptionsPanel, "left", 225, 30)
 		ResultInfoLabel.align = "left"
 		AuraCheck:SetFontSize (ResultInfoLabel, 14)
 		AuraCheck:SetFontColor (ResultInfoLabel, "silver")
-		
-		--fillpanel - auras panel
-		local fillPanel = AuraCheck:CreateFillPanel (aurasFrame, {}, 790, 450, false, false, false, {rowheight = 13}, _, "AuraCheckerAurasFrameFillPanel")
-		fillPanel:SetPoint ("topleft", aurasFrame, "topleft", 0, 0)
-		aurasFrame.fillPanel = fillPanel
-		
 		fillPanel.NoAuraLabel = NoAuraLabel
 		fillPanel.ResultInfoLabel = ResultInfoLabel
 		
@@ -292,7 +298,7 @@ function AuraCheck.BuildOptions (frame)
 		end
 		
 		local auraScroll = CreateFrame ("scrollframe", "AuraCheckerAurasFrameAuraScroll", frame, "FauxScrollFrameTemplate, BackdropTemplate")
-		auraScroll:SetPoint ("topleft", aurasFrame, "topleft", 795, -5)
+		auraScroll:SetPoint ("topleft", aurasFrame, "topleft", aura_scroll_x_pos, -5)
 		auraScroll:SetSize (180, CONST_AURALIST_ROWS*21 - 5)
 		auraScroll.CurrentAuraSelected = "-none-"
 		auraScroll.SearchingFor = ""
@@ -572,8 +578,7 @@ function AuraCheck.BuildOptions (frame)
 		checkAuraButton.tooltip = "Verifies if raid memebers has the selected aura installed."
 		shareAuraButton.tooltip = "Send the selected aura to raid members.\nThey can accept the aura or decline.\nThe result is shown on the panel."
 		
-		--local statusBar = AuraCheck:CreateBar (frame, LibStub:GetLibrary ("LibSharedMedia-3.0"):Fetch ("statusbar", "Iskar Serenity"), 590, 18, 100, "statusBarWorking", "AuraCheckerStatusBar")
-		local statusBar = AuraCheck:CreateBar (frame, LibStub:GetLibrary ("LibSharedMedia-3.0"):Fetch ("statusbar", "Iskar Serenity"), 583, 16, 100, "statusBarWorking", "AuraCheckerStatusBar")
+		local statusBar = AuraCheck:CreateBar (frame, LibStub:GetLibrary ("LibSharedMedia-3.0"):Fetch ("statusbar", "Iskar Serenity"), top_statusbar_width, 16, 100, "statusBarWorking", "AuraCheckerStatusBar")
 		--statusBar:SetPoint ("topleft", frame, "topleft", 2, -431)
 		statusBar:SetPoint ("left", showHistoryFrameButton, "right", 2, 0)
 		statusBar.RightTextIsTimer = true
@@ -726,6 +731,13 @@ function AuraCheck.SendAuraStatus (auraName)
 	if (WeakAuras_Object) then --> the user has weakauras installed
 		local isInstalled = AuraCheck:GetWeakAuraTable (auraName)
 		if (isInstalled) then
+			local semver = isInstalled.semver
+			if (semver) then
+				local removeDots = semver:gsub("%.", "")
+				if (removeDots and removeDots ~= "0") then
+					semver = tonumber(removeDots)
+				end
+			end
 			AuraCheck:SendPluginCommMessage (COMM_AURA_CHECKRECEIVED, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName, 1)
 		else
 			AuraCheck:SendPluginCommMessage (COMM_AURA_CHECKRECEIVED, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName, 0)
@@ -820,7 +832,12 @@ function AuraCheck.PluginCommReceived (prefix, sourcePluginVersion, playerName, 
 end
 
 function AuraCheck.InstallAura (auraName, playerName, auraString, time)
-	WeakAuras.ImportString (auraString)
+	local alreayHaveAura = WeakAuras.GetData(auraName)
+	if (alreayHaveAura) then
+		WeakAuras.Delete(alreayHaveAura)
+	end
+
+	WeakAuras.ImportString(auraString)
 	WeakAurasTooltipImportButton:Click()
 	
 	tinsert (AuraCheck.db.installed_history, {auraName, playerName, time})
