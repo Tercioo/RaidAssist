@@ -256,11 +256,14 @@ function RaidGroups.BuildOptions (frame)
 	
 	frame:SetScript ("OnShow", OnShowPanel)
 	
+
+
 	local help_frame = CreateFrame ("frame", nil, frame, "BackdropTemplate")
-	help_frame:SetSize (320, 100)
+	help_frame:SetSize (308, 100)
 	help_frame:SetBackdrop ({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 16, edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1})
 	help_frame:SetBackdropColor (0, 0, 0, .3)
-	help_frame:SetBackdropBorderColor (.3, .3, .3, .3)
+	help_frame:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
+
 	local label =  RA:CreateLabel (help_frame, "Tips:\n\n- You can modify raid groups while your raid clear trash mobs and apply the changes when all players are out of combat, saving a lot of time on organizing the raid.\n\n- Use as a backup if need to make many changes to the roster layout.", 10, "orange")
 	label:SetPoint ("topleft", help_frame, "topleft", 10, -10)
 	label:SetSize (300, 90)
@@ -465,7 +468,7 @@ function RaidGroups.BuildOptions (frame)
 		panel:SetSize (group_sizeX, group_sizeY)
 		panel:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
 		panel:SetBackdropColor (0, 0, 0, .1)
-		panel:SetBackdropBorderColor (0.1, 0.1, 0.1, 1)
+		panel:SetBackdropBorderColor (unpack(RA.BackdropBorderColor))
 		local label = panel:CreateFontString (nil, "overlay", "GameFontNormal")
 		--label:SetPoint ("center", panel, "center")
 		label:SetPoint ("bottomleft", panel, "topleft", 2, 1)
@@ -691,9 +694,17 @@ function RaidGroups.BuildOptions (frame)
 			RaidGroups.alert_incombat_label:Hide()
 		end
 	end
-	
-	local apply_button =  RaidGroups:CreateButton (frame, apply_func, 100, 20, "Apply", _, _, _, "button_apply", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-	apply_button:SetPoint ("topleft", frame, "topleft", right_panel_x, 0)
+
+	--create a backgroup for the options
+	local optionsFrame = CreateFrame("frame", frame:GetName() .. "OptionsBG", frame, "BackdropTemplate")
+	optionsFrame:SetSize(320, 533)
+	optionsFrame:SetPoint("topleft", frame, "topright", -100, 0)
+	optionsFrame:SetBackdrop({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
+	optionsFrame:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
+	optionsFrame:SetBackdropColor(.1, .1, .1, 1)
+
+	local apply_button = RaidGroups:CreateButton (optionsFrame, apply_func, 100, 20, "Apply", _, _, _, "button_apply", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	apply_button:SetPoint ("topleft", frame, "topleft", right_panel_x, -5)
 	apply_button:SetScript ("OnUpdate", apply_onupdate)
 	apply_button:SetIcon ([[Interface\BUTTONS\UI-CheckBox-Check]], 16, 16, "overlay", {0, 1, 0, 28/32}, {1, 1, 1}, 2, 1, 0)
 
@@ -702,7 +713,7 @@ function RaidGroups.BuildOptions (frame)
 		RaidGroups.Sync()
 		RaidGroups.lock_frame:Hide()
 	end
-	local sync_button =  RaidGroups:CreateButton (frame, sync_func, 100, 20, "Refresh", _, _, _, "button_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local sync_button =  RaidGroups:CreateButton (optionsFrame, sync_func, 100, 20, "Refresh", _, _, _, "button_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	sync_button:SetPoint ("left", apply_button, "right", 6, 0)
 	sync_button:SetIcon ([[Interface\BUTTONS\UI-RefreshButton]], 14, 14, "overlay", {0, 1, 0, 1}, {1, 1, 1}, 2, 1, 0)
 
@@ -761,7 +772,7 @@ function RaidGroups.BuildOptions (frame)
 				RaidGroups.UpdateRosterFrames()
 			end,
 			name = "Show Class Name",
-		},		
+		},
 		{
 			type = "toggle",
 			get = function() return RaidGroups.db.show_level end,
@@ -807,12 +818,12 @@ function RaidGroups.BuildOptions (frame)
 	local options_button_template = RaidGroups:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE")
 	
 	RaidGroups:SetAsOptionsPanel (frame)
-	RaidGroups:BuildMenu (frame, options_list, right_panel_x, -40, 300, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
+	RaidGroups:BuildMenu (optionsFrame, options_list, 5, -40, 300, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
 
 	--> filters
 	
-	local filter_label = RaidGroups:CreateLabel (frame, "Filter" .. ":", RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"), _, _, "label_filter1")
-	local filter_current_label = RaidGroups:CreateLabel (frame, "", RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"), _, _, "label_filter2")
+	local filter_label = RaidGroups:CreateLabel (optionsFrame, "Filter" .. ":", RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"), _, _, "label_filter1")
+	local filter_current_label = RaidGroups:CreateLabel (optionsFrame, "", RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"), _, _, "label_filter2")
 	filter_current_label.textcolor = "orange"
 	
 	filter_label:SetPoint ("topleft", frame, "topleft", right_panel_x, filter_start_y)
@@ -838,16 +849,16 @@ function RaidGroups.BuildOptions (frame)
 		RaidGroups.UpdateVirtualGroups()
 	end
 
-	local clear_filter_button =  RaidGroups:CreateButton (frame, apply_filter_func, 6, 20, "X", false, _, _, "button_clear_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local clear_filter_button =  RaidGroups:CreateButton (optionsFrame, apply_filter_func, 6, 20, "X", false, _, _, "button_clear_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	clear_filter_button:SetPoint ("topleft", filter_label, "bottomleft", 0, -5)
 	
-	local healer_filter_button =  RaidGroups:CreateButton (frame, apply_filter_func, 60, 20, "Healers", "HEALER", _, _, "button1_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local healer_filter_button =  RaidGroups:CreateButton (optionsFrame, apply_filter_func, 60, 20, "Healers", "HEALER", _, _, "button1_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	healer_filter_button:SetPoint ("left", clear_filter_button, "right", 2, 0)
 
-	local tank_filter_button =  RaidGroups:CreateButton (frame, apply_filter_func, 60, 20, "Tanks", "TANK", _, _, "button2_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local tank_filter_button =  RaidGroups:CreateButton (optionsFrame, apply_filter_func, 60, 20, "Tanks", "TANK", _, _, "button2_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	tank_filter_button:SetPoint ("left", healer_filter_button, "right", 2, 0)
 	
-	local dps_filter_button =  RaidGroups:CreateButton (frame, apply_filter_func, 60, 20, "Dps", "DPS", _, _, "button3_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local dps_filter_button =  RaidGroups:CreateButton (optionsFrame, apply_filter_func, 60, 20, "Dps", "DPS", _, _, "button3_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	dps_filter_button:SetPoint ("left", tank_filter_button, "right", 2, 0)
 	
 	RaidGroups.UpdateRosterFrames()

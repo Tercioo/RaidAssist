@@ -14,14 +14,14 @@ local PlayerCheck = {
 	last_data_sent = 0,
 	player_data = {},
 	version = "v0.1",
-	pluginname = "PlayerCheck"
+	pluginname = "PlayerCheck",
 }
 _G ["RaidAssistPlayerCheck"] = PlayerCheck
 
 local canInstall = true
 
 local default_config = {
-	leader_request_interval = 600,
+	cache = {},
 }
 
 local icon_texcoord = {l=0, r=1, t=0, b=1}
@@ -29,11 +29,12 @@ local icon_texture = [[Interface\CURSOR\thumbsup]]
 local text_color_enabled = {r=1, g=1, b=1, a=1}
 local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
 
+---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 PlayerCheck.menu_text = function (plugin)
 	if (PlayerCheck.db.enabled) then
-		return icon_texture, icon_texcoord, "Player Check (dev)", text_color_enabled
+		return icon_texture, icon_texcoord, "Player Check", text_color_enabled
 	else
-		return icon_texture, icon_texcoord, "Player Check (dev)", text_color_disabled
+		return icon_texture, icon_texcoord, "Player Check", text_color_disabled
 	end
 end
 
@@ -67,7 +68,7 @@ end
 
 --on group roster update
 function PlayerCheck:GroupUpdate()
-	if (IsInRaid (LE_PARTY_CATEGORY_HOME)) then
+	if (IsInRaid(LE_PARTY_CATEGORY_HOME)) then
 		if (not PlayerCheck.InGroup) then
 			--in group now
 			PlayerCheck.InGroup = true
@@ -76,6 +77,10 @@ function PlayerCheck:GroupUpdate()
 		if (PlayerCheck.InGroup) then
 			PlayerCheck.InGroup = false
 		end
+	end
+
+	if (not IsInGroup()) then
+		wipe(PlayerCheck.db.cache)
 	end
 end
 
@@ -90,9 +95,9 @@ end
 
 PlayerCheck.OnProfileChanged = function (plugin)
 	if (plugin.db.enabled) then
-		PlayerCheck.OnEnable (plugin)
+		PlayerCheck.OnEnable(plugin)
 	else
-		PlayerCheck.OnDisable (plugin)
+		PlayerCheck.OnDisable(plugin)
 	end
 
 	if (plugin.options_built) then
@@ -124,27 +129,27 @@ function PlayerCheck.BuildOptions(frame)
 	--libRaidStatus
 	local raidStatusLib = LibStub:GetLibrary("LibRaidStatus-1.0")
 
-	--register callback on libRaidStatus
-	function PlayerCheck.OnGearDurabilityUpdate(playerName, durability, gearTable)
-		if (frame.playerInfoScroll:IsShown()) then
-			frame.playerInfoScroll.RefreshData()
+	--> register callback on libRaidStatus
+		function PlayerCheck.OnGearDurabilityUpdate(playerName, durability, playerGear, allPlayersGear)
+			if (frame.playerInfoScroll:IsShown()) then
+				frame.playerInfoScroll.RefreshData()
+			end
 		end
-	end
-	raidStatusLib.RegisterCallback(PlayerCheck, "GearDurabilityUpdate", "OnGearDurabilityUpdate")
+		raidStatusLib.RegisterCallback(PlayerCheck, "GearDurabilityUpdate", "OnGearDurabilityUpdate")
 
-	function PlayerCheck.OnGearUpdate(playerName, playerGearInfo, gearTable)
-		if (frame.playerInfoScroll:IsShown()) then
-			frame.playerInfoScroll.RefreshData()
+		function PlayerCheck.OnGearUpdate(playerName, playerGear, allPlayersGear)
+			if (frame.playerInfoScroll:IsShown()) then
+				frame.playerInfoScroll.RefreshData()
+			end
 		end
-	end
-	raidStatusLib.RegisterCallback(PlayerCheck, "GearUpdate", "OnGearUpdate")
+		raidStatusLib.RegisterCallback(PlayerCheck, "GearUpdate", "OnGearUpdate")
 
-	function PlayerCheck.OnGearListWiped(gearTable)
-		if (frame.playerInfoScroll:IsShown()) then
-			frame.playerInfoScroll.RefreshData()
+		function PlayerCheck.OnGearListWiped(allPlayersGear)
+			if (frame.playerInfoScroll:IsShown()) then
+				frame.playerInfoScroll.RefreshData()
+			end
 		end
-	end
-	raidStatusLib.RegisterCallback(PlayerCheck, "GearListWiped", "OnGearListWiped")
+		raidStatusLib.RegisterCallback(PlayerCheck, "GearListWiped", "OnGearListWiped")
 
 	--spell scroll options
 	local scroll_width = 848
@@ -167,7 +172,6 @@ function PlayerCheck.BuildOptions(frame)
 	local headerSizeBigPlus = 140
 
 	local defaultTextColor = {.89, .89, .89, .89}
-	local overHoverTextColor = {.99, .99, .99, .99}
 
 	--header
 	local columnAlign = "left"
@@ -180,7 +184,7 @@ function PlayerCheck.BuildOptions(frame)
 		{text = "iLevel", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "Repair", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "No Enchant", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
-		{text = "Gems", width = headerSizeMedium, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
+		{text = "No Gems", width = headerSizeMedium, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "Talents", width = headerSizeBigPlus, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
 		{text = "Renown", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "Conduit", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
@@ -204,16 +208,16 @@ function PlayerCheck.BuildOptions(frame)
 	}
 
 	local header = DF:CreateHeader(frame, headerTable, headerOptions, "RaidAssistPlayerCheckHeader")
-	header:SetPoint ("topleft", frame, "topleft", 0, headerY)
+	header:SetPoint("topleft", frame, "topleft", 0, headerY)
 
 	local currentSelectedColumn = 1
 
-	local line_onenter = function (self)
-		self:SetBackdropColor (unpack (backdrop_color_on_enter))
+	local line_onenter = function(self)
+		self:SetBackdropColor(unpack (backdrop_color_on_enter))
 	end
 
-	local line_onleave = function (self)
-		self:SetBackdropColor (unpack (self.BackgroundColor))
+	local line_onleave = function(self)
+		self:SetBackdropColor(unpack (self.BackgroundColor))
 	end
 
 	local talentIconOnEnter = function(self)
@@ -248,17 +252,16 @@ function PlayerCheck.BuildOptions(frame)
 
 	--create line for the spell scroll
 	local scroll_createline = function (self, index)
-
-		local line = CreateFrame ("button", "$parentLine" .. index, self, "BackdropTemplate")
-		line:SetPoint ("topleft", self, "topleft", 1, -((index-1) * (scroll_line_height+1)) - 1)
-		line:SetSize (scroll_width, scroll_line_height)
+		local line = CreateFrame("button", "$parentLine" .. index, self, "BackdropTemplate")
+		line:SetPoint("topleft", self, "topleft", 1, -((index-1) * (scroll_line_height+1)) - 1)
+		line:SetSize(scroll_width, scroll_line_height)
 		line.id = index
 
-		line:SetScript ("OnEnter", line_onenter)
-		line:SetScript ("OnLeave", line_onleave)
+		line:SetScript("OnEnter", line_onenter)
+		line:SetScript("OnLeave", line_onleave)
 
-		line:SetBackdrop ({bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
-		line:SetBackdropColor (unpack (backdrop_color))
+		line:SetBackdrop({bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
+		line:SetBackdropColor(unpack (backdrop_color))
 
 		if (index % 2 == 0) then
 			line:SetBackdropColor (unpack (line_colors [1]))
@@ -268,7 +271,7 @@ function PlayerCheck.BuildOptions(frame)
 			line.BackgroundColor = line_colors [2]
 		end
 
-		DF:Mixin (line, DF.HeaderFunctions)
+		DF:Mixin(line, DF.HeaderFunctions)
 
 		local playerNameFrame = CreateFrame("frame", nil, line, "BackdropTemplate")
 		playerNameFrame:SetSize (headerTable [1].width + columnAlignOffset, header.options.header_height)
@@ -289,6 +292,7 @@ function PlayerCheck.BuildOptions(frame)
 			--player name
 			local playerName = DF:CreateLabel(line)
 			playerName:SetText("player name here")
+			playerName.alpha = 1
 
 			--ilevel
 			local itemLevel = DF:CreateLabel(line)
@@ -395,7 +399,13 @@ function PlayerCheck.BuildOptions(frame)
 				end
 
 				--player name
-				line.playerName:SetText(dataTable[1])
+				line.playerName:SetText(DF:RemoveRealmName(dataTable[1]))
+				local _, class = UnitClass(dataTable[1])
+				if (class) then
+					line.playerName.textcolor = class
+				else
+					line.playerName.textcolor = "white"
+				end
 
 				--item level
 				line.itemLevel:SetText(dataTable[3])
@@ -489,8 +499,9 @@ function PlayerCheck.BuildOptions(frame)
 
 	--create the player info scroll
 	local playerInfoScroll = DF:CreateScrollBox(frame, "$parentplayerInfoScroll", refreshPlayerInfoScroll, {}, scroll_width, scroll_height, scroll_lines, scroll_line_height)
-	DF:ReskinSlider (playerInfoScroll)
-	playerInfoScroll:SetPoint ("topleft", frame, "topleft", 0, scrollY)
+	DF:ReskinSlider(playerInfoScroll)
+	playerInfoScroll:SetPoint("topleft", frame, "topleft", 0, scrollY)
+	playerInfoScroll:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
 
 	--create lines for the spell scroll
 	for i = 1, scroll_lines do
@@ -502,43 +513,76 @@ function PlayerCheck.BuildOptions(frame)
 	function playerInfoScroll.RefreshData()
 		--get the information needed
 		local raidStatusLib = LibStub:GetLibrary("LibRaidStatus-1.0")
-		local gearInfo = raidStatusLib.gearManager.GetGearTable()
-		local playerInfo = raidStatusLib.playerInfoManager.GetPlayerInfo()
+		local allPlayersGear = raidStatusLib.gearManager.GetAllPlayersGear()
+		local allPlayersInfo = raidStatusLib.playerInfoManager.GetAllPlayersInfo()
 
 		--get which column is currently selected and the sort order
 		local columnIndex, order = RaidAssistPlayerCheckHeader:GetSelectedColumn()
+		local result = PlayerCheck.db.cache
 
-		local result = {}
+		--remove from the cache all players not found in the group
+		if (IsInRaid()) then
+			for i = #result, 1, -1 do
+				local isInRaid = UnitInRaid(result[i][1])
+				if (not isInRaid) then
+					tremove(result, i)
+				end
+			end
+
+		elseif (IsInGroup()) then
+			for i = #result, 1, -1 do
+				local isInRaid = UnitInParty(result[i][1])
+				if (not isInRaid) then
+					tremove(result, i)
+				end
+			end
+		end
+
+		--create a list with player indexes from the cache
+		--make a list of player names in the cache
+		local allPlayersCached = {}
+		for i = 1, #result do
+			--hold the index of the player
+			allPlayersCached[result[i][1]] = i
+		end
+
 		local sortByIndex = 1
 
-		for playerName, gearTable in pairs(gearInfo) do
+		for playerName, gearTable in pairs(allPlayersGear) do
 			local durability =  gearTable.durability
 			local iLevel = gearTable.ilevel
 			local weaponEnchant = gearTable.weaponEnchant
 			local noGems = gearTable.noGems
 			local noEnchants = gearTable.noEnchants
 
-			local thisResult = {
-				playerName, --1
-				durability, --2
-				iLevel, --3
-				weaponEnchant, --4
-				noGems, --5
-				noEnchants --6
-			}
+			local needToAdd = false
+			local thisResult = result[allPlayersCached[playerName]]
+			if (not thisResult) then
+				thisResult = {}
+				needToAdd = true
+			end
 
-			local playerGeneralInfo = playerInfo[playerName] or {}
+			thisResult[1] = playerName
+			thisResult[2] = durability
+			thisResult[3] = iLevel
+			thisResult[4] = weaponEnchant
+			thisResult[5] = noGems
+			thisResult[6] = noEnchants
+
+			local playerGeneralInfo = allPlayersInfo[playerName] or {}
 			local specId = playerGeneralInfo.specId or 0
 			local renown = playerGeneralInfo.renown or 1
 			local talents = playerGeneralInfo.talents or {}
 			local conduits = playerGeneralInfo.conduits or {}
 
-			tinsert(thisResult, specId) --7
-			tinsert(thisResult, renown) --8
-			tinsert(thisResult, talents) --9
-			tinsert(thisResult, conduits) --10
+			thisResult[7] = specId
+			thisResult[8] = renown
+			thisResult[9] = talents
+			thisResult[10] = conduits
 
-			result[#result+1] = thisResult
+			if (needToAdd) then
+				result[#result+1] = thisResult
+			end
 		end
 
 		--sort by spec
@@ -568,6 +612,8 @@ function PlayerCheck.BuildOptions(frame)
 		else
 			table.sort (result, function (t1, t2) return t1[sortByIndex] < t2[sortByIndex] end)
 		end
+
+		PlayerCheck.db.cache = result
 
 		playerInfoScroll:SetData(result)
 		playerInfoScroll:Refresh()

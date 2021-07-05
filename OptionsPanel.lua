@@ -204,6 +204,12 @@ function RA.OpenMainOptions(plugin)
 		if (plugin) then
 			onSelectPlugin (nil, nil, plugin)
 		end
+
+		--auto open a plugin after /raa
+		C_Timer.After(0.05, function()
+			allButtons[8]:Click()
+		end)
+
 end
 
 function RA.CreateHotkeyFrame(f)

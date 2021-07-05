@@ -368,7 +368,7 @@ function Notepad:UpdateScreenFrameSettings()
 		Notepad.screenFrame.close:SetAlpha (1)
 		Notepad.screenFrame:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
 		Notepad.screenFrame:SetBackdropColor (0, 0, 0, 0.8)
-		Notepad.screenFrame:SetBackdropBorderColor (0, 0, 0, 1)
+		Notepad.screenFrame:SetBackdropBorderColor (unpack(RA.BackdropBorderColor))
 		Notepad.screenFrame.resize_button:Show()
 		Notepad.screenFrame.resize_texture:Show()
 
@@ -719,8 +719,12 @@ function Notepad.BuildOptions(frame)
 
 	local userScreenPanelOptions = CreateFrame("frame", "NotepadTextOptionsPanel", mainFrame, "BackdropTemplate")
 	mainFrame.userScreenPanelOptions = userScreenPanelOptions
-	userScreenPanelOptions:SetSize(446, 375)
-	userScreenPanelOptions:SetPoint("topleft", mainFrame, "topleft", 220, 18)
+	userScreenPanelOptions:SetSize(630, 600)
+	userScreenPanelOptions:SetPoint("topleft", mainFrame, "topleft", 230, 5)
+
+	userScreenPanelOptions:SetBackdrop({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
+	userScreenPanelOptions:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
+	userScreenPanelOptions:SetBackdropColor(.1, .1, .1, 1)
 
 	local on_select_text_font = function (self, fixed_value, value)
 		Notepad.db.text_font = value
@@ -964,13 +968,15 @@ function Notepad.BuildOptions(frame)
 	bossScrollFrame:Refresh()
 	bossScrollFrame:Show()
 
+	bossScrollFrame:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
+
 	--block showing the current boss in the screen
 	local frameNoteShown = CreateFrame("frame", nil, mainFrame, "BackdropTemplate")
 	frameNoteShown:SetPoint("bottomright", mainFrame, "bottomright", 26, 45)
 	frameNoteShown:SetSize(190, 43)
 	frameNoteShown:SetBackdrop({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
 	frameNoteShown:SetBackdropColor(1, 1, 1, .5)
-	frameNoteShown:SetBackdropBorderColor(0, 0, 0, 1)
+	frameNoteShown:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
 	frameNoteShown:Hide()
 
 	mainFrame.frameNoteShown = frameNoteShown

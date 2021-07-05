@@ -558,7 +558,7 @@ end
 	return is a unit has assist on the raid
 --]=]
 function RA:UnitHasAssist (unit)
-	return IsInRaid() and (UnitIsGroupAssistant (unit) or UnitIsGroupLeader (unit))
+	return UnitIsGroupAssistant(unit) or UnitIsGroupLeader(unit)
 end
 
 --[=[

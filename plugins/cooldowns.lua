@@ -67,6 +67,7 @@ end
 
 local Cooldowns = {version = "v0.1", pluginname = "Cooldowns"}
 _G ["RaidAssistCooldowns"] = Cooldowns
+Cooldowns.IsDisabled = true
 
 Cooldowns.ScreenPanels = {}
 Cooldowns.Roster = {}

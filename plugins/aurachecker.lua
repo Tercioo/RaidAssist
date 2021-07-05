@@ -1,7 +1,7 @@
 
 local RA = RaidAssist
-local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
-local _ 
+local L = LibStub("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
+local _
 local default_priority = 26
 
 local default_config = {
@@ -80,11 +80,11 @@ end
 
 AuraCheck.OnInstall = function (plugin)
 	AuraCheck.db.menu_priority = default_priority
-	
+
 	AuraCheck:RegisterPluginComm (COMM_AURA_CHECKREQUEST, AuraCheck.PluginCommReceived)
 	AuraCheck:RegisterPluginComm (COMM_AURA_CHECKRECEIVED, AuraCheck.PluginCommReceived)	
 	AuraCheck:RegisterPluginComm (COMM_AURA_INSTALLREQUEST, AuraCheck.PluginCommReceived)	
-	
+
 	if (AuraCheck.db.enabled) then
 		AuraCheck.OnEnable (AuraCheck)
 	end
@@ -117,9 +117,9 @@ function AuraCheck.UpdateAurasFillPanel (fillPanel)
 		return
 	end
 
-	wipe (alphabeticalPlayers)
-	wipe (auraNames)
-	wipe (panelHeader)
+	wipe(alphabeticalPlayers)
+	wipe(auraNames)
+	wipe(panelHeader)
 
 	--alphabetical order
 	for playerName, auraStateTable in pairs (AuraCheck.AuraState) do
@@ -128,8 +128,8 @@ function AuraCheck.UpdateAurasFillPanel (fillPanel)
 			auraNames [auraName] = true
 		end
 	end
-	table.sort (alphabeticalPlayers, sortFunction)	
-	
+	table.sort (alphabeticalPlayers, sortFunction)
+
 	if (#alphabeticalPlayers > 0) then
 		fillPanel.NoAuraLabel:Hide()
 		fillPanel.ResultInfoLabel:Hide()
@@ -137,19 +137,19 @@ function AuraCheck.UpdateAurasFillPanel (fillPanel)
 		fillPanel.NoAuraLabel:Show()
 		fillPanel.ResultInfoLabel:Show()
 	end
-	
+
 	tinsert (panelHeader, {name = "Player Name", type = "text", width = 120})
 	for auraName, _ in pairs (auraNames) do
 		tinsert (panelHeader, {name = auraName, type = "text", width = 120})
 	end
 	
-	fillPanel:SetFillFunction (function (index) 
-		local playerName = Ambiguate (alphabeticalPlayers [index][1], "none")
+	fillPanel:SetFillFunction (function (index)
+		local playerName = Ambiguate(alphabeticalPlayers [index][1], "none")
 		local stateTable = alphabeticalPlayers [index][2]
-	
+
 		local temp = {}
 		for auraName, _ in pairs (auraNames) do
-			tinsert (temp, 
+			tinsert (temp,
 					(stateTable [auraName] == RESPONSE_TYPE_NOSAMEGUILD and "|cFFFF0000guild|r") or --is not from the same guild
 					(stateTable [auraName] == RESPONSE_TYPE_DECLINED_ALREADYHAVE and "|cFFFFFF00ok|r") or --refused but already has one installed
 					(stateTable [auraName] == RESPONSE_TYPE_DECLINED and "|cFFFF0000declined|r") or --refused to install
@@ -160,15 +160,15 @@ function AuraCheck.UpdateAurasFillPanel (fillPanel)
 					(stateTable [auraName] == RESPONSE_TYPE_OFFLINE and "|cFFFF0000offline|r") --the user is offline
 				)
 		end
-		return {playerName, unpack (temp)}
+		return {playerName, unpack(temp)}
 	end)
-	
+
 	fillPanel:SetTotalFunction (function() return #alphabeticalPlayers end)
 	fillPanel:SetSize (fillpanel_width, fillpanel_height)
 
 	fillPanel:UpdateRows (panelHeader)
 	fillPanel:Refresh()
-	
+
 	--update received auras scroll
 	AuraCheckerHistoryFrameHistoryScroll.Update()
 end
@@ -236,6 +236,7 @@ function AuraCheck.BuildOptions (frame)
 		fillPanel:SetPoint ("topleft", aurasFrame, "topleft", 0, 0)
 		aurasFrame.fillPanel = fillPanel
 		DetailsFramework:ApplyStandardBackdrop(fillPanel)
+		fillPanel:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
 
 		local NoAuraLabel = AuraCheck:CreateLabel (fillPanel, "Select a weakaura on the right scroll box.\nClick on 'Check Aura', to see users who has it in the raid.\nClick on 'Share Aura' to send the aura to all raid members.\nRaid members also must have 'Raid Assist' addon.")
 		NoAuraLabel:SetPoint ("left", RaidAssistOptionsPanel, "left", 225, 160)

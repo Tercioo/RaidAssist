@@ -1,132 +1,174 @@
-[
-	{
-		"path": "$ROOTPATH$\\plugins\\cooldowns.lua",
-		"bookmarks": [
-			{
-				"line": 243,
-				"column": 21,
-				"label": ""
-			},
-			{
-				"line": 339,
-				"column": 0,
-				"label": ""
-			},
-			{
-				"line": 516,
-				"column": 0,
-				"label": ""
-			},
-			{
-				"line": 635,
-				"column": 18,
-				"label": ""
-			},
-			{
-				"line": 1159,
-				"column": 26,
-				"label": ""
-			},
-			{
-				"line": 1171,
-				"column": 9,
-				"label": ""
-			},
-			{
-				"line": 1221,
-				"column": 2,
-				"label": ""
-			},
-			{
-				"line": 1260,
-				"column": 20,
-				"label": ""
-			}
-		]
-	},
-	{
-		"path": "$ROOTPATH$\\plugins\\playercheck.lua",
-		"bookmarks": [
-			{
-				"line": 128,
-				"column": 12,
-				"label": ""
-			},
-			{
-				"line": 175,
-				"column": 22,
-				"label": ""
-			},
-			{
-				"line": 403,
-				"column": 0,
-				"label": ""
-			},
-			{
-				"line": 491,
-				"column": 0,
-				"label": ""
-			}
-		]
-	},
-	{
-		"path": "f:\\World of Warcraft\\_retail_\\Interface\\AddOns\\Details_AdvancedPlayerBreakdown\\Details_AdvancedPlayerBreakdown.lua",
-		"bookmarks": [
-			{
-				"line": 2585,
-				"column": 13,
-				"label": ""
-			}
-		]
-	},
-	{
-		"path": "$ROOTPATH$\\plugins\\raidgroups.lua",
-		"bookmarks": [
-			{
-				"line": 268,
-				"column": 1,
-				"label": ""
-			}
-		]
-	},
-	{
-		"path": "$ROOTPATH$\\plugins\\invite.lua",
-		"bookmarks": [
-			{
-				"line": 151,
-				"column": 8,
-				"label": ""
-			},
-			{
-				"line": 401,
-				"column": 12,
-				"label": ""
-			},
-			{
-				"line": 470,
-				"column": 38,
-				"label": ""
-			},
-			{
-				"line": 519,
-				"column": 4,
-				"label": ""
-			},
-			{
-				"line": 1002,
-				"column": 0,
-				"label": ""
-			}
-		]
-	},
-	{
-		"path": "$ROOTPATH$\\plugins\\aurachecker.lua",
-		"bookmarks": [
-			{
-				"line": 148,
-				"column": 1,
-				"label": ""
-			}
-		]
-	}
-]
+{
+	"files": [
+		{
+			"path": "plugins/cooldowns.lua",
+			"bookmarks": [
+				{
+					"line": 244,
+					"column": 21,
+					"label": ""
+				},
+				{
+					"line": 340,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 517,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 636,
+					"column": 18,
+					"label": ""
+				},
+				{
+					"line": 1160,
+					"column": 26,
+					"label": ""
+				},
+				{
+					"line": 1172,
+					"column": 9,
+					"label": ""
+				},
+				{
+					"line": 1222,
+					"column": 2,
+					"label": ""
+				},
+				{
+					"line": 1261,
+					"column": 20,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "plugins/playercheck.lua",
+			"bookmarks": [
+				{
+					"line": 179,
+					"column": 22,
+					"label": ""
+				},
+				{
+					"line": 413,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 617,
+					"column": 2,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "f:/World of Warcraft/_retail_/Interface/AddOns/Details_AdvancedPlayerBreakdown/Details_AdvancedPlayerBreakdown.lua",
+			"bookmarks": [
+				{
+					"line": 2585,
+					"column": 13,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "plugins/raidgroups.lua",
+			"bookmarks": [
+				{
+					"line": 271,
+					"column": 1,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "plugins/invite.lua",
+			"bookmarks": [
+				{
+					"line": 151,
+					"column": 8,
+					"label": ""
+				},
+				{
+					"line": 414,
+					"column": 12,
+					"label": ""
+				},
+				{
+					"line": 483,
+					"column": 38,
+					"label": ""
+				},
+				{
+					"line": 532,
+					"column": 4,
+					"label": ""
+				},
+				{
+					"line": 1037,
+					"column": 0,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "plugins/aurachecker.lua",
+			"bookmarks": [
+				{
+					"line": 148,
+					"column": 1,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "../Details/Libs/LibRaidStatus/LibRaidStatus.lua",
+			"bookmarks": [
+				{
+					"line": 162,
+					"column": 37,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "plugins/notes.lua",
+			"bookmarks": [
+				{
+					"line": 722,
+					"column": 28,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "plugins/addonscheck.lua",
+			"bookmarks": [
+				{
+					"line": 260,
+					"column": 36,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "plugins/pastetext.lua",
+			"bookmarks": [
+				{
+					"line": 172,
+					"column": 43,
+					"label": ""
+				},
+				{
+					"line": 321,
+					"column": 16,
+					"label": ""
+				}
+			]
+		}
+	]
+}

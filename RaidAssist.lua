@@ -86,6 +86,7 @@ RA.schedule_install = {}
 RA.default_small_popup_width = 150
 RA.default_small_popup_height = 40
 
+RA.BackdropBorderColor = {.3, .3, .3, .3}
 
 --plugin database are stored within the raid assist database
 function RA:LoadPluginDB (name, isInstall)
