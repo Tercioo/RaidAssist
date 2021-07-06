@@ -43,7 +43,8 @@ local RESPONSE_TYPE_WAITING = -2
 local RESPONSE_TYPE_OFFLINE = -3
 
 local CONST_RESULTAURALIST_ROWS = 30
-local CONST_AURALIST_ROWS = 30
+local CONST_AURALIST_ROWS = 20
+local CONST_AURALIST_ROW_HEIGHT = 30
 
 local valid_results = {
 	[RESPONSE_TYPE_NOSAMEGUILD] = true,
@@ -122,7 +123,7 @@ function AuraCheck.UpdateAurasFillPanel (fillPanel)
 	wipe(panelHeader)
 
 	--alphabetical order
-	for playerName, auraStateTable in pairs (AuraCheck.AuraState) do
+	for playerName, auraStateTable in pairs(AuraCheck.AuraState) do
 		tinsert (alphabeticalPlayers, {playerName, auraStateTable})
 		for auraName, _ in pairs (auraStateTable) do
 			auraNames [auraName] = true
@@ -139,16 +140,17 @@ function AuraCheck.UpdateAurasFillPanel (fillPanel)
 	end
 
 	tinsert (panelHeader, {name = "Player Name", type = "text", width = 120})
+
 	for auraName, _ in pairs (auraNames) do
 		tinsert (panelHeader, {name = auraName, type = "text", width = 120})
 	end
-	
-	fillPanel:SetFillFunction (function (index)
+
+	fillPanel:SetFillFunction (function(index)
 		local playerName = Ambiguate(alphabeticalPlayers [index][1], "none")
 		local stateTable = alphabeticalPlayers [index][2]
 
 		local temp = {}
-		for auraName, _ in pairs (auraNames) do
+		for auraName, _ in pairs(auraNames) do
 			tinsert (temp,
 					(stateTable [auraName] == RESPONSE_TYPE_NOSAMEGUILD and "|cFFFF0000guild|r") or --is not from the same guild
 					(stateTable [auraName] == RESPONSE_TYPE_DECLINED_ALREADYHAVE and "|cFFFFFF00ok|r") or --refused but already has one installed
@@ -254,69 +256,75 @@ function AuraCheck.BuildOptions (frame)
 		
 		--fauxscroll - auras scrollbar
 		
-		local updateAddonsList = function (self)
-			local auras = AuraCheck:GetAllWeakAurasNames()
-			
+		local updateAddonsList = function(self)
+			local auras = AuraCheck:GetAllWeakAurasNamesAndIcons()
+
 			if (not auras) then
 				return
 			end
-			
+
 			if (self.SearchingFor ~= "") then
-				local search = lower (self.SearchingFor)
+				local search = lower(self.SearchingFor)
 				for i = #auras, 1, -1 do
-					if (not lower (auras [i]):find (search)) then
-						tremove (auras, i)
+					local auraName = lower(auras[i][1])
+					if (not auraName:find(search)) then
+						tremove(auras, i)
 					end
 				end
 			end
-			
-			table.sort (auras, sortFunction2)
-			
-			FauxScrollFrame_Update (self, #auras, CONST_AURALIST_ROWS, 21) --self, amt, amt frames, height of each frame
-			
-			local offset = FauxScrollFrame_GetOffset (self)
-			
+
+			FauxScrollFrame_Update (self, #auras, CONST_AURALIST_ROWS, CONST_AURALIST_ROW_HEIGHT) --self, amt, amt frames, height of each frame
+
+			local offset = FauxScrollFrame_GetOffset(self)
+
 			for i = 1, CONST_AURALIST_ROWS do
 				local index = i + offset
-				local button = self.Frames [i]
-				local data = auras [index]
+				local button = self.Frames[i]
+				local data = auras[index]
 				
 				if (data) then
-					button.Label:SetText (data)
-					if (data == self.CurrentAuraSelected) then
-						button:SetBackdropColor (1, 1, 0)
+					local auraName = data[1]
+					local auraIcon = data[2]
+
+					button.Icon:SetTexture(auraIcon)
+					button.Label:SetText(auraName)
+
+					if (auraName == self.CurrentAuraSelected) then
+						button:SetBackdropColor(DetailsFramework:ParseColors("gray"))
 					else
-						button:SetBackdropColor (unpack (backdropColor))
+						button:SetBackdropColor(unpack (backdropColor))
 					end
 					button:Show()
 				else
-					button.Label:SetText ("")
+					button.Label:SetText("")
 					button:Hide()
 				end
 			end
-			
+
 			self:Show()
 		end
-		
-		local auraScroll = CreateFrame ("scrollframe", "AuraCheckerAurasFrameAuraScroll", frame, "FauxScrollFrameTemplate, BackdropTemplate")
-		auraScroll:SetPoint ("topleft", aurasFrame, "topleft", aura_scroll_x_pos, -5)
-		auraScroll:SetSize (180, CONST_AURALIST_ROWS*21 - 5)
+
+		local auraScroll = CreateFrame("scrollframe", "AuraCheckerAurasFrameAuraScroll", frame, "FauxScrollFrameTemplate, BackdropTemplate")
+		auraScroll:SetPoint("topleft", aurasFrame, "topleft", aura_scroll_x_pos, -5)
+		auraScroll:SetSize(180, CONST_AURALIST_ROWS*(CONST_AURALIST_ROW_HEIGHT+1))
+
 		auraScroll.CurrentAuraSelected = "-none-"
 		auraScroll.SearchingFor = ""
-		
-		DetailsFramework:ReskinSlider (auraScroll)
 
-		auraScroll:SetScript ("OnVerticalScroll", function (self, offset) 
-			FauxScrollFrame_OnVerticalScroll (self, offset, 20, updateAddonsList) 
+		DetailsFramework:ReskinSlider(auraScroll)
+		DetailsFramework:ApplyStandardBackdrop(auraScroll)
+
+		auraScroll:SetScript ("OnVerticalScroll", function (self, offset)
+			FauxScrollFrame_OnVerticalScroll(self, offset, CONST_AURALIST_ROW_HEIGHT, updateAddonsList)
 		end)
-		
+
 		auraScroll.Frames = {}
-		
-		local on_mousedown = function (self)
+
+		local on_mousedown = function(self)
 			if (self.Label:GetText() ~= "") then
 				auraScroll.CurrentAuraSelected = self.Label:GetText()
-				updateAddonsList (auraScroll)
-				
+				updateAddonsList(auraScroll)
+
 				local now = GetTime()
 				if (self.LastClick + 0.22 > now) then
 					if (WeakAuras and WeakAuras.IsOptionsOpen) then
@@ -325,49 +333,65 @@ function AuraCheck.BuildOptions (frame)
 						else
 							WeakAuras.OpenOptions (self.Label:GetText())
 							WeakAurasFilterInput:SetText (self.Label:GetText())
-						end						
+						end
 					end
 				end
+
 				self.LastClick = now
 			end
 		end
-		
+
 		local aura_on_enter = function (self)
 			if (auraScroll.CurrentAuraSelected ~= self.Label:GetText()) then
-				self:SetBackdropColor (.3, .3, .3, .75)
+				self:SetBackdropColor(.3, .3, .3, .75)
 			end
 		end
+
 		local aura_on_leave = function (self)
 			if (auraScroll.CurrentAuraSelected ~= self.Label:GetText()) then
-				self:SetBackdropColor (unpack (backdropColor))
+				self:SetBackdropColor(unpack (backdropColor))
 			end
 		end
 		
 		--> aura selection
 		for i = 1, CONST_AURALIST_ROWS do
 			local f = CreateFrame ("frame", "AuraCheckerAurasFrameAuraScroll_Button" .. i, auraScroll, "BackdropTemplate")
-			f:SetPoint ("topleft", auraScroll, "topleft", 2, -(i-1)*21)
+			f:SetPoint ("topleft", auraScroll, "topleft", 2, -(i-1)* (CONST_AURALIST_ROW_HEIGHT+1))
 			f:SetScript ("OnMouseUp", on_mousedown)
 			f:SetScript ("OnEnter", aura_on_enter)
 			f:SetScript ("OnLeave", aura_on_leave)
-			f:SetSize (180, 20)
+			f:SetSize (180, CONST_AURALIST_ROW_HEIGHT)
 			f:SetBackdrop (backdrop)
 			f:SetBackdropColor (unpack (backdropColor))
 			f.LastClick = 0
+
+			local auraIcon = f:CreateTexture(nil, "overlay")
+			auraIcon:SetSize(CONST_AURALIST_ROW_HEIGHT-4, CONST_AURALIST_ROW_HEIGHT-4)
+			auraIcon:SetTexCoord(.1, .9, .1, .9)
+
+			auraIcon:SetPoint ("left", f, "left", 2, 0)
+
 			local label = f:CreateFontString (nil, "overlay", "GameFontNormal")
-			label:SetPoint ("left", f, "left", 2, 0)
+			label:SetPoint("topleft", auraIcon, "topright", 2, -4)
+
+			local timeToShare = f:CreateFontString (nil, "overlay", "GameFontNormal")
+			timeToShare:SetPoint("topleft", label, "bottomleft", 0, -4)
+
 			AuraCheck:SetFontSize (label, 10)
 			AuraCheck:SetFontColor (label, "white")
 			f.Label = label
+			f.Icon = auraIcon
+			f.timeToShare = timeToShare
 			tinsert (auraScroll.Frames, f)
 		end
-	
+
 		--textbox - search aura
 		local onTextChanged = function()
 			local text = frame.searchBox:GetText()
 			auraScroll.SearchingFor = text
 			updateAddonsList (auraScroll)
 		end
+
 		local searchBox = AuraCheck:CreateTextEntry (frame, function()end, 160, 20, "searchBox", _, _, AuraCheck:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
 		searchBox:SetPoint ("bottomleft", auraScroll, "topleft", 0, 2)
 		searchBox:SetSize (160, 18)
@@ -414,7 +438,7 @@ function AuraCheck.BuildOptions (frame)
 			elseif (not AuraCheck:UnitIsRaidLeader (UnitName ("player")) and not RA:UnitHasAssist ("player")) then
 				return AuraCheck:Msg ("you aren't the raid leader or assistant.")
 				
-			elseif (AuraCheck.last_data_request + 5 > time()) then
+			elseif (AuraCheck.last_data_request + 2 > time()) then
 				return AuraCheck:Msg ("another task still ongoing, please wait.")
 				
 			end
@@ -424,7 +448,7 @@ function AuraCheck.BuildOptions (frame)
 			
 			--fill the result table
 			local myName = UnitName ("player") .. "-" .. GetRealmName()
-			
+
 			if (IsInRaid()) then
 				for i = 1, GetNumGroupMembers() do
 					local playerName, realmName = UnitFullName ("raid" .. i)
@@ -468,14 +492,91 @@ function AuraCheck.BuildOptions (frame)
 			--wait the results
 			AuraCheck.last_data_request = time()
 			--statusBar
-			frame.statusBarWorking.lefttext = "Working..."
-			frame.statusBarWorking:SetTimer (5)
+			frame.statusBarWorking.lefttext = "working..."
+			frame.statusBarWorking:SetTimer(2)
 			
 			AuraCheck.UpdateAurasFillPanel()
 		end
 		
+
+		--accordingly to weakauras, these keys shall be ignored when transmiting data
+		local excludedKeys = {
+			["controlledChildren"] = true,
+			["parent"] = true,
+			["authorMode"] = true,
+			["skipWagoUpdate"] = true,
+			["ignoreWagoUpdate"] = true,
+			["preferToUpdate"] = true,
+		}
+
+		--using DetailsFramework.table.copytocompress
+		AuraCheck.copyAuraToCompress = function(t1, t2)
+			for key, value in pairs (t2) do
+				if (key ~= "__index" and type(value) ~= "function") then
+					if (type(value) == "table") then
+						if (not value.GetObjectType) then
+							if (not excludedKeys[key]) then
+								t1 [key] = t1 [key] or {}
+								AuraCheck.copyAuraToCompress(t1 [key], t2 [key])
+							end
+						end
+					else
+						if (not excludedKeys[key]) then
+							t1 [key] = value
+						end
+					end
+				end
+			end
+			return t1
+		end
+
+		local compressAuraData = function(auraId)
+			local auraData = WeakAuras.GetData(auraId)
+
+			if (auraData) then
+				--indexed table, first index is the main aura, subsequent indexes are children
+				local dataToSend = {}
+
+				--make a copy of the aura
+				local auraCopy = AuraCheck.copyAuraToCompress({}, auraData)
+				if (auraCopy) then
+					dataToSend[1] = auraCopy
+
+					--identify children and compress them too
+					local children = auraData.controlledChildren
+
+					if (children and type(children) == "table") then
+						for _, childAuraId in pairs(children) do
+							local childData = WeakAuras.GetData(childAuraId)
+							if (childData) then
+								--create a copy of the aura
+								local childCopy = AuraCheck.copyAuraToCompress({}, childData)
+								if (childCopy) then
+									--add the child into the send data table
+									dataToSend[#dataToSend+1] = childCopy
+								end
+							end
+						end
+					end
+
+					--serialize the data
+					local LibAceSerializer = LibStub:GetLibrary("AceSerializer-3.0")
+					if (LibAceSerializer) then
+						local dataSerialized = LibAceSerializer:Serialize(dataToSend)
+						if (dataSerialized) then
+							local LibDeflate = LibStub:GetLibrary ("LibDeflate")
+							local dataCompressed = LibDeflate:CompressDeflate(dataSerialized, {level = 9})
+							if (dataCompressed) then
+								local dataEncoded = LibDeflate:EncodeForWoWAddonChannel(dataCompressed)
+								return dataEncoded
+							end
+						end
+					end
+				end
+			end
+		end
+
 		local shareAuraFunc = function()
-		
 			NoAuraLabel:Hide()
 			ResultInfoLabel:Hide()
 		
@@ -487,36 +588,34 @@ function AuraCheck.BuildOptions (frame)
 			--am i the raid leader and can i send the request?
 			if (not IsInRaid (LE_PARTY_CATEGORY_HOME) and not IsInGroup (LE_PARTY_CATEGORY_HOME)) then
 				return AuraCheck:Msg ("you aren't in a local raid group.")
-				
+
 			elseif (not AuraCheck:UnitIsRaidLeader (UnitName ("player")) and not RA:UnitHasAssist ("player")) then
 				return AuraCheck:Msg ("you aren't the raid leader or assistant.")
-				
-			elseif (AuraCheck.last_data_request + 5 > time()) then
+
+			elseif (AuraCheck.last_data_request + 2 > time()) then
 				return AuraCheck:Msg ("another task still ongoing, please wait.")
 			end
 
 			local auraName = auraSelected
-			
-			local compressedAura = WeakAuras.DisplayToString (auraName, true)
-			--Details:DumpString (compressedAura)
-			--if true then return end
-			
-			if (not compressedAura or type (compressedAura) ~= "string") then
+			local dataCompressed = compressAuraData(auraName)
+
+			local dataSize = #dataCompressed
+			if (dataSize > 2000) then
+				local estimatedSeconds = dataSize / 850
+				local timeString = DetailsFramework:IntegerToTimer(estimatedSeconds)
+				AuraCheck:Msg("To share this aura will take", timeString, ".")
+			end
+
+			if (not dataCompressed or type (dataCompressed) ~= "string") then
 				return AuraCheck:Msg ("failed to export the aura from WeakAuras.")
 			end
-			
-			--get the aura object
-			--local auraTable = AuraCheck:GetWeakAuraTable (auraName)
-			--if (not auraTable) then
-			--	return AuraCheck:Msg ("aura not found.")
-			--end
 
 			--send the aura
-			AuraCheck:SendPluginCommMessage (COMM_AURA_INSTALLREQUEST, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName, false, compressedAura)
-			
+			AuraCheck:SendPluginCommMessage(COMM_AURA_INSTALLREQUEST, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName, false, dataCompressed)
+
 			--fill the result table
 			local myName = UnitName ("player") .. "-" .. GetRealmName()
-			
+
 			if (IsInRaid()) then
 				for i = 1, GetNumGroupMembers() do
 					local playerName, realmName = UnitFullName ("raid" .. i)
@@ -524,7 +623,7 @@ function AuraCheck.BuildOptions (frame)
 						realmName = GetRealmName()
 					end
 					playerName = playerName .. "-" .. realmName
-					
+
 					AuraCheck.AuraState [playerName] = AuraCheck.AuraState [playerName] or {}
 					if (myName == playerName) then
 						AuraCheck.AuraState [playerName] [auraName] = RESPONSE_TYPE_HAVE
@@ -536,7 +635,7 @@ function AuraCheck.BuildOptions (frame)
 						end
 					end
 				end
-				
+
 			elseif (IsInGroup()) then
 				for i = 1, GetNumGroupMembers() - 1 do
 					local playerName, realmName = UnitFullName ("party" .. i)
@@ -561,8 +660,8 @@ function AuraCheck.BuildOptions (frame)
 			--wait the results
 			AuraCheck.last_data_request = time()
 			--statusBar
-			frame.statusBarWorking.lefttext = "Sending..."
-			frame.statusBarWorking:SetTimer (5)
+			frame.statusBarWorking.lefttext = "sending..."
+			frame.statusBarWorking:SetTimer(2)
 			
 			AuraCheck.UpdateAurasFillPanel()
 		end
@@ -583,7 +682,7 @@ function AuraCheck.BuildOptions (frame)
 		--statusBar:SetPoint ("topleft", frame, "topleft", 2, -431)
 		statusBar:SetPoint ("left", showHistoryFrameButton, "right", 2, 0)
 		statusBar.RightTextIsTimer = true
-		statusBar.BarIsInverse = false
+		statusBar.BarIsInverse = true
 		statusBar.fontsize = 11
 		statusBar.fontface = "Accidental Presidency"
 		statusBar.fontcolor = "darkorange"
@@ -599,7 +698,7 @@ function AuraCheck.BuildOptions (frame)
 		end)
 
 	--history frame
-		local historyFrame = CreateFrame ("frame", "AuraCheckerHistoryFrame", frame, "BackdropTemplate")
+		local historyFrame = CreateFrame("frame", "AuraCheckerHistoryFrame", frame, "BackdropTemplate")
 		historyFrame:SetPoint (unpack (framesPoint))
 		historyFrame:SetSize (unpack (framesSize))
 	
@@ -619,7 +718,7 @@ function AuraCheck.BuildOptions (frame)
 			else
 				WeakAuras.OpenOptions (auraName)
 			end
-		end		
+		end
 		
 		local updateHistoryList = function (self)
 			self = self or AuraCheckerHistoryFrameHistoryScroll
@@ -635,16 +734,16 @@ function AuraCheck.BuildOptions (frame)
 					tremove (auras, i)
 				end
 			end
-			
+
 			--> update the scroll
 			FauxScrollFrame_Update (self, #auras, 20, 19) --self, amt, amt frames, height of each frame
 			local offset = FauxScrollFrame_GetOffset (self)
-			
+
 			for i = 1, 20 do
 				local index = i + offset
 				local button = self.Frames [i]
 				local data = auras [index]
-				
+
 				if (data) then
 					button.auraName:SetText (data [1])
 					button.auraFrom:SetText (data [2])
@@ -656,12 +755,12 @@ function AuraCheck.BuildOptions (frame)
 				end
 			end
 		end
-		
+
 		local historyScroll = CreateFrame ("scrollframe", "AuraCheckerHistoryFrameHistoryScroll", historyFrame, "FauxScrollFrameTemplate, BackdropTemplate")
 		historyScroll:SetPoint ("topleft", historyFrame, "topleft", 0, 0)
 		historyScroll:SetSize (767, 503)
 		DetailsFramework:ReskinSlider (historyScroll)
-		
+
 		historyScroll:SetScript ("OnVerticalScroll", function (self, offset) 
 			FauxScrollFrame_OnVerticalScroll (self, offset, 20, updateHistoryList)
 		end)
@@ -726,11 +825,11 @@ local install_status = RA:InstallPlugin ("Aura Check", "RAAuraCheck", AuraCheck,
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function AuraCheck.SendAuraStatus (auraName)
-	--> get weakauras global 
+function AuraCheck.SendAuraStatus(auraName)
+	--> get weakauras global
 	local WeakAuras_Object, WeakAuras_SavedVar = AuraCheck:GetWeakAuras2Object()
 	if (WeakAuras_Object) then --> the user has weakauras installed
-		local isInstalled = AuraCheck:GetWeakAuraTable (auraName)
+		local isInstalled = AuraCheck:GetWeakAuraTable(auraName)
 		if (isInstalled) then
 			local semver = isInstalled.semver
 			if (semver) then
@@ -739,12 +838,13 @@ function AuraCheck.SendAuraStatus (auraName)
 					semver = tonumber(removeDots)
 				end
 			end
-			AuraCheck:SendPluginCommMessage (COMM_AURA_CHECKRECEIVED, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName, 1)
+			AuraCheck:SendPluginCommMessage(COMM_AURA_CHECKRECEIVED, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName, 1)
 		else
-			AuraCheck:SendPluginCommMessage (COMM_AURA_CHECKRECEIVED, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName, 0)
+			AuraCheck:SendPluginCommMessage(COMM_AURA_CHECKRECEIVED, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName, 0)
 		end
-	else --> the user don't have weakauras installed 
-		AuraCheck:SendPluginCommMessage (COMM_AURA_CHECKRECEIVED, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName, -1)
+	else
+		--> the user don't have weakauras installed
+		AuraCheck:SendPluginCommMessage(COMM_AURA_CHECKRECEIVED, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName, -1)
 	end
 end
 
@@ -764,25 +864,27 @@ function AuraCheck.GetChannel()
 	end
 end
 
-function AuraCheck.PluginCommReceived (prefix, sourcePluginVersion, playerName, auraName, auraState, auraString)
-
+function AuraCheck.PluginCommReceived(sourceName, prefix, sourcePluginVersion, playerName, auraName, auraState, auraString)
 	--print ("COMM", prefix, playerName, auraName, auraState, auraString)
+	playerName = sourceName
 
-	if (type (playerName) ~= "string" or type (auraName) ~= "string") then
+	if (type(playerName) ~= "string" or type(auraName) ~= "string") then
 		return
 	end
-	
-	if (prefix == COMM_AURA_CHECKREQUEST) then --leader is requesting an aura check
+
+	--leader is requesting an aura check
+	if (prefix == COMM_AURA_CHECKREQUEST) then
 		--check if who sent is indeed the leader or assistant
-		if (AuraCheck:UnitIsRaidLeader (playerName) or RA:UnitHasAssist (playerName)) then	
+		if (AuraCheck:UnitIsRaidLeader(playerName) or RA:UnitHasAssist(playerName)) then
 			--send the aura state
-			AuraCheck.SendAuraStatus (auraName)
+			AuraCheck.SendAuraStatus(auraName)
 		end
 
-	elseif (prefix == COMM_AURA_CHECKRECEIVED) then --some raid member sent the aura status
+	--some raid member sent the aura status
+	elseif (prefix == COMM_AURA_CHECKRECEIVED) then
 		--is a valid result?
 		if (type (auraState) == "number") then
-			if (AuraCheck.IsValidResultIndex (auraState)) then
+			if (AuraCheck.IsValidResultIndex(auraState)) then
 				--add the user to the result list
 				AuraCheck.AuraState [playerName] = AuraCheck.AuraState [playerName] or {}
 				AuraCheck.AuraState [playerName] [auraName] = auraState
@@ -790,18 +892,21 @@ function AuraCheck.PluginCommReceived (prefix, sourcePluginVersion, playerName, 
 				AuraCheck.UpdateAurasFillPanel()
 			end
 		end
-	
-	elseif (prefix == COMM_AURA_INSTALLREQUEST) then --leader is requesting an aura install
+
+	--leader is requesting an aura install
+	elseif (prefix == COMM_AURA_INSTALLREQUEST) then
 		--check if who sent is indeed the leader
 		if (not AuraCheck:UnitIsRaidLeader (playerName) and not RA:UnitHasAssist (playerName)) then
 			return
 		end
+
 		--check if the sender isnt 'me'
-		if (Ambiguate (playerName, "none") == UnitName ("player")) then
-			return
+		if (UnitIsUnit(sourceName, "player")) then
+			--return
 		end
-		
-		if (false and AuraCheck.db.only_from_guild) then --disabling this
+
+		--disabling this
+		if (false and AuraCheck.db.only_from_guild) then
 			if (not IsInGuild()) then
 				--send a packet notifying about the no guild
 				AuraCheck:SendPluginCommMessage (COMM_AURA_CHECKRECEIVED, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName, RESPONSE_TYPE_NOSAMEGUILD)
@@ -813,39 +918,99 @@ function AuraCheck.PluginCommReceived (prefix, sourcePluginVersion, playerName, 
 				return
 			end
 		end
-		
-		if (type (auraString) == "string") then
-			--> check for trusted - auto install if trusted
+
+		--check for trusted - auto install if trusted
+		if (type(auraString) == "string") then
 			if (AuraCheck.db.auto_install_from_trusted) then
-				if (AuraCheck.IsTrusted (playerName)) then
-					AuraCheck.InstallAura (auraName, playerName, auraString, time())
+				if (AuraCheck.IsTrusted(playerName)) then
+					AuraCheck.InstallAura(auraName, playerName, auraString, time())
 					return
 				end
 			end
-			
-			--> ask to install
+
+			--ask to install
 			AuraCheck.WaitingAnswer = AuraCheck.WaitingAnswer or {}
-			tinsert (AuraCheck.WaitingAnswer, {auraName, playerName, auraString, time()})
-			
+			tinsert(AuraCheck.WaitingAnswer, {auraName, playerName, auraString, time()})
+
 			AuraCheck.AskToInstall()
 		end
 	end
 end
 
-function AuraCheck.InstallAura (auraName, playerName, auraString, time)
-	local alreayHaveAura = WeakAuras.GetData(auraName)
-	if (alreayHaveAura) then
-		WeakAuras.Delete(alreayHaveAura)
+function AuraCheck.InstallAura(auraName, playerName, auraString, time)
+	local auraTable
+
+	--decompress the aura table
+	local LibDeflate = LibStub:GetLibrary("LibDeflate")
+	local dataCompressed = LibDeflate:DecodeForWoWAddonChannel(auraString)
+	if (dataCompressed) then
+		local dataSerialized = LibDeflate:DecompressDeflate(dataCompressed)
+		if (dataSerialized) then
+			local LibAceSerializer = LibStub:GetLibrary("AceSerializer-3.0")
+			local okay, data = LibAceSerializer:Deserialize(dataSerialized)
+			if (okay) then
+				auraTable = data
+			end
+		end
 	end
 
-	WeakAuras.ImportString(auraString)
-	WeakAurasTooltipImportButton:Click()
-	
-	tinsert (AuraCheck.db.installed_history, {auraName, playerName, time})
-	AuraCheck:SendPluginCommMessage (COMM_AURA_CHECKRECEIVED, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName, 1)
+	if (auraTable) then
+		--rebuild the aura
+		local mainAura = tremove(auraTable, 1)
+		local childrenTable = auraTable
+
+		--list of icons of the children
+		local icons = {}
+
+		--check if there's children
+		if (#childrenTable >= 1) then
+			for i = 1, #childrenTable do
+				local child = childrenTable[i]
+				icons[i] = child.displayIcon
+			end
+		else
+			childrenTable = nil
+			icons = nil
+		end
+
+		--delete auras which already exists
+		--note: this is too dangerous, need to have another way to override duplications
+		local alreayHaveAura = WeakAuras.GetData(auraName)
+		if (alreayHaveAura) then
+			--check for children first
+			if (#childrenTable >= 1) then
+				for i = 1, #childrenTable do
+					local child = childrenTable[i]
+					local childId = child.id
+					local childExists = WeakAuras.GetData(childId)
+					if (childExists) then
+						local copy = DetailsFramework.table.copytocompress({}, childExists)
+						WeakAuras.Delete(copy)
+					end
+				end
+			end
+
+			local copy = DetailsFramework.table.copytocompress({}, mainAura)
+			copy.controlledChildren = nil
+			WeakAuras.Delete(copy)
+		end
+
+		local auraObject = {
+			d = mainAura, --d = data
+			c = childrenTable, --c = children
+			i = mainAura.displayIcon, --i = icon
+			a = icons, --a = icons
+		}
+
+		WeakAuras.Import(auraObject)
+		WeakAurasTooltipImportButton:Click()
+
+		tinsert(AuraCheck.db.installed_history, {auraName, playerName, time})
+		AuraCheck:SendPluginCommMessage(COMM_AURA_CHECKRECEIVED, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName, 1)
+	end
 end
 
-function AuraCheck.DeclineAura (auraName, playerName, auraString, time)
+function AuraCheck.DeclineAura(auraName, playerName, auraString, time)
 	--> check if already is installed
 	if (AuraCheck:GetWeakAuraTable (auraName)) then
 		AuraCheck:SendPluginCommMessage (COMM_AURA_CHECKRECEIVED, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName, 3)
@@ -854,9 +1019,9 @@ function AuraCheck.DeclineAura (auraName, playerName, auraString, time)
 	end
 end
 
-function AuraCheck.CreateFlash (frame, duration, amount, r, g, b)
+function AuraCheck.CreateFlash(frame, duration, amount, r, g, b)
 	--defaults
-	duration = duration or 0.25
+	duration = duration or 0.15
 	amount = amount or 1
 	
 	if (not r) then
@@ -866,18 +1031,18 @@ function AuraCheck.CreateFlash (frame, duration, amount, r, g, b)
 	end
 
 	--create the flash frame
-	local f = CreateFrame ("frame", "RaidAssistAuraCheckFlashAnimationFrame".. math.random (1, 100000000), frame, "BackdropTemplate")
-	f:SetFrameLevel (frame:GetFrameLevel()+1)
+	local f = CreateFrame("frame", "RaidAssistAuraCheckFlashAnimationFrame".. math.random (1, 100000000), frame, "BackdropTemplate")
+	f:SetFrameLevel(frame:GetFrameLevel()+1)
 	f:SetAllPoints()
 	f:Hide()
-	
+
 	--create the flash texture
-	local t = f:CreateTexture ("RaidAssistAuraCheckFlashAnimationTexture".. math.random (1, 100000000), "artwork")
+	local t = f:CreateTexture("RaidAssistAuraCheckFlashAnimationTexture".. math.random (1, 100000000), "artwork")
 	t:SetColorTexture (r, g, b)
 	t:SetAllPoints()
-	t:SetBlendMode ("ADD")
+	t:SetBlendMode("ADD")
 	t:Hide()
-		
+	
 	local OnPlayCustomFlashAnimation = function (animationHub)
 		animationHub:GetParent():Show()
 		animationHub.Texture:Show()
@@ -906,16 +1071,17 @@ end
 
 function AuraCheck.AskToInstall()
 	if (not AuraCheck.AskFrame) then
-		AuraCheck.AskFrame = RA:CreateSimplePanel (UIParent, 380, 130, "Raid Assist: WA Sharer", "RaidAssistWAConfirmation")
+		AuraCheck.AskFrame = RA:CreateSimplePanel(UIParent, 380, 130, "Raid Assist: WA Sharer", "RaidAssistWAConfirmation")
 		AuraCheck.AskFrame:SetSize (380, 100)
+		AuraCheck.AskFrame.DontRightClickClose = true
 		AuraCheck.AskFrame:Hide()
 
 		AuraCheck.AskFrame.accept_text = AuraCheck:CreateLabel (AuraCheck.AskFrame, "", AuraCheck:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 		AuraCheck.AskFrame.accept_text:SetPoint (16, -28)
-		
+
 		AuraCheck.AskFrame.aura_name = AuraCheck:CreateLabel (AuraCheck.AskFrame, "", AuraCheck:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 		AuraCheck.AskFrame.aura_name:SetPoint (16, -46)
-		
+
 		local accept_aura = function (self, button, t)
 			AuraCheck.InstallAura (unpack (t))
 			AuraCheck.AskFrame:Hide()
@@ -926,56 +1092,62 @@ function AuraCheck.AskToInstall()
 			AuraCheck.AskFrame:Hide()
 			AuraCheck.AskToInstall()
 		end
-		
+
+		AuraCheck.AskFrame.Close:HookScript("OnClick", function(self)
+			decline_aura(_, _, self.param1)
+		end)
+
 		AuraCheck.AskFrame.accept_button = AuraCheck:CreateButton (AuraCheck.AskFrame, accept_aura, 100, 20, "Accept", -1, nil, nil, nil, nil, nil, RA:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE"))
 		AuraCheck.AskFrame.decline_button = AuraCheck:CreateButton (AuraCheck.AskFrame, decline_aura, 100, 20, "Decline", -1, nil, nil, nil, nil, nil, RA:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE"))
-		
+
 		AuraCheck.AskFrame.accept_button:SetPoint ("bottomright", AuraCheck.AskFrame, "bottomright", -14, 11)
 		AuraCheck.AskFrame.decline_button:SetPoint ("bottomleft", AuraCheck.AskFrame, "bottomleft", 14, 11)
-		
+
 		AuraCheck.AskFrame.Flash = AuraCheck.CreateFlash (AuraCheck.AskFrame)
 	end
-	
+
 	if (AuraCheck.AskFrame:IsShown()) then
 		return
 	end
 
 	local nextAura = tremove (AuraCheck.WaitingAnswer)
-	
+
 	if (nextAura) then
 		rawset (AuraCheck.AskFrame.accept_button, "param1", nextAura)
 		rawset (AuraCheck.AskFrame.decline_button, "param1", nextAura)
+
 		AuraCheck.AskFrame.aura_name.text = nextAura [1]
 		AuraCheck.AskFrame.accept_text.text = "|cFFFFAA00" .. nextAura [2] .. " sent an aura:|r"
+
+		AuraCheck.AskFrame.Close.param1 = nextAura
+
 		AuraCheck.AskFrame:SetPoint ("center", UIParent, "center", 0, 150)
+
 		AuraCheck.AskFrame:Show()
 		AuraCheck.AskFrame.Flash:Play()
 	end
 end
 
-function AuraCheck.IsTrusted (playerName)
+function AuraCheck.IsTrusted(playerName)
 	--is on a guild?
 	if (not IsInGuild()) then
 		return
 	end
-	
+
 	--> is inside a raid?
 	local _, instanceType = IsInInstance()
 	if (instanceType ~= "raid") then
 		return
 	end
-	
+
 	--> who sent is the raid leader or assistant?
-	if (not AuraCheck:UnitIsRaidLeader (playerName) and not RA:UnitHasAssist (playerName)) then
+	if (not AuraCheck:UnitIsRaidLeader(playerName) and not RA:UnitHasAssist(playerName)) then
 		return
 	end
-	
-	if (not RA:IsGuildFriend (playerName)) then
+
+	if (not RA:IsGuildFriend(playerName)) then
 		return
 	end
-	
+
 	return true
 end
-
-
--- - dop endp endd - stop auto complete

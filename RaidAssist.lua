@@ -542,14 +542,16 @@ end
 RA.comm = {}
 RA.commPrefix = "RAST"
 
-function RA:CommReceived (_, data)
-	local prefix =  select (2, RA:Deserialize (data))
-	local func = RA.comm [prefix]
+function RA:CommReceived(commPrefix, data, channel, sourceName)
+	--plugin prefix
+	local prefix =  select(2, RA:Deserialize(data))
+	local func = RA.comm[prefix]
 	if (func) then
 		local values = {RA:Deserialize (data)}
-		if (values [1]) then
-			tremove (values, 1) --remove the Deserialize state
-			local state, errortext = pcall (func, unpack (values))
+		if (values[1]) then
+			tremove(values, 1) --remove the Deserialize state
+
+			local state, errortext = pcall(func, sourceName, unpack(values))
 			if (not state) then
 				RA:Msg ("error on CommPCall: ".. errortext)
 			end

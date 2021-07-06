@@ -56,7 +56,9 @@ end
 
 local recentlyReceivedFrom = {}
 
-function PasteText.PluginCommReceived (prefix, sourcePluginVersion, sourceUnit, data)
+function PasteText.PluginCommReceived (sourceName, prefix, sourcePluginVersion, sourceUnit, data)
+	sourceUnit = sourceName
+	
 	if (not PasteText.db.enabled) then
 		return
 	end

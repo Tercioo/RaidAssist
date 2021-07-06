@@ -312,7 +312,7 @@ function LeaderToolbar.CreateScreenPanel()
 	reset_button2:SetPoint ("topleft", ScreenPanel, "topleft", 3 + (8*21), -23)
 	
 	local open_raidstatus = function()
-		RA.OpenMainOptions (_G ["RaidAssistPlayerCheck"])
+		RA.OpenMainOptionsByPluginIndex(2)
 	end
 
 	local status_button = LeaderToolbar:CreateButton (ScreenPanel, open_raidstatus, 50, 20, "Status", _, _, _, "status_button", _, "none", button_template)
@@ -340,11 +340,11 @@ function LeaderToolbar.CreateScreenPanel()
 	end)
 	status_button:SetHook ("OnLeave", function()
 		status_frame:Hide()
-	end)	
+	end)
 	
 	--> manage groups
 	local open_raidgroups = function()
-		RA.OpenMainOptions (_G ["RaidAssistRaidGroups"])
+		RA.OpenMainOptionsByPluginIndex(3)
 	end
 	local raidgroups_button = LeaderToolbar:CreateButton (ScreenPanel, open_raidgroups, 50, 20, "Groups", _, _, _, "raidgroups_button", _, "none", button_template)
 	raidgroups_button:SetPoint ("left", reset_button2, "right", 2, 0)

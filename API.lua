@@ -412,9 +412,9 @@ function RA:IsFriend(who)
 	end
 end
 
-function RA:IsGuildFriend (who)
+function RA:IsGuildFriend(who)
 	if (IsInGuild()) then
-		return UnitIsInMyGuild(who) or UnitIsInMyGuild(who:gsub ("%-.*", ""))
+		return UnitIsInMyGuild(who)
 	end
 end
 
@@ -794,9 +794,25 @@ function RA:GetAllWeakAurasNames()
 	local AllAuras = RA:GetAllWeakAuras()
 	if (AllAuras) then
 		local t = {}
-		for auraName, auraTable in pairs (AllAuras) do
+		for auraName, auraTable in pairs(AllAuras) do
 			t [#t+1] = auraName
 		end
+		return t
+	end
+end
+
+function RA:GetAllWeakAurasNamesAndIcons()
+	local AllAuras = RA:GetAllWeakAuras()
+	if (AllAuras) then
+		local t = {}
+		for auraName, auraTable in pairs(AllAuras) do
+			if (not auraTable.parent) then
+				local icon = auraTable.displayIcon
+				t[#t+1] = {auraName, icon}
+			end
+		end
+
+		table.sort(t, DetailsFramework.SortOrder1R)
 		return t
 	end
 end

@@ -332,7 +332,8 @@ end
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function BisListRaid.OnReceiveComm (prefix, sourcePluginVersion, sourceUnit, bisListReceived)
+function BisListRaid.OnReceiveComm (sourceName, prefix, sourcePluginVersion, sourceUnit, bisListReceived)
+	sourceUnit = sourceName
 
 	--> received a list from a user
 	if (prefix == COMM_RECEIVED_LIST) then

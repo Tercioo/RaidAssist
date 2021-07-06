@@ -551,7 +551,9 @@ function AddonsCheck.FormatReceivedList (addonsList)
 	return addonsList
 end
 
-function AddonsCheck.PluginCommReceived(prefix, sourcePluginVersion, playerName, addonsList)
+function AddonsCheck.PluginCommReceived(sourceName, prefix, sourcePluginVersion, playerName, addonsList)
+	playerName = sourceName
+
 	if (type (playerName) ~= "string" or type (addonsList) ~= "table") then
 		return
 	end

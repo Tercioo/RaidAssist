@@ -1773,7 +1773,8 @@ function Notepad:AskForEnabledNote()
 end
 
 --received a comm from another player in the raid, need to treat it
-function Notepad.OnReceiveComm(prefix, sourcePluginVersion, sourceUnit, fullNote, bossId)
+function Notepad.OnReceiveComm(sourceName, prefix, sourcePluginVersion, sourceUnit, fullNote, bossId)
+	sourceUnit = sourceName
 
 	local ZoneName, InstanceType, DifficultyID = GetInstanceInfo()
 	if (DifficultyID and DifficultyID == 17) then

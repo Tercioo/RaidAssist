@@ -28,12 +28,21 @@ local CONST_MENU_FONT_SIZE = 12
 
 local allButtons = {}
 
+function RA.OpenMainOptionsByPluginIndex(pluginIndex)
+	if (not allButtons[1]) then
+		RA.OpenMainOptions()
+	end
+
+	RA.OpenMainOptions()
+	allButtons[pluginIndex]:Click()
+end
+
 function RA.OpenMainOptions(plugin)
 
 	--if a plugin object has been passed, open the options panel for it
 	if (RaidAssistOptionsPanel) then
 		if (plugin) then
-			RA.OpenMainOptionsForPlugin (plugin)
+			RA.OpenMainOptionsForPlugin(plugin)
 		end
 		RaidAssistOptionsPanel:Show()
 		return
@@ -206,10 +215,7 @@ function RA.OpenMainOptions(plugin)
 		end
 
 		--auto open a plugin after /raa
-		C_Timer.After(0.05, function()
-			allButtons[8]:Click()
-		end)
-
+		allButtons[1]:Click()
 end
 
 function RA.CreateHotkeyFrame(f)
