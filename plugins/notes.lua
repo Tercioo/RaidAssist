@@ -51,7 +51,7 @@ local scrollbox_line_backdrop_color_selected = {.7, .7, .7, 0.8}
 
 local isRaidLeader = function (sourceUnit)
 	if (type (sourceUnit) == "string") then
-		return UnitIsGroupLeader(sourceUnit) or UnitIsGroupLeader(sourceUnit:gsub ("%-.*", "")) or Notepad:UnitHasAssist(sourceUnit) or Notepad:UnitHasAssist(sourceUnit:gsub ("%-.*", ""))
+		return Notepad:UnitHasAssist(sourceUnit)
 	end
 end
 
@@ -999,8 +999,10 @@ function Notepad.BuildOptions(frame)
 		if (note) then
 			mainFrame.frameNoteShown:Show()
 			mainFrame.frameNoteShown.label_note_show2.text = bossInfo.bossName
+			mainFrame.shiftEnterLabel:Hide()
 		else
 			mainFrame.frameNoteShown:Hide()
+			--mainFrame.shiftEnterLabel:Show()
 		end
 	end
 
@@ -1047,7 +1049,8 @@ function Notepad.BuildOptions(frame)
 	end
 
 	local saveChangesAndClose = function()
-		saveChanges()
+		--saveChanges()
+		Notepad:SaveCurrentEditingNote()
 		Notepad:CancelNoteEditing()
 	end
 
@@ -1085,6 +1088,13 @@ function Notepad.BuildOptions(frame)
 	cancelButton.widget.texture_disabled:SetVertexColor (0, 0, 0)
 	cancelButton.widget.texture_disabled:SetAlpha (.5)
 	mainFrame.buttonCancel = cancelButton
+
+	--create the shift + enter text
+	local shiftEnterLabel = Notepad:CreateLabel(mainFrame, "Shift+Enter to Send")
+	shiftEnterLabel:SetPoint("topleft", mainFrame, "bottomright", -140, 61)
+	shiftEnterLabel.color = "orange"
+	shiftEnterLabel.fontsize = 13
+	mainFrame.shiftEnterLabel = shiftEnterLabel
 
 	--set points
 	do
@@ -1646,7 +1656,47 @@ function Notepad.BuildOptions(frame)
 		mainFrame.editboxNotes.editbox.end_selection = nil
 	end)
 	
-	editboxNotes.editbox:SetScript ("OnEnterPressed", function (self) 
+	--
+	local save_feedback_texture = mainFrame.buttonSave2:CreateTexture (nil, "overlay")
+	save_feedback_texture:SetColorTexture (1, 1, 1)
+	save_feedback_texture:SetAllPoints()
+	save_feedback_texture:SetDrawLayer ("overlay", 7)
+	save_feedback_texture:SetAlpha (0)
+	
+	local save_button_flash_animation = DF:CreateAnimationHub (save_feedback_texture)
+	DF:CreateAnimation (save_button_flash_animation, "alpha", 1, 0.08, 0, 0.2)
+	DF:CreateAnimation (save_button_flash_animation, "alpha", 2, 0.08, 0.4, 0)
+	
+	local save_button_feedback_animation = DF:CreateAnimationHub (mainFrame.buttonSave2, function() save_button_flash_animation:Play() end)
+	local speed = 0.06
+	local rotation = 0
+	local translation = 7
+	
+	--DF:CreateAnimation (save_button_feedback_animation, "scale", 1, speed, 1, 1, 1.01, 1.01)
+	DF:CreateAnimation (save_button_feedback_animation, "translation", 1, speed, 0, -translation)
+	DF:CreateAnimation (save_button_feedback_animation, "rotation", 1, speed, -rotation)
+	
+	--DF:CreateAnimation (save_button_feedback_animation, "scale", 1, speed, 1.01, 1.01, 1, 1)
+	DF:CreateAnimation (save_button_feedback_animation, "translation", 2, speed, 0, translation)
+	DF:CreateAnimation (save_button_feedback_animation, "rotation", 2, speed, rotation)
+	
+	DF:CreateAnimation (save_button_feedback_animation, "rotation", 3, speed, rotation)
+	DF:CreateAnimation (save_button_feedback_animation, "rotation", 4, speed, -rotation)
+	--
+
+	editboxNotes.editbox:SetScript ("OnEnterPressed", function (self)
+		--if shift is pressed when the user pressed enter, save/apply the script and don't lose the focus of the editor
+		if (IsShiftKeyDown()) then
+			local cursorPosition = editboxNotes.editbox:GetCursorPosition()
+			mainFrame.buttonSave2()
+			editboxNotes.editbox:SetFocus(true)
+			C_Timer.After(0.1, function()
+				editboxNotes.editbox:SetCursorPosition(cursorPosition)
+			end)
+			save_button_feedback_animation:Play()
+			return
+		end
+
 		if (mainFrame.editboxNotes.editbox.end_selection) then
 			mainFrame.editboxNotes.editbox:SetCursorPosition (mainFrame.editboxNotes.editbox.end_selection)
 			mainFrame.editboxNotes.editbox:HighlightText (0, 0)
