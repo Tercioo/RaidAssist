@@ -21,7 +21,7 @@ local group_sizeX, group_sizeY, group_spacing_vertical = 264, 122, 15
 local slot_height = 23
 local slot_iconsize = 14
 local right_panel_x = 546
-local filter_start_y = -225
+local filter_start_y = -205
 local helpbox_start_y = -274
 local slot_backdrop = {edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true}
 local slot_backdropcolor = {0, 0, 0, .55}
@@ -42,6 +42,8 @@ local default_config = {
 	show_class_icon = true,
 	show_role_icon = true,
 	show_rank_icons = true,
+	group_saved = {},
+	auto_refresh_roster = true,
 }
 
 local icon_texcoord = {l=32/512, r=64/512, t=0, b=1}
@@ -171,9 +173,10 @@ end
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 local get_player_raidInfo = function (playerName)
 	for i = 1, GetNumGroupMembers() do
-		local name, rank, subgroup, level, class, fileName, zone, online, isDead, role, isML = GetRaidRosterInfo (i)
+		local name, rank, subgroup, level, class, fileName, zone, online, isDead, role = GetRaidRosterInfo(i)
 		if (name == playerName) then
-			return i, name, rank, subgroup, level, class, fileName, zone, online, isDead, role, isML
+			local groupRole = DetailsFramework.UnitGroupRolesAssigned("raid" .. i)
+			return i, name, rank, subgroup, level, class, fileName, zone, online, isDead, role, groupRole
 		end
 	end
 end
@@ -181,7 +184,7 @@ end
 local get_amtPlayers_onRaidGroup = function (groupIndex)
 	local amtFound = 0
 	for i = 1, GetNumGroupMembers() do
-		local name, rank, subgroup = GetRaidRosterInfo (i)
+		local name, rank, subgroup = GetRaidRosterInfo(i)
 		if (subgroup == groupIndex) then
 			amtFound = amtFound + 1
 		end
@@ -192,7 +195,7 @@ end
 local group_cache = {}
 local get_groupIntruderIndex = function (groupIndex) -- is 1
 	for i = 1, GetNumGroupMembers() do
-		local name, rank, subgroup = GetRaidRosterInfo (i)
+		local name, rank, subgroup = GetRaidRosterInfo(i)
 		if (subgroup == groupIndex) then
 			if (group_cache [name] ~= subgroup) then
 				return i
@@ -203,7 +206,7 @@ local get_groupIntruderIndex = function (groupIndex) -- is 1
 end
 
 local unlock_frame_after_sync = function()
-	RaidGroups.lock_frame:Hide()
+	--RaidGroups.lock_frame:Hide()
 end
 -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -234,7 +237,7 @@ end
 
 function RaidGroups.OnShowOnOptionsPanel()
 	local OptionsPanel = RaidGroups.OptionsPanel
-	RaidGroups.BuildOptions (OptionsPanel)
+	RaidGroups.BuildOptions(OptionsPanel)
 	RaidGroups.UpdateFilterLabel()
 end
 
@@ -242,35 +245,21 @@ local OnShowPanel = function()
 
 end
 
-function RaidGroups.BuildOptions (frame)
+function RaidGroups.BuildOptions(frame)
 
 	if (frame.FirstRun) then
 		return
 	end
+
 	frame.FirstRun = true
-	
+
 	RaidGroups.GroupsFrame = frame
-	frame:SetSize (640, 480)
+	frame:SetSize(640, 480)
 	
 	RaidGroups.VirtualGroups = {}
 	
 	frame:SetScript ("OnShow", OnShowPanel)
-	
 
-
-	local help_frame = CreateFrame ("frame", nil, frame, "BackdropTemplate")
-	help_frame:SetSize (308, 100)
-	help_frame:SetBackdrop ({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 16, edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1})
-	help_frame:SetBackdropColor (0, 0, 0, .3)
-	help_frame:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
-
-	local label =  RA:CreateLabel (help_frame, "Tips:\n\n- You can modify raid groups while your raid clear trash mobs and apply the changes when all players are out of combat, saving a lot of time on organizing the raid.\n\n- Use as a backup if need to make many changes to the roster layout.", 10, "orange")
-	label:SetPoint ("topleft", help_frame, "topleft", 10, -10)
-	label:SetSize (300, 90)
-	label:SetAlpha (.8)
-	label:SetJustifyV ("top")
-	help_frame:SetPoint ("topleft", frame, "topleft", right_panel_x, helpbox_start_y)
-	
 	local OnDragStart = function (self)
 		local cursorX, cursorY = GetCursorPosition()
 		local uiScale = UIParent:GetScale()
@@ -281,8 +270,8 @@ function RaidGroups.BuildOptions (frame)
 		frame.DraggingFrame = self
 		frame:SetScript ("OnUpdate", DragOnUpdate)
 	end
+
 	local OnDragStop = function (self)
-		
 		self:StopMovingOrSizing()
 		frame:SetScript ("OnUpdate", nil)
 		
@@ -318,6 +307,11 @@ function RaidGroups.BuildOptions (frame)
 						
 						--> update the virtual roster frame
 						RaidGroups.UpdateVirtualGroups()
+
+						--attempt to apply the changes immediately
+						if (RaidGroups.db.auto_refresh_roster) then
+							RaidGroups.ApplyRosterChanges()
+						end
 					end
 				end
 				
@@ -363,6 +357,11 @@ function RaidGroups.BuildOptions (frame)
 							tremove (RaidGroups.VirtualGroups, self_rosterIndex)
 							--> update the virtual roster frame
 							RaidGroups.UpdateVirtualGroups()
+
+							--attempt to apply the changes immediately
+							if (RaidGroups.db.auto_refresh_roster) then
+								RaidGroups.ApplyRosterChanges()
+							end
 						end
 						
 					elseif (target_raidGroup < self_raidGroup) then
@@ -399,6 +398,11 @@ function RaidGroups.BuildOptions (frame)
 							tinsert (RaidGroups.VirtualGroups, targetIndex, self_virtualRosterInfo) --adiciona em baixo depois
 							--> update the virtual roster frame
 							RaidGroups.UpdateVirtualGroups()
+
+							--attempt to apply the changes immediately
+							if (RaidGroups.db.auto_refresh_roster) then
+								RaidGroups.ApplyRosterChanges()
+							end
 						end
 					
 					end
@@ -581,18 +585,18 @@ function RaidGroups.BuildOptions (frame)
 	
 	RaidGroups.CanGoNext = true
 
-	local sync_after_apply = function() 
+	local sync_after_apply = function()
 		RaidGroups.Sync()
 	end
 	local current_applying_index
 	local timeelapsed = 0
 	local apply_on_update = function (self, elapsed)
 		
-		if (InCombatLockdown() or UnitAffectingCombat ("player")) then
-			RaidGroups:Msg ("You are in combat and cannot move players through raid groups.")
-			apply_frame:SetScript ("OnUpdate", nil)
-			unlock_frame_after_sync()
-			return
+		if (InCombatLockdown() or UnitAffectingCombat("player")) then
+			--RaidGroups:Msg ("You are in combat and cannot move players.")
+			--apply_frame:SetScript ("OnUpdate", nil)
+			--unlock_frame_after_sync()
+			--return
 		end
 		
 		local playerVirtual = RaidGroups.VirtualGroups [current_applying_index]
@@ -664,8 +668,9 @@ function RaidGroups.BuildOptions (frame)
 		
 		current_applying_index, RaidGroups.CanGoNext, timeelapsed = 1, true, 0
 		apply_frame:SetScript ("OnUpdate", apply_on_update)
-		RaidGroups.lock_frame:Show()
+		--RaidGroups.lock_frame:Show()
 	end
+	RaidGroups.ApplyRosterChanges = apply_func
 	
 	local check_combat_tick = 0
 	local apply_onupdate = function (self, elapsed)
@@ -697,23 +702,23 @@ function RaidGroups.BuildOptions (frame)
 
 	--create a backgroup for the options
 	local optionsFrame = CreateFrame("frame", frame:GetName() .. "OptionsBG", frame, "BackdropTemplate")
-	optionsFrame:SetSize(320, 533)
+	optionsFrame:SetSize(320, 658)
 	optionsFrame:SetPoint("topleft", frame, "topright", -100, 0)
 	optionsFrame:SetBackdrop({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
 	optionsFrame:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
 	optionsFrame:SetBackdropColor(.1, .1, .1, 1)
 
-	local apply_button = RaidGroups:CreateButton (optionsFrame, apply_func, 100, 20, "Apply", _, _, _, "button_apply", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local apply_button = RaidGroups:CreateButton (optionsFrame, RaidGroups.ApplyRosterChanges, 140, 20, "Apply Changes", _, _, _, "button_apply", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	apply_button:SetPoint ("topleft", frame, "topleft", right_panel_x, -5)
 	apply_button:SetScript ("OnUpdate", apply_onupdate)
 	apply_button:SetIcon ([[Interface\BUTTONS\UI-CheckBox-Check]], 16, 16, "overlay", {0, 1, 0, 28/32}, {1, 1, 1}, 2, 1, 0)
 
 	local sync_func = function()
-		RaidGroups.lock_frame:Show()
+		--RaidGroups.lock_frame:Show()
 		RaidGroups.Sync()
-		RaidGroups.lock_frame:Hide()
+		--RaidGroups.lock_frame:Hide()
 	end
-	local sync_button =  RaidGroups:CreateButton (optionsFrame, sync_func, 100, 20, "Refresh", _, _, _, "button_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local sync_button =  RaidGroups:CreateButton (optionsFrame, sync_func, 140, 20, "Refresh Roster", _, _, _, "button_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	sync_button:SetPoint ("left", apply_button, "right", 6, 0)
 	sync_button:SetIcon ([[Interface\BUTTONS\UI-RefreshButton]], 14, 14, "overlay", {0, 1, 0, 1}, {1, 1, 1}, 2, 1, 0)
 
@@ -816,31 +821,30 @@ function RaidGroups.BuildOptions (frame)
 	local options_switch_template = RaidGroups:GetTemplate ("switch", "OPTIONS_CHECKBOX_TEMPLATE")
 	local options_slider_template = RaidGroups:GetTemplate ("slider", "OPTIONS_SLIDER_TEMPLATE")
 	local options_button_template = RaidGroups:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE")
-	
+
 	RaidGroups:SetAsOptionsPanel (frame)
 	RaidGroups:BuildMenu (optionsFrame, options_list, 5, -40, 300, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
 
 	--> filters
-	
 	local filter_label = RaidGroups:CreateLabel (optionsFrame, "Filter" .. ":", RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"), _, _, "label_filter1")
 	local filter_current_label = RaidGroups:CreateLabel (optionsFrame, "", RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"), _, _, "label_filter2")
 	filter_current_label.textcolor = "orange"
-	
+
 	filter_label:SetPoint ("topleft", frame, "topleft", right_panel_x, filter_start_y)
 	filter_current_label:SetPoint ("left", filter_label, "right", 2, 0)
 	RaidGroups.CurrentFilter = filter_current_label
-	
+
 	local filters = {
 		["HEALER"] = "Healer",
 		["TANK"] = "Tank",
 		["DPS"] = "Dps",
 	}
-	
+
 	function RaidGroups.UpdateFilterLabel()
-		filter_current_label.text = filters [RaidGroups.db.filter] or ""
+		filter_current_label.text = filters[RaidGroups.db.filter] or ""
 	end
-	
-	local apply_filter_func = function (button, mousebutton, filter, filterName)	
+
+	local apply_filter_func = function (button, mousebutton, filter, filterName)
 		if (filter == RaidGroups.db.filter) then
 			filter = false
 		end
@@ -851,18 +855,312 @@ function RaidGroups.BuildOptions (frame)
 
 	local clear_filter_button =  RaidGroups:CreateButton (optionsFrame, apply_filter_func, 6, 20, "X", false, _, _, "button_clear_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	clear_filter_button:SetPoint ("topleft", filter_label, "bottomleft", 0, -5)
-	
+
 	local healer_filter_button =  RaidGroups:CreateButton (optionsFrame, apply_filter_func, 60, 20, "Healers", "HEALER", _, _, "button1_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	healer_filter_button:SetPoint ("left", clear_filter_button, "right", 2, 0)
 
 	local tank_filter_button =  RaidGroups:CreateButton (optionsFrame, apply_filter_func, 60, 20, "Tanks", "TANK", _, _, "button2_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	tank_filter_button:SetPoint ("left", healer_filter_button, "right", 2, 0)
-	
+
 	local dps_filter_button =  RaidGroups:CreateButton (optionsFrame, apply_filter_func, 60, 20, "Dps", "DPS", _, _, "button3_sync", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	dps_filter_button:SetPoint ("left", tank_filter_button, "right", 2, 0)
-	
+
 	RaidGroups.UpdateRosterFrames()
 	RaidGroups.Sync()
+
+--------------------------------------------------------------------------------------------------
+	--saved group
+	local saveGroupsLabel = RA:CreateLabel(optionsFrame, "Pre-Made Groups")
+	saveGroupsLabel:SetPoint("topleft", filter_label, "bottomleft", 0, -35)
+
+	--run when the player click the button to creaste a new pre made group
+	local createNewGroup = function(groupName, comments)
+		local group = {
+			name = groupName,
+			comment = comments,
+			roster = {},
+		}
+
+		for i = 1, 8 do
+			group.roster[i] = {}
+		end
+
+		if (IsInRaid()) then
+			for i = 1, 40 do
+				local name, rank, subgroup, level, class, fileName, zone, online, isDead, role = GetRaidRosterInfo(i)
+				if (name) then
+					local subGroup = group.roster[subgroup]
+					subGroup[#subGroup+1] = {
+						name = name,
+						class = fileName,
+						raidRole = role,
+						role = DetailsFramework.UnitGroupRolesAssigned("raid" .. i),
+						rank = rank,
+					}
+				end
+			end
+
+		elseif (IsInGroup()) then
+			for i = 1, 4 do
+				local unitId = "party" .. i
+				local unitName = UnitName(unitId)
+				if (unitName) then
+					local _, class = UnitClass(unitId)
+					local role = DetailsFramework.UnitGroupRolesAssigned(unitId)
+
+					local subGroup = group.roster[1]
+					subGroup[#subGroup+1] = {
+						name = unitName,
+						raidRole = role,
+						role = role,
+						class = class,
+						rank = 0,
+					}
+				end
+			end
+
+			--add the player
+			local subGroup = group.roster[1]
+			local unitName = UnitName(unitId)
+			local _, class = UnitClass("player")
+			local role = DetailsFramework.UnitGroupRolesAssigned("player")
+			subGroup[#subGroup+1] = {
+				name = unitName,
+				class = class,
+				raidRole = role,
+				role = role,
+				rank = 0,
+			}
+		end
+
+		return group
+	end
+
+	local updateExistingGroup = function(groupObject, comments)
+		groupObject.comment = comments
+
+		for i = 1, 8 do
+			wipe(groupObject.roster[i])
+		end
+
+		if (IsInRaid()) then
+			for i = 1, 40 do
+				local name, rank, subgroup, level, class, fileName, zone, online, isDead, role = GetRaidRosterInfo(i)
+				if (name) then
+					local subGroup = groupObject.roster[subgroup]
+					subGroup[#subGroup+1] = {
+						name = name,
+						class = fileName,
+						raidRole = role,
+						role = DetailsFramework.UnitGroupRolesAssigned("raid" .. i),
+						rank = rank,
+					}
+				end
+			end
+
+		elseif (IsInGroup()) then
+			for i = 1, 4 do
+				local unitId = "party" .. i
+				local unitName = UnitName(unitId)
+				if (unitName) then
+					local _, class = UnitClass(unitId)
+					local role = DetailsFramework.UnitGroupRolesAssigned(unitId)
+
+					local subGroup = groupObject.roster[1]
+					subGroup[#subGroup+1] = {
+						name = unitName,
+						raidRole = role,
+						role = role,
+						class = class,
+						rank = 0,
+					}
+				end
+			end
+
+			--add the player
+			local subGroup = groupObject.roster[1]
+			local unitName = UnitName(unitId)
+			local _, class = UnitClass("player")
+			local role = DetailsFramework.UnitGroupRolesAssigned("player")
+			subGroup[#subGroup+1] = {
+				name = unitName,
+				class = class,
+				raidRole = role,
+				role = role,
+				rank = 0,
+			}
+		end
+	end
+
+	local actuallyLoadTheGroup = function(groupObject)
+		local name = groupObject.name
+		local comment = groupObject.comment
+		local roster = groupObject.roster
+
+		optionsFrame.editboxNotes:SetText(comment)
+		optionsFrame.newGroupName.text = ""
+
+		--load the roster
+		RaidGroups.Clear()
+		wipe(RaidGroups.VirtualGroups)
+
+		--build the virtual group
+		local level = UnitLevel("player")
+		local zoneName = "Unknown"
+		local isOnline = true
+		local isDead =  false
+
+		for subGroup = 1, 8 do
+			local group = roster[subGroup]
+			for o = 1, 5 do
+				local player = group[o]
+				if (player) then
+					local playerName = player.name
+					local class = player.class
+					local groupRole = player.role
+					local raidRole =  player.raidRole
+					local playerRank = player.rank
+					RaidGroups.VirtualGroups[#RaidGroups.VirtualGroups+1] = {playerName, playerRank, subGroup, level, class, class, zoneName, isOnline, isDead, raidRole, groupRole}
+				end
+			end
+		end
+
+		RaidGroups.UpdateVirtualGroups()
+	end
+
+	local onGroupSelected = function(self, fixedParam, index)
+		local savedGroups = RaidGroups.db.group_saved
+		local selectedGroup = savedGroups[index]
+		if (selectedGroup) then
+			actuallyLoadTheGroup(selectedGroup)
+		end
+	end
+
+	local saveGroupFunc = function()
+		local selectedGroup = optionsFrame.selectGroupDropdown.value
+		local groupObject = RaidGroups.db.group_saved[selectedGroup]
+		updateExistingGroup(groupObject, optionsFrame.editboxNotes:GetText())
+	end
+
+	--create a new pre-made group
+	local createGroupFunc = function()
+		local groupName = optionsFrame.newGroupName.text
+		local comments = optionsFrame.editboxNotes:GetText()
+		local newGroup = createNewGroup(groupName, comments)
+
+		local db = RaidGroups.db.group_saved
+		db[#db+1] = newGroup
+
+		optionsFrame.selectGroupDropdown:Refresh()
+		optionsFrame.selectGroupDropdown:Select(#db, true)
+		optionsFrame.newGroupName.text = ""
+		RA:Msg("Group Created!")
+	end
+
+	--invite players in the group
+
+	--need to make this better, need to wait and converto to raid
+	local inviteGroupFunc = function()
+		for i = 1, #RaidGroups.VirtualGroups do
+			local player = RaidGroups.VirtualGroups[i]
+			local playerName = player[1]
+			C_PartyInfo.InviteUnit(playerName)
+		end
+	end
+
+	--delete the group
+	local eraseGroupFunc = function()
+		--get the selected group in the dropdown
+		local selectedGroup = optionsFrame.selectGroupDropdown.value
+		local groupName1 = RaidGroups.db.group_saved[selectedGroup].name
+
+		--grab the group object from the db
+		local savedGroups = RaidGroups.db.group_saved
+		for i = 1, #savedGroups do
+			local groupName2 = savedGroups[i].name
+			if (groupName1 == groupName2) then
+				tremove(RaidGroups.db.group_saved, i)
+				break
+			end
+		end
+
+		optionsFrame.selectGroupDropdown:Refresh()
+		optionsFrame.selectGroupDropdown:Select(#savedGroups, true)
+		onGroupSelected(_, _, #savedGroups)
+	end
+
+	local buildGroupList = function()
+		local savedGroups = RaidGroups.db.group_saved
+		local t = {}
+		for i = 1, #savedGroups do
+			local groupName = savedGroups[i].name
+			t[#t+1] = {label = groupName, value = i, onclick = onGroupSelected}
+		end
+		return t
+	end
+
+	--dropdown to select a saved group
+	local selectGroupDropdown = RA:CreateDropDown(optionsFrame, buildGroupList, 1, 101, 20, "selectGroupDropdown", _, RA:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+	selectGroupDropdown:SetPoint("topleft", saveGroupsLabel, "bottomleft", 0, -3)
+	selectGroupDropdown:Select(0, true)
+
+	local saveButton = RaidGroups:CreateButton(optionsFrame, saveGroupFunc, 62, 20, "Save", _, _, _, "saveButton", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	saveButton:SetPoint("left", selectGroupDropdown, "right", 1, 0)
+
+	local inviteButton = RaidGroups:CreateButton(optionsFrame, inviteGroupFunc, 62, 20, "Invite", _, _, _, "inviteButton", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	inviteButton:SetPoint("left", saveButton, "right", 1, 0)
+
+	--a button after the dropdown to load the group
+	local eraseButton = RaidGroups:CreateButton(optionsFrame, eraseGroupFunc, 62, 20, "Delete", _, _, _, "eraseButton", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	eraseButton:SetPoint("left", inviteButton, "right", 1, 0)
+
+	--textbox to write comments about the group
+
+	local commentTextEntry = RaidGroups:NewSpecialLuaEditorEntry(optionsFrame, 290, 303, "editboxNotes", "$parentCommentBox", true)
+	commentTextEntry:SetPoint("topleft", saveGroupsLabel.widget, "bottomleft", 0, -43)
+	commentTextEntry:SetBackdrop({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
+	commentTextEntry:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
+	commentTextEntry:SetBackdropColor(unpack ({.1, .1, .1, .8}))
+	DetailsFramework:ReskinSlider(commentTextEntry.scroll)
+
+	--label comment section
+	local commentLabel = RA:CreateLabel(optionsFrame, "Comments")
+	commentLabel:SetPoint("bottomleft", commentTextEntry, "topleft", 0, 0)
+
+	--label telling to save new group
+	local creteNewGroupLabel = RA:CreateLabel(optionsFrame, "Create New Group")
+	creteNewGroupLabel:SetPoint("topleft", commentTextEntry, "bottomleft", 0, -7)
+
+	--textentry asking for the name
+	local newGroupName = RA:CreateTextEntry(optionsFrame, function()end, 160, 20, "newGroupName", _, _, RA:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+	newGroupName:SetPoint("topleft", creteNewGroupLabel, "bottomleft", 0, -2)
+
+	--button to save the new group
+	local createButton = RaidGroups:CreateButton(optionsFrame, createGroupFunc, 120, 20, "Create", _, _, _, "createButton", _, _, RaidGroups:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	createButton:SetPoint("left", newGroupName, "right", 2, 0)
+
+
+	--bottom options with locked sync
+	local syncOptionsFrame = CreateFrame("frame", frame:GetName() .. "SyncOptionsBG", frame, "BackdropTemplate")
+	syncOptionsFrame:SetSize(group_sizeX*2 + 4, 107)
+	syncOptionsFrame:SetPoint("topleft", frame, "topleft", 0, -550)
+	syncOptionsFrame:SetBackdrop({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
+	syncOptionsFrame:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
+	syncOptionsFrame:SetBackdropColor(.1, .1, .1, 1)
+
+	--text
+	local syncLockedText = RA:CreateLabel(syncOptionsFrame, "Apply Changes Immediately (no need to use 'Apply Changes' and 'Refresh Roster' buttons)", RA:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
+	syncLockedText:SetPoint("topleft", syncOptionsFrame, "topleft", 25, -10) --POINT
+	syncLockedText.fontsize = 14
+
+	--checkbox
+	local syncLockedCheckboxFunc = function (_, _, value)
+		RaidGroups.db.auto_refresh_roster = not RaidGroups.db.auto_refresh_roster
+	end
+
+	local syncLockedCheckbox = RA:CreateSwitch(syncOptionsFrame, syncLockedCheckboxFunc, RaidGroups.db.auto_refresh_roster, _, _, _, _, "syncLockedCheckbox", _, _, _, _, _, RA:GetTemplate("switch", "OPTIONS_CHECKBOX_TEMPLATE"))
+	syncLockedCheckbox:SetAsCheckBox()
+	syncLockedCheckbox:SetPoint("right", syncLockedText, "left", -2, 0) --POINT
 end
 
 -- slot idraid = 1 to 40
@@ -886,24 +1184,23 @@ function RaidGroups.Clear()
 		end
 	end
 	
-	wipe (RaidGroups.VirtualGroups)
+	wipe(RaidGroups.VirtualGroups)
 end
 
-function RaidGroups.UpdatePlayer (raidIndex, name, rank, subgroup, level, class, className, zone, online, isDead, role, isML)
+function RaidGroups.UpdatePlayer(raidIndex, name, rank, subgroup, level, class, className, zone, online, isDead, role, groupRole)
 	local group_frame = RaidGroups.RaidGroups [subgroup]
 	local slot_number = group_frame.nextSlot
-	
+
 	if (slot_number <= 5) then
-		
 		local slot = group_frame.Slots [slot_number]
-		
-		local coords = CLASS_ICON_TCOORDS [className]
-		local color = RAID_CLASS_COLORS [className]
-		
+
+		local coords = CLASS_ICON_TCOORDS[className]
+		local color = RAID_CLASS_COLORS[className]
+
 		slot.classicon:SetTexture ([[Interface\ARENAENEMYFRAME\UI-CLASSES-CIRCLES]])
 		slot.classicon:SetTexture ([[Interface\WorldStateFrame\ICONS-CLASSES]])
 		slot.classicon:SetTexCoord (unpack (coords))
-		
+
 		if (rank == 2) then
 			slot.assisticon:SetTexture ([[Interface\GROUPFRAME\UI-Group-LeaderIcon]])
 		elseif (rank == 1) then
@@ -911,7 +1208,7 @@ function RaidGroups.UpdatePlayer (raidIndex, name, rank, subgroup, level, class,
 		else
 			slot.assisticon:SetTexture (nil)
 		end
-		
+
 		if (role == "MAINASSIST") then
 			slot.tankicon:SetTexture ([[Interface\GROUPFRAME\UI-GROUP-MAINASSISTICON]])
 		elseif (role == "MAINTANK") then
@@ -919,33 +1216,33 @@ function RaidGroups.UpdatePlayer (raidIndex, name, rank, subgroup, level, class,
 		else
 			slot.tankicon:SetTexture (nil)
 		end
-		
-		if (isML) then
-			slot.masterlooticon:SetTexture ([[Interface\GROUPFRAME\UI-Group-MasterLooter]])
-		else
-			slot.masterlooticon:SetTexture (nil)
-		end
-		
-		local role = UnitGroupRolesAssigned (name)
-		if (role == "DAMAGER") then
+
+		slot.masterlooticon:SetTexture (nil)
+
+		local groupRole = groupRole or DetailsFramework.UnitGroupRolesAssigned(name)
+
+		if (groupRole == "DAMAGER") then
 			slot.roleicon:SetTexture ([[Interface\LFGFrame\UI-LFG-ICON-PORTRAITROLES]])
 			slot.roleicon:SetTexCoord (20/64, 39/64, 22/64, 41/64)
-		elseif (role == "HEALER") then
+
+		elseif (groupRole == "HEALER") then
 			slot.roleicon:SetTexture ([[Interface\LFGFrame\UI-LFG-ICON-PORTRAITROLES]])
 			slot.roleicon:SetTexCoord (20/64, 39/64, 1/64, 20/64)
-		elseif (role == "TANK") then
+
+		elseif (groupRole == "TANK") then
 			slot.roleicon:SetTexture ([[Interface\LFGFrame\UI-LFG-ICON-PORTRAITROLES]])
 			slot.roleicon:SetTexCoord (0/64, 19/64, 22/64, 41/64)
-		else	
+
+		else
 			slot.roleicon:SetTexture (nil)
 		end
-		
+
 		--
 		slot.playername:SetText (RaidGroups:RemoveRealName (name))
-		slot.playerlevel:SetText (level ~= 0 and level or "")		
+		slot.playerlevel:SetText (level ~= 0 and level or "")
 		local unitClass = UnitClass (name)
 		slot.playerclass:SetText (unitClass)
-		
+
 		while (slot.playerclass:GetStringWidth() > 45) do
 			unitClass = unitClass:sub (1, #unitClass-1)
 			slot.playerclass:SetText (unitClass)
@@ -960,38 +1257,46 @@ function RaidGroups.UpdatePlayer (raidIndex, name, rank, subgroup, level, class,
 			RaidGroups:SetFontColor (slot.playerlevel, .4, .4, .4)
 			RaidGroups:SetFontColor (slot.playerclass, .4, .4, .4)
 		end
-		
-		
+
+		if (IsInRaid(slot.playername)) then
+			RaidGroups:SetFontColor (slot.playername, color.r, color.g, color.b, 1)
+		else
+			RaidGroups:SetFontColor (slot.playername, .8, .1, .1)
+			RaidGroups:SetFontColor (slot.playerlevel, .8, .1, .1)
+			RaidGroups:SetFontColor (slot.playerclass, .8, .1, .1)
+		end
+
 		--> filters
-		
-		slot:SetBackdrop (slot_backdrop)
-		slot:SetBackdropColor (unpack (slot_backdropcolor_filled))
-		slot:SetBackdropBorderColor (unpack (slot_bordercolor_filled))
+		slot:SetBackdrop(slot_backdrop)
+		slot:SetBackdropColor(unpack (slot_backdropcolor_filled))
+		slot:SetBackdropBorderColor(unpack (slot_bordercolor_filled))
 		slot:SetAlpha (1)
 		slot.GotFilteredOut = nil
-		
+
 		local filter = RaidGroups.db.filter
 
 		if (filter) then
 			local got_filtered = false
-			
+
 			if (filter == "HEALER") then
-				if (role == "HEALER") then
-					slot:SetBackdropBorderColor (unpack (slot_bordercolor_filtered))
+				if (groupRole == "HEALER") then
+					slot:SetBackdropBorderColor(unpack(slot_bordercolor_filtered))
 					got_filtered = true
 				end
+
 			elseif (filter == "TANK") then
-				if (role == "TANK") then
-					slot:SetBackdropBorderColor (unpack (slot_bordercolor_filtered))
+				if (groupRole == "TANK") then
+					slot:SetBackdropBorderColor(unpack(slot_bordercolor_filtered))
 					got_filtered = true
 				end
+
 			elseif (filter == "DPS" or filter == "DAMAGER") then
-				if (role == "DAMAGER") then
-					slot:SetBackdropBorderColor (unpack (slot_bordercolor_filtered))
+				if (groupRole == "DAMAGER") then
+					slot:SetBackdropBorderColor(unpack(slot_bordercolor_filtered))
 					got_filtered = true
 				end
 			end
-			
+
 			if (not got_filtered) then
 				slot:SetAlpha (0.3)
 			else
@@ -1000,11 +1305,9 @@ function RaidGroups.UpdatePlayer (raidIndex, name, rank, subgroup, level, class,
 		end
 		slot.RosterIndex = raidIndex
 	end
-	
+
 	group_frame.nextSlot = group_frame.nextSlot + 1
 end
-
---dom
 
 function RaidGroups.UpdateVirtualGroups()
 	for _, group_frame in ipairs (RaidGroups.RaidGroups) do
@@ -1031,15 +1334,15 @@ function RaidGroups.UpdateVirtualGroups()
 			slot.empty:Hide()
 		end
 	end
-	
+
 	--> bring raid leader to first index of the group
-	for index, slot in ipairs (RaidGroups.VirtualGroups) do
+	for index, slot in ipairs(RaidGroups.VirtualGroups) do
 		--> is the leader ?
 		if (slot [ROSTER_RAIDRANK] == 2) then
 			local leader_group = slot [ROSTER_RAIDGROUP]
 			local leader_new_index = index
 			for i = index-1, 1, -1 do
-				local player = RaidGroups.VirtualGroups [i]
+				local player = RaidGroups.VirtualGroups[i]
 				if (player and player [ROSTER_RAIDGROUP] == leader_group) then
 					leader_new_index = i
 				else
@@ -1048,24 +1351,24 @@ function RaidGroups.UpdateVirtualGroups()
 			end
 			if (leader_new_index ~= index) then
 				--> move the leader
-				tremove (RaidGroups.VirtualGroups, index)
-				tinsert (RaidGroups.VirtualGroups, leader_new_index, slot)
+				tremove(RaidGroups.VirtualGroups, index)
+				tinsert(RaidGroups.VirtualGroups, leader_new_index, slot)
 			end
 			break
 		end
 	end
-	
-	for index, slot in ipairs (RaidGroups.VirtualGroups) do
-		RaidGroups.UpdatePlayer (index, unpack (slot))
+
+	for index, slot in ipairs(RaidGroups.VirtualGroups) do
+		RaidGroups.UpdatePlayer(index, unpack(slot))
 	end
-	
+
 	for _, group_frame in ipairs (RaidGroups.RaidGroups) do
 		for _, slot in ipairs (group_frame.Slots) do
 			if (not slot.RosterIndex) then
 				slot.empty:Show()
-				slot:SetBackdropColor (unpack (slot_backdropcolor))
+				slot:SetBackdropColor (unpack(slot_backdropcolor))
 			else
-				slot:SetBackdropColor (unpack (slot_backdropcolor_filled))
+				slot:SetBackdropColor (unpack(slot_backdropcolor_filled))
 			end
 		end
 	end
@@ -1074,28 +1377,32 @@ end
 function RaidGroups.Sync (no_wait)
 	RaidGroups.Clear()
 	C_Timer.After (0.3, unlock_frame_after_sync)
-	RaidGroups.lock_frame:Show()
-	
+	--RaidGroups.lock_frame:Show()
+
 	local raid_leader_group, leader_roster_info, leader_correct_index
 	for i = 1, GetNumGroupMembers() do
-		local name, rank, subgroup, level, class, fileName, zone, online, isDead, role, isML = GetRaidRosterInfo (i)
+		local name, rank, subgroup, level, class, fileName, zone, online, isDead, role = GetRaidRosterInfo(i)
 		--> solve the leader group cheating
 		if (raid_leader_group and raid_leader_group <= subgroup) then
 			leader_correct_index = i
 			raid_leader_group = nil
 		end
-		
+
 		--> is the raid leader?
-		if (i == 1 and rank == 2  and subgroup ~= 1) then 
+		if (i == 1 and rank == 2  and subgroup ~= 1) then
 			--> raid leader cheats the raidIndex
 			raid_leader_group = subgroup
-			leader_roster_info = {GetRaidRosterInfo (i)}
+			local name, rank, subgroup, level, class, fileName, zone, online, isDead, role = GetRaidRosterInfo(i)
+			local groupRole = DetailsFramework.UnitGroupRolesAssigned("raid" .. i)
+			leader_roster_info = {name, rank, subgroup, level, class, fileName, zone, online, isDead, role, groupRole}
+
 		else
-			tinsert (RaidGroups.VirtualGroups, {GetRaidRosterInfo (i)})
-			--> RaidGroups.VirtualGroups [i] = {GetRaidRosterInfo (i)} --has to be tinsert or first index is NIL due to raid leader
+			local name, rank, subgroup, level, class, fileName, zone, online, isDead, role = GetRaidRosterInfo(i)
+			local groupRole = DetailsFramework.UnitGroupRolesAssigned("raid" .. i)
+			tinsert(RaidGroups.VirtualGroups, {name, rank, subgroup, level, class, fileName, zone, online, isDead, role, groupRole})
 		end
 	end
-	
+
 	--> if the leader was the latest player in the raid group
 	if (raid_leader_group) then
 		leader_correct_index = #RaidGroups.VirtualGroups+1
@@ -1103,7 +1410,7 @@ function RaidGroups.Sync (no_wait)
 	end
 
 	if (leader_correct_index) then
-		tinsert (RaidGroups.VirtualGroups, leader_correct_index, leader_roster_info)
+		tinsert(RaidGroups.VirtualGroups, leader_correct_index, leader_roster_info)
 	end
 	
 	RaidGroups.UpdateVirtualGroups()
@@ -1112,29 +1419,14 @@ end
 function RaidGroups:GROUP_ROSTER_UPDATE()
 	RaidGroups.CanGoNext = true
 
-	--print ("roster update 1", RaidGroups.GroupsFrame, RaidGroups.GroupsFrame and RaidGroups.GroupsFrame:IsShown())
-	if (RaidGroups.GroupsFrame and RaidGroups.GroupsFrame:IsShown()) then
-		--print ("roster update 2")
-		--for i = 1, GetNumGroupMembers() do
-		--	RaidGroups.VirtualGroups [i] = {GetRaidRosterInfo (i)}
-		--end
-		--RaidGroups.Sync()
-	end
-	
-	--> verifica pessoas que sairam do grupo e atualiza automaticamente
---[[
-	for i = #RaidGroups.VirtualGroups, 1, -1 do
-		local name, rank, subgroup, level, class, fileName, zone, online, isDead, role, isML = unpack (RaidGroups.VirtualGroups [i])
-		
-		if (not UnitInRaid (name)) then
-			tremove ()
+	if (RaidGroups.GroupsFrame) then
+		if (RaidGroups.GroupsFrame:IsShown()) then
+			if (RaidGroups.db.auto_refresh_roster) then
+				RaidGroups.Sync()
+			end
 		end
 	end
-	RaidGroups.VirtualGroups, {GetRaidRosterInfo (i)}
---]]	
 end
-
-
 
 if (can_install) then
 	local install_status = RA:InstallPlugin ("Raid Groups", "RARaidGroups", RaidGroups, default_config)
@@ -1151,5 +1443,3 @@ function SlashCmdList.RaidGroups (msg, editbox)
 	--open
 
 end
-
---raidUI on AddOns

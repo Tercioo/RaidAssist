@@ -210,8 +210,8 @@ function PasteText.BuildOptions (frame)
 		RA:BuildMenu (frame, options_list, 0, 0, 500, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
 		
 		local scroll_width = 200
-		local scroll_line_amount = 27
-		local scroll_line_height = 21
+		local scroll_line_amount = 26
+		local scroll_line_height = 22
 		
 		local scroll_refresh = function (self, data, offset, total_lines)
 			for i = 1, total_lines do
@@ -224,6 +224,7 @@ function PasteText.BuildOptions (frame)
 					--line.icon:SetTexture(nil)
 					line.Index = index
 					line.DeleteButton.Index = index
+					line.RenameBox.Index = index
 					
 					if (index == PasteText.LastSelected_Options) then
 						RA:SetFontColor (line.name, "orange")
@@ -238,7 +239,7 @@ function PasteText.BuildOptions (frame)
 			PasteText.RemoveText (self.Index)
 		end
 		
-		local editNote = function (noteID, setFocus)
+		local editNote = function(noteID, setFocus)
 			PasteText.LastSelected_Options = noteID
 			PasteText.OptionsPasteMenuScroll:Refresh()
 			PasteText:RefreshText()
@@ -259,9 +260,25 @@ function PasteText.BuildOptions (frame)
 			end
 		end
 
-		local line_onclick = function (self)
+		local line_onclick = function(self)
 			PasteText:SaveText()
-			editNote (self.Index)
+
+			if (self.doubleClickTime) then
+				if (self.doubleClickTime > GetTime()) then
+					--rename
+					self.RenameBox:Show()
+					self.RenameBox:SetText(self.name:GetText())
+					self.RenameBox:SetJustifyH("left")
+					self.RenameBox:SetFocus(true)
+					self.RenameBox:HighlightText(0)
+
+					self.name:Hide()
+					return
+				end
+			end
+
+			self.doubleClickTime = GetTime() + 0.250
+			editNote(self.Index)
 		end
 
 		local line_onenter = function(self)
@@ -274,11 +291,11 @@ function PasteText.BuildOptions (frame)
 
 		local scroll_createline = function(self, index)
 			local line = CreateFrame ("button", "$parentLine" .. index, self, "BackdropTemplate")
-			line:SetPoint ("topleft", self, "topleft", 0, -((index-1)*(scroll_line_height+1)))
-			line:SetSize (scroll_width, scroll_line_height)
-			line:SetScript ("OnEnter", line_onenter)
-			line:SetScript ("OnLeave", line_onleave)
-			line:SetScript ("OnClick", line_onclick)
+			line:SetPoint("topleft", self, "topleft", 0, -((index-1)*(scroll_line_height+1)))
+			line:SetSize(scroll_width, scroll_line_height)
+			line:SetScript("OnEnter", line_onenter)
+			line:SetScript("OnLeave", line_onleave)
+			line:SetScript("OnClick", line_onclick)
 
 			line:SetBackdrop ({bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
 			line:SetBackdropColor (0, 0, 0, 0.2)
@@ -288,24 +305,53 @@ function PasteText.BuildOptions (frame)
 			icon:SetAlpha(0.7)
 			icon:SetTexture([[Interface\BUTTONS\UI-GuildButton-PublicNote-Up]])
 
-			local name = line:CreateFontString ("$parentName", "overlay", "GameFontNormal")
-			RA:SetFontSize (name, 9)
-			
+			local name = line:CreateFontString("$parentName", "overlay", "GameFontNormal")
+			RA:SetFontSize(name, 11)
+
+			local editBox = DetailsFramework:CreateTextEntry(line, function()end, scroll_width-40, scroll_line_height-2)
+			editBox:SetPoint("left", icon, "right", 2, 0)
+			editBox:SetHook("OnEnterPressed", function()
+				local text = editBox.text
+				local note = PasteText.db.texts[editBox.Index]
+
+				if (note) then
+					note.title = text
+					name:SetText(text)
+				end
+
+				name:Show()
+				editBox:Hide()
+			end)
+
+			editBox:SetHook("OnEscapePressed", function()
+				name:Show()
+				editBox:Hide()
+			end)
+
+			editBox:SetHook("OnEditFocusLost", function()
+				name:Show()
+				editBox:Hide()
+			end)
+
+			editBox:SetBackdrop(nil)
+			editBox:Hide()
+
 			icon:SetPoint("left", line, "left", 2, 0)
-			name:SetPoint ("left", icon, "right", 2, 0)
+			name:SetPoint("left", icon, "right", 2, 0)
 
 			line.icon = icon
 			line.name = name
 			name:SetHeight (10)
 			name:SetJustifyH ("left")
 			
-			local deleteButton = CreateFrame ("button", nil, line, "BackdropTemplate")
-			deleteButton:SetPoint ("right", line, "right", -2, 0)
-			deleteButton:SetSize (18, 18)
-			deleteButton:SetScript ("OnClick", line_delete_OnClick)
-			deleteButton:SetNormalTexture ([[Interface\GLUES\LOGIN\Glues-CheckBox-Check]])
+			local deleteButton = CreateFrame("button", nil, line, "BackdropTemplate")
+			deleteButton:SetPoint("right", line, "right", -2, 0)
+			deleteButton:SetSize(16, 16)
+			deleteButton:SetScript("OnClick", line_delete_OnClick)
+			deleteButton:SetNormalTexture([[Interface\GLUES\LOGIN\Glues-CheckBox-Check]])
 			
 			line.DeleteButton = deleteButton
+			line.RenameBox = editBox
 			return line
 		end
 		
@@ -355,8 +401,8 @@ function PasteText.BuildOptions (frame)
 		end
 		
 		function PasteText:SaveText()
-			if (PasteText.db.texts [PasteText.LastSelected_Options]) then
-				PasteText.db.texts [PasteText.LastSelected_Options].text = pasteEditbox:GetText()
+			if (PasteText.db.texts[PasteText.LastSelected_Options]) then
+				PasteText.db.texts[PasteText.LastSelected_Options].text = pasteEditbox:GetText()
 			end
 		end
 		
@@ -385,23 +431,18 @@ function PasteText.BuildOptions (frame)
 			end
 			
 		end)
-		
+
 		--create new button
-		local create_new = function (name)
-			if (name ~= "") then
-				PasteText.AddText (name, "")
-				PasteText.LastSelected_Options = 1
-				frame.PasteMenuScroll:Refresh()
-				PasteText:RefreshText()
-				editNote (1, true) --it insert in the first index
-			end
+		local createNewText = function()
+			local name = "new text " .. random(1111, 9999)
+			PasteText.AddText(name, "")
+			PasteText.LastSelected_Options = 1
+			frame.PasteMenuScroll:Refresh()
+			PasteText:RefreshText()
+			editNote(1, true) --it insert in the first index
 		end
 
-		local AskForAName = function()
-			PasteText:ShowTextPromptPanel ("Enter the name for the new Paste", create_new)
-		end
-
-		local CreateButton = PasteText:CreateButton(frame, AskForAName, 120, 20, "Create New Text", _, _, _, "button_createnew", _, _, PasteText:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), PasteText:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+		local CreateButton = PasteText:CreateButton(frame, createNewText, 120, 20, "Create New Text", _, _, _, "button_createnew", _, _, PasteText:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), PasteText:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 		CreateButton:SetPoint(228, -20)
 
 		local SendSelectedText = function()
@@ -425,15 +466,17 @@ function PasteText.BuildOptions (frame)
 		RA:CreateAnimation(flashAnimation, "alpha", 1, .05, 0, .1)
 		RA:CreateAnimation(flashAnimation, "alpha", 2, .05, .1, 0)
 
-		local emptyText2 = RA:CreateLabel(frame, "This notepad is empty\nClick anywhere here to start editing it.", 14, {.98, .8, .8, .75})
+		local emptyText2 = RA:CreateLabel(pasteEditbox, "there's no text here\nclick anywhere here to start editing it.", 14, {.98, .8, .8, .35})
 		emptyText2:SetJustifyH("center")
 		emptyText2:SetPoint("center", pasteEditbox, "center", 0, 100)
 		emptyText2:Hide()
 		PasteText.EmptyText2 = emptyText2
 
-		local emptyText = RA:CreateLabel(frame, "Click on 'Create New Text'\nThen click here to Add the Text\nSend it to Your Raid, They Can Copy/Paste it\n\nyou can send any text you want: a team speak server, youtube video\na strategy, link to a topic on mmo-champion forum.", 14, {.8, .8, .8, .75})
-		emptyText:SetJustifyH("center")
-		emptyText:SetPoint("center", pasteEditbox, "center")
+		local emptyText = RA:CreateLabel(pasteEditbox, "Click on 'Create New Text'\nThen click here to add the Text\nSend it to Your Raid, They Can Copy/Paste it\n\nyou can send any text you want: a team speak server, youtube video\na strategy, link to a topic on mmo-champion forum.\n\ndouble click to rename the note name.", 14, {.8, .8, .8, .75})
+		emptyText:SetJustifyH("left")
+		emptyText:SetPoint("bottomleft", RaidAssistOptionsPanel, "bottomleft", 445, 45)
+		RA:SetFontSize (emptyText, 14)
+		RA:SetFontColor (emptyText, "gray")
 		emptyText:Hide()
 		PasteText.EmptyText = emptyText
 
@@ -478,8 +521,8 @@ end
 function PasteText.AddText(title, text, source, showOnScreen)
 	local newText
 	for i = 1, #PasteText.db.texts do
-		if (PasteText.db.texts [i].title == title) then
-			newText = PasteText.db.texts [i]
+		if (PasteText.db.texts[i].title == title) then
+			newText = PasteText.db.texts[i]
 			break
 		end
 	end
@@ -487,7 +530,7 @@ function PasteText.AddText(title, text, source, showOnScreen)
 	if (not newText) then
 		newText = {title = title, text = text}
 		tinsert (PasteText.db.texts, 1, newText)
-		tremove (PasteText.db.texts, 100)
+		tremove (PasteText.db.texts, 50)
 	else
 		newText.text = text
 	end

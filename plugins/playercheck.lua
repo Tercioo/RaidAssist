@@ -121,42 +121,39 @@ function PlayerCheck.OnShowOnOptionsPanel()
 end
 
 function PlayerCheck.BuildOptions(frame)
-	if (frame.FirstRun) then
-		return
-	end
-	frame.FirstRun = true
 
 	--libRaidStatus
 	local raidStatusLib = LibStub:GetLibrary("LibRaidStatus-1.0")
 
+	if (frame.FirstRun) then
+		if (IsInGroup()) then
+			raidStatusLib.RequestAllPlayersInfo()
+		end
+		return
+	end
+
+	frame.FirstRun = true
+
 	--> register callback on libRaidStatus
-		function PlayerCheck.OnGearDurabilityUpdate(playerName, durability, playerGear, allPlayersGear)
+		function PlayerCheck.RefreshScrollData()
 			if (frame.playerInfoScroll:IsShown()) then
 				frame.playerInfoScroll.RefreshData()
 			end
 		end
-		raidStatusLib.RegisterCallback(PlayerCheck, "GearDurabilityUpdate", "OnGearDurabilityUpdate")
+		raidStatusLib.RegisterCallback(PlayerCheck, "PlayerUpdate", "RefreshScrollData")
+		raidStatusLib.RegisterCallback(PlayerCheck, "TalentUpdate", "RefreshScrollData")
+		raidStatusLib.RegisterCallback(PlayerCheck, "OnPlayerRess", "RefreshScrollData")
+		raidStatusLib.RegisterCallback(PlayerCheck, "GearListWiped", "RefreshScrollData")
+		raidStatusLib.RegisterCallback(PlayerCheck, "GearUpdate", "RefreshScrollData")
+		raidStatusLib.RegisterCallback(PlayerCheck, "GearDurabilityUpdate", "RefreshScrollData")
 
-		function PlayerCheck.OnGearUpdate(playerName, playerGear, allPlayersGear)
-			if (frame.playerInfoScroll:IsShown()) then
-				frame.playerInfoScroll.RefreshData()
-			end
-		end
-		raidStatusLib.RegisterCallback(PlayerCheck, "GearUpdate", "OnGearUpdate")
-
-		function PlayerCheck.OnGearListWiped(allPlayersGear)
-			if (frame.playerInfoScroll:IsShown()) then
-				frame.playerInfoScroll.RefreshData()
-			end
-		end
-		raidStatusLib.RegisterCallback(PlayerCheck, "GearListWiped", "OnGearListWiped")
 
 	--spell scroll options
 	local scroll_width = 848
 	local scroll_height = 620
 	local scroll_line_height = 20
 	local scroll_lines = floor(scroll_height / scroll_line_height) - 1
-	local lineSeparatorHeight = scroll_height
+	local lineSeparatorHeight = scroll_height + 20
 	local lineSeparatorWidth = 1
 
 	local backdrop_color = {.2, .2, .2, 0.2}
@@ -179,7 +176,7 @@ function PlayerCheck.BuildOptions(frame)
 
 	--create the header and the scroll frame
 	local headerTable = {
-		{text = "Spec", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC", selected = true},
+		{text = "Spec", width = 40, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC", selected = true},
 		{text = "Name", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "iLevel", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "Repair", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
@@ -187,7 +184,7 @@ function PlayerCheck.BuildOptions(frame)
 		{text = "No Gems", width = headerSizeMedium, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "Talents", width = headerSizeBigPlus, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
 		{text = "Renown", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
-		{text = "Conduit", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
+		{text = "Conduit", width = 195, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
 	}
 
 	local headerOnClickCallback = function(headerFrame, columnHeader)
@@ -196,11 +193,11 @@ function PlayerCheck.BuildOptions(frame)
 	end
 
 	local headerOptions = {
-		padding = 2,
+		padding = 1,
 		header_backdrop_color = {.3, .3, .3, .8},
 		header_backdrop_color_selected = {.5, .5, .5, 0.8},
 		use_line_separators = true,
-		line_separator_color = {.1, .1, .1, .6},
+		line_separator_color = {.1, .1, .1, .9},
 		line_separator_width = lineSeparatorWidth,
 		line_separator_height = lineSeparatorHeight,
 		line_separator_gap_align = true,
@@ -250,11 +247,13 @@ function PlayerCheck.BuildOptions(frame)
 		self.icon:SetBlendMode("BLEND")
 	end
 
+	local headerFontSize = 11
+
 	--create line for the spell scroll
 	local scroll_createline = function (self, index)
 		local line = CreateFrame("button", "$parentLine" .. index, self, "BackdropTemplate")
 		line:SetPoint("topleft", self, "topleft", 1, -((index-1) * (scroll_line_height+1)) - 1)
-		line:SetSize(scroll_width, scroll_line_height)
+		line:SetSize(scroll_width-2, scroll_line_height)
 		line.id = index
 
 		line:SetScript("OnEnter", line_onenter)
@@ -289,16 +288,29 @@ function PlayerCheck.BuildOptions(frame)
 			specIcon.hoverWidth = specIcon.width * 1.15
 			specIcon.hoverHeight = specIcon.height * 1.15
 
+			local covenantIcon = DF:CreateImage(line, "", line:GetHeight() - 2, line:GetHeight() - 2)
+			covenantIcon.texcoord = {.1, .9, .1, .9}
+			covenantIcon.originalWidth = covenantIcon.width
+			covenantIcon.originalHeight = covenantIcon.height
+			covenantIcon.hoverWidth = covenantIcon.width * 1.15
+			covenantIcon.hoverHeight = covenantIcon.height * 1.15
+			covenantIcon:SetPoint("left", specIcon, "right", 2, 0)
+
 			--player name
 			local playerName = DF:CreateLabel(line)
 			playerName:SetText("player name here")
 			playerName.alpha = 1
+			playerName.fontsize = headerFontSize
 
 			--ilevel
 			local itemLevel = DF:CreateLabel(line)
+			itemLevel.fontsize = headerFontSize
+			itemLevel.alpha = 1
 
 			--repair
 			local repairPct = DF:CreateLabel(line)
+			repairPct.fontsize = headerFontSize
+			repairPct.alpha = 1
 
 			--enchant missing
 			local enchantMissing = DF:CreateLabel(line)
@@ -325,6 +337,8 @@ function PlayerCheck.BuildOptions(frame)
 
 			--renown
 			local renownLevel = DF:CreateLabel(line)
+			renownLevel.fontsize = headerFontSize
+			renownLevel.alpha = 1
 
 			--conduits
 			local conduitsFrame = CreateFrame("frame", "$parentConduits", line)
@@ -332,9 +346,9 @@ function PlayerCheck.BuildOptions(frame)
 			conduitsFrame.frames = {}
 			for i = 1, 16 do
 				local conduitFrame = CreateFrame("frame", "$parentConduit" .. i, conduitsFrame)
-				conduitFrame:SetPoint("left", conduitsFrame, "left", (i-1)*scroll_line_height, 0)
+				conduitFrame:SetPoint("left", conduitsFrame, "left", (i-1)*(scroll_line_height-2), 0)
 				tinsert(conduitsFrame.frames, conduitFrame)
-				conduitFrame:SetSize(scroll_line_height - 2, scroll_line_height - 2)
+				conduitFrame:SetSize(scroll_line_height - 4, scroll_line_height - 2)
 				local conduitIcon = conduitFrame:CreateTexture(nil, "artwork")
 				conduitIcon:SetAllPoints()
 				conduitFrame.icon = conduitIcon
@@ -345,6 +359,7 @@ function PlayerCheck.BuildOptions(frame)
 
 		--store the labels into the line object
 		line.specIcon = specIcon
+		line.covenantIcon = covenantIcon
 		line.playerName = playerName
 		line.itemLevel = itemLevel
 		line.repairPct = repairPct
@@ -398,6 +413,13 @@ function PlayerCheck.BuildOptions(frame)
 					line.specIcon:SetTexture("")
 				end
 
+				local covenantId = dataTable[11]
+				if (covenantId > 0) then
+					line.covenantIcon:SetTexture(LIB_RAID_STATUS_COVENANT_ICONS[covenantId])
+				else
+					line.covenantIcon:SetTexture("")
+				end
+
 				--player name
 				line.playerName:SetText(DF:RemoveRealmName(dataTable[1]))
 				local _, class = UnitClass(dataTable[1])
@@ -409,9 +431,18 @@ function PlayerCheck.BuildOptions(frame)
 
 				--item level
 				line.itemLevel:SetText(dataTable[3])
+				line.itemLevel.fontcolor = "white"
 
 				--repair
 				line.repairPct:SetText(dataTable[2] .. "%")
+
+				if (dataTable[2] < 25) then
+					line.repairPct.fontcolor = "red"
+				elseif (dataTable[2] < 50) then
+					line.repairPct.fontcolor = "yellow"
+				else
+					line.repairPct.fontcolor = "white"
+				end
 
 				--enchant missing
 				local missingEnchants = dataTable[6]
@@ -465,6 +496,7 @@ function PlayerCheck.BuildOptions(frame)
 
 				--renown
 				line.renownLevel:SetText(dataTable[8])
+				line.renownLevel.fontcolor = "white"
 
 				--conduits
 				--line.conduitsFrame = conduitsFrame
@@ -574,11 +606,13 @@ function PlayerCheck.BuildOptions(frame)
 			local renown = playerGeneralInfo.renown or 1
 			local talents = playerGeneralInfo.talents or {}
 			local conduits = playerGeneralInfo.conduits or {}
+			local covenantId = playerGeneralInfo.covenantId or 0
 
 			thisResult[7] = specId
 			thisResult[8] = renown
 			thisResult[9] = talents
 			thisResult[10] = conduits
+			thisResult[11] = covenantId
 
 			if (needToAdd) then
 				result[#result+1] = thisResult

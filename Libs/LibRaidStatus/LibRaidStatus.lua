@@ -1,6 +1,6 @@
 
 local major = "LibRaidStatus-1.0"
-local CONST_LIB_VERSION = 18
+local CONST_LIB_VERSION = 20
 LIB_RAID_STATUS_CAN_LOAD = false
 
 --declae the library within the LibStub
@@ -21,6 +21,7 @@ LIB_RAID_STATUS_CAN_LOAD = false
     local CONST_DIAGNOSTIC_COMM = false
 
     local CONST_COMM_PREFIX = "LRS"
+    local CONST_COMM_FULLINFO_PREFIX = "F"
     local CONST_COMM_COOLDOWNUPDATE_PREFIX = "U"
     local CONST_COMM_COOLDOWNFULLLIST_PREFIX = "C"
     local CONST_COMM_GEARINFO_FULL_PREFIX = "G"
@@ -246,6 +247,7 @@ LIB_RAID_STATUS_CAN_LOAD = false
 
     raidStatusLib.commHandler.commCallback = {
                                             --when transmiting
+        [CONST_COMM_FULLINFO_PREFIX] = {}, --update all
         [CONST_COMM_COOLDOWNFULLLIST_PREFIX] = {}, --all cooldowns of a player
         [CONST_COMM_COOLDOWNUPDATE_PREFIX] = {}, --an update of a single cooldown
         [CONST_COMM_GEARINFO_FULL_PREFIX] = {}, --an update of gear information
@@ -547,7 +549,9 @@ LIB_RAID_STATUS_CAN_LOAD = false
 
         ["PLAYER_REGEN_ENABLED"] = function(...)
             --left combat
-            raidStatusLib.Schedules.NewUniqueTimer(10 + math.random(0, 4), raidStatusLib.gearManager.SendDurability, "gearManager", "sendDurability_Schedule")
+            --when left encounter, share everything
+            --small hack, pretend to have just entered in the group, hence send all data
+            raidStatusLib.internalCallback.TriggerEvent("onEnterGroup")
         end,
 
         ["UPDATE_INVENTORY_DURABILITY"] = function(...)
@@ -562,6 +566,10 @@ LIB_RAID_STATUS_CAN_LOAD = false
             --player changed an equipment
             raidStatusLib.Schedules.NewUniqueTimer(4 + math.random(0, 5), raidStatusLib.gearManager.SendAllGearInfo, "gearManager", "sendAllGearInfo_Schedule")
         end,
+
+        ["ENCOUNTER_END"] = function()
+
+        end,
     }
 
     eventFrame:RegisterEvent("GROUP_ROSTER_UPDATE")
@@ -575,8 +583,9 @@ LIB_RAID_STATUS_CAN_LOAD = false
     --eventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
     if (not isTimewalkWoW()) then
         eventFrame:RegisterEvent("PLAYER_TALENT_UPDATE")
+        eventFrame:RegisterEvent("ENCOUNTER_END")
     end
-    
+
     eventFrame:RegisterEvent("PLAYER_DEAD")
     eventFrame:RegisterEvent("PLAYER_ALIVE")
     eventFrame:RegisterEvent("PLAYER_UNGHOST")
@@ -672,6 +681,41 @@ LIB_RAID_STATUS_CAN_LOAD = false
     raidStatusLib.commHandler.RegisterComm(CONST_COMM_PLAYER_ALIVE_PREFIX, function(data, sourceName)
         raidStatusLib.mainControl.playerAliveStatus[sourceName] = true
         raidStatusLib.publicCallback.TriggerCallback("OnPlayerRess", sourceName)
+    end)
+
+
+--------------------------------------------------------------------------------------------------------------------------------
+--> ~all, request data from all players
+
+    --send a request to all player to send their data
+    function raidStatusLib.RequestAllPlayersInfo()
+		if (not IsInGroup()) then
+			return
+		end
+
+        raidStatusLib.requestAllInfoCooldown = raidStatusLib.requestAllInfoCooldown or 0
+
+        if (raidStatusLib.requestAllInfoCooldown > GetTime()) then
+            return
+        end
+
+        raidStatusLib.commHandler.SendCommData(CONST_COMM_FULLINFO_PREFIX)
+        diagnosticComm("RequestAllInfo| " .. CONST_COMM_FULLINFO_PREFIX) --debug
+
+        raidStatusLib.requestAllInfoCooldown = GetTime() + 5
+        return true
+    end
+
+    raidStatusLib.commHandler.RegisterComm(CONST_COMM_FULLINFO_PREFIX, function(data, sourceName)
+        raidStatusLib.sendRequestedAllInfoCooldown = raidStatusLib.sendRequestedAllInfoCooldown or 0
+
+        --some player in the group requested  all information from all players
+        if (raidStatusLib.sendRequestedAllInfoCooldown > GetTime()) then
+            return
+        end
+
+        raidStatusLib.Schedules.NewUniqueTimer(random() + math.random(0, 3), raidStatusLib.mainControl.SendFullData, "mainControl", "sendFullData_Schedule")
+        raidStatusLib.sendRequestedAllInfoCooldown = GetTime() + 5
     end)
 
 --------------------------------------------------------------------------------------------------------------------------------

@@ -92,11 +92,11 @@ AuraCheck.OnInstall = function (plugin)
 end
 
 AuraCheck.OnEnable = function (plugin)
-	
+
 end
 
 AuraCheck.OnDisable = function (plugin)
-	
+
 end
 
 AuraCheck.OnProfileChanged = function (plugin)
@@ -112,7 +112,7 @@ local alphabeticalPlayers = {}
 local auraNames = {}
 local panelHeader = {}
 
-function AuraCheck.UpdateAurasFillPanel (fillPanel)
+function AuraCheck.UpdateAurasFillPanel(fillPanel)
 	fillPanel = fillPanel or (AuraCheckerAurasFrame and AuraCheckerAurasFrame.fillPanel)
 	if (not fillPanel) then
 		return
@@ -165,10 +165,9 @@ function AuraCheck.UpdateAurasFillPanel (fillPanel)
 		return {playerName, unpack(temp)}
 	end)
 
-	fillPanel:SetTotalFunction (function() return #alphabeticalPlayers end)
-	fillPanel:SetSize (fillpanel_width, fillpanel_height)
-
-	fillPanel:UpdateRows (panelHeader)
+	fillPanel:SetTotalFunction(function() return #alphabeticalPlayers end)
+	fillPanel:SetSize(fillpanel_width, fillpanel_height)
+	fillPanel:UpdateRows(panelHeader)
 	fillPanel:Refresh()
 
 	--update received auras scroll
@@ -177,36 +176,35 @@ end
 
 function AuraCheck.OnShowOnOptionsPanel()
 	local OptionsPanel = AuraCheck.OptionsPanel
-	AuraCheck.BuildOptions (OptionsPanel)
+	AuraCheck.BuildOptions(OptionsPanel)
 end
 
 function AuraCheck.BuildOptions (frame)
-	
 	if (frame.FirstRun) then
 		return
 	end
 	frame.FirstRun = true
-	
+
 	local framesSize = {800, 600}
 	local framesPoint = {"topleft", frame, "topleft", 0, -30}
 	local backdrop = {bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true}
 	local backdropColor = {0, 0, 0, 0.5}
-	
+
 	function AuraCheck.ShowAurasPanel()
 		AuraCheckerAurasFrame:Show()
 		AuraCheckerHistoryFrame:Hide()
-		frame.showMainFrameButton:SetBackdropBorderColor (1, 1, 0)
-		frame.showHistoryFrameButton:SetBackdropBorderColor (0, 0, 0)
+		frame.showMainFrameButton:SetBackdropBorderColor(1, 1, 0)
+		frame.showHistoryFrameButton:SetBackdropBorderColor(0, 0, 0)
 		frame.ShowingPanel = 1
 	end
 	function AuraCheck.ShowHistoryPanel()
 		AuraCheckerAurasFrame:Hide()
 		AuraCheckerHistoryFrame:Show()
-		frame.showMainFrameButton:SetBackdropBorderColor (0, 0, 0)
-		frame.showHistoryFrameButton:SetBackdropBorderColor (1, 1, 0)
+		frame.showMainFrameButton:SetBackdropBorderColor(0, 0, 0)
+		frame.showHistoryFrameButton:SetBackdropBorderColor(1, 1, 0)
 		frame.ShowingPanel = 2
 	end
-	
+
 	--on main frame
 		local mainButtonTemplate = {
 			backdrop = {edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true},
@@ -241,16 +239,16 @@ function AuraCheck.BuildOptions (frame)
 		fillPanel:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
 
 		local NoAuraLabel = AuraCheck:CreateLabel (fillPanel, "Select a weakaura on the right scroll box.\nClick on 'Check Aura', to see users who has it in the raid.\nClick on 'Share Aura' to send the aura to all raid members.\nRaid members also must have 'Raid Assist' addon.")
-		NoAuraLabel:SetPoint ("left", RaidAssistOptionsPanel, "left", 225, 160)
+		NoAuraLabel:SetPoint ("bottomleft", RaidAssistOptionsPanel, "bottomleft", 225, 40)
 		NoAuraLabel.align = "left"
 		AuraCheck:SetFontSize (NoAuraLabel, 14)
-		AuraCheck:SetFontColor (NoAuraLabel, "silver")
+		AuraCheck:SetFontColor (NoAuraLabel, "gray")
 		
 		local ResultInfoLabel = AuraCheck:CreateLabel (fillPanel, "When checking or sharing an aura, results can be:\n\n|cFFFF0000guild|r: is not from the same guild\n|cFFFFFF00ok|r: refused but already has the aura installed\n|cFFFF0000declined|r: the user declined the aura\n|cFF55FF55ok|r: the user accepted or already have the aura\n|cFFFF5555-|r: the user DO NOT have the aura\n|cFFFF5555NO WA|r: the user DO NOT have weakauras installed\n|cFF888888?|r: waiting the answer from the raid member\n|cFFFF0000offline|r: the raid member is offline")
-		ResultInfoLabel:SetPoint ("left", RaidAssistOptionsPanel, "left", 225, 30)
+		ResultInfoLabel:SetPoint ("bottomleft", RaidAssistOptionsPanel, "bottomleft", 225, 120)
 		ResultInfoLabel.align = "left"
 		AuraCheck:SetFontSize (ResultInfoLabel, 14)
-		AuraCheck:SetFontColor (ResultInfoLabel, "silver")
+		AuraCheck:SetFontColor (ResultInfoLabel, "gray")
 		fillPanel.NoAuraLabel = NoAuraLabel
 		fillPanel.ResultInfoLabel = ResultInfoLabel
 		
@@ -286,8 +284,9 @@ function AuraCheck.BuildOptions (frame)
 					local auraName = data[1]
 					local auraIcon = data[2]
 
-					button.Icon:SetTexture(auraIcon)
+					--button.Icon:SetTexture(auraIcon)
 					button.Label:SetText(auraName)
+					DetailsFramework:TruncateText(button.Label, button:GetWidth()-4)
 
 					if (auraName == self.CurrentAuraSelected) then
 						button:SetBackdropColor(DetailsFramework:ParseColors("gray"))
@@ -356,11 +355,11 @@ function AuraCheck.BuildOptions (frame)
 		--> aura selection
 		for i = 1, CONST_AURALIST_ROWS do
 			local f = CreateFrame ("frame", "AuraCheckerAurasFrameAuraScroll_Button" .. i, auraScroll, "BackdropTemplate")
-			f:SetPoint ("topleft", auraScroll, "topleft", 2, -(i-1)* (CONST_AURALIST_ROW_HEIGHT+1))
+			f:SetPoint ("topleft", auraScroll, "topleft", 1, -(i-1)* (CONST_AURALIST_ROW_HEIGHT+1))
 			f:SetScript ("OnMouseUp", on_mousedown)
 			f:SetScript ("OnEnter", aura_on_enter)
 			f:SetScript ("OnLeave", aura_on_leave)
-			f:SetSize (180, CONST_AURALIST_ROW_HEIGHT)
+			f:SetSize (178, CONST_AURALIST_ROW_HEIGHT)
 			f:SetBackdrop (backdrop)
 			f:SetBackdropColor (unpack (backdropColor))
 			f.LastClick = 0
@@ -368,11 +367,11 @@ function AuraCheck.BuildOptions (frame)
 			local auraIcon = f:CreateTexture(nil, "overlay")
 			auraIcon:SetSize(CONST_AURALIST_ROW_HEIGHT-4, CONST_AURALIST_ROW_HEIGHT-4)
 			auraIcon:SetTexCoord(.1, .9, .1, .9)
-
 			auraIcon:SetPoint ("left", f, "left", 2, 0)
 
 			local label = f:CreateFontString (nil, "overlay", "GameFontNormal")
-			label:SetPoint("topleft", auraIcon, "topright", 2, -4)
+			--label:SetPoint("topleft", auraIcon, "topright", 2, -4)
+			label:SetPoint("left", f, "left", 2, 0)
 
 			local timeToShare = f:CreateFontString (nil, "overlay", "GameFontNormal")
 			timeToShare:SetPoint("topleft", label, "bottomleft", 0, -4)
@@ -447,57 +446,51 @@ function AuraCheck.BuildOptions (frame)
 			AuraCheck:SendPluginCommMessage (COMM_AURA_CHECKREQUEST, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName)
 			
 			--fill the result table
-			local myName = UnitName ("player") .. "-" .. GetRealmName()
+			local myName = GetUnitName("player", true)
 
 			if (IsInRaid()) then
 				for i = 1, GetNumGroupMembers() do
-					local playerName, realmName = UnitFullName ("raid" .. i)
-					if (realmName == "" or realmName == nil) then
-						realmName = GetRealmName()
-					end
-					playerName = playerName .. "-" .. realmName
-					
-					AuraCheck.AuraState [playerName] = AuraCheck.AuraState [playerName] or {}
-					if (myName == playerName) then
-						AuraCheck.AuraState [playerName] [auraName] = RESPONSE_TYPE_HAVE
-					else
-						if (UnitIsConnected ("raid" .. i)) then
-							AuraCheck.AuraState [playerName] [auraName] = RESPONSE_TYPE_WAITING
+					local unitId = "raid" .. i
+					local playerName = GetUnitName(unitId, true)
+
+					if (myName ~= playerName) then
+						AuraCheck.AuraState[playerName] = AuraCheck.AuraState[playerName] or {}
+
+						if (UnitIsConnected(unitId)) then
+							AuraCheck.AuraState[playerName][auraName] = RESPONSE_TYPE_WAITING
 						else
-							AuraCheck.AuraState [playerName] [auraName] = RESPONSE_TYPE_OFFLINE
+							AuraCheck.AuraState[playerName][auraName] = RESPONSE_TYPE_OFFLINE
 						end
 					end
 				end
+
 			elseif (IsInGroup()) then
 				for i = 1, GetNumGroupMembers() - 1 do
-					local playerName, realmName = UnitFullName ("party" .. i)
-					if (realmName == "" or realmName == nil) then
-						realmName = GetRealmName()
-					end
-					playerName = playerName .. "-" .. realmName
-					
+					local unitId = "party" .. i
+					local playerName = GetUnitName(unitId, true)
+
 					AuraCheck.AuraState [playerName] = AuraCheck.AuraState [playerName] or {}
-					if (myName == playerName) then
-						AuraCheck.AuraState [playerName] [auraName] = RESPONSE_TYPE_HAVE
-					else
-						if (UnitIsConnected ("party" .. i)) then
-							AuraCheck.AuraState [playerName] [auraName] = RESPONSE_TYPE_WAITING
+
+					if (myName ~= playerName) then
+						AuraCheck.AuraState [playerName] = AuraCheck.AuraState [playerName] or {}
+
+						if (UnitIsConnected(unitId)) then
+							AuraCheck.AuraState[playerName][auraName] = RESPONSE_TYPE_WAITING
 						else
-							AuraCheck.AuraState [playerName] [auraName] = RESPONSE_TYPE_OFFLINE
+							AuraCheck.AuraState[playerName][auraName] = RESPONSE_TYPE_OFFLINE
 						end
 					end
 				end
 			end
-			
+
 			--wait the results
 			AuraCheck.last_data_request = time()
 			--statusBar
 			frame.statusBarWorking.lefttext = "working..."
 			frame.statusBarWorking:SetTimer(2)
-			
+
 			AuraCheck.UpdateAurasFillPanel()
 		end
-		
 
 		--accordingly to weakauras, these keys shall be ignored when transmiting data
 		local excludedKeys = {
@@ -815,8 +808,8 @@ function AuraCheck.BuildOptions (frame)
 	updateAddonsList (auraScroll)
 	updateHistoryList (historyScroll)
 	
-	frame:SetScript ("OnShow", function()
-		AuraCheck.UpdateAurasFillPanel (fillPanel)
+	frame:SetScript("OnShow", function()
+		AuraCheck.UpdateAurasFillPanel(fillPanel)
 	end)
 	
 end

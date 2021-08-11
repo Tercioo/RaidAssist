@@ -49,17 +49,17 @@
 			"path": "plugins/playercheck.lua",
 			"bookmarks": [
 				{
-					"line": 179,
+					"line": 175,
 					"column": 22,
 					"label": ""
 				},
 				{
-					"line": 413,
-					"column": 0,
+					"line": 414,
+					"column": 2,
 					"label": ""
 				},
 				{
-					"line": 617,
+					"line": 650,
 					"column": 2,
 					"label": ""
 				}
@@ -79,8 +79,18 @@
 			"path": "plugins/raidgroups.lua",
 			"bookmarks": [
 				{
-					"line": 271,
-					"column": 1,
+					"line": 281,
+					"column": 3,
+					"label": ""
+				},
+				{
+					"line": 1150,
+					"column": 3,
+					"label": ""
+				},
+				{
+					"line": 1422,
+					"column": 5,
 					"label": ""
 				}
 			]
@@ -89,27 +99,32 @@
 			"path": "plugins/invite.lua",
 			"bookmarks": [
 				{
-					"line": 151,
-					"column": 8,
+					"line": 166,
+					"column": 32,
 					"label": ""
 				},
 				{
-					"line": 414,
+					"line": 232,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 434,
 					"column": 12,
 					"label": ""
 				},
 				{
-					"line": 483,
+					"line": 503,
 					"column": 38,
 					"label": ""
 				},
 				{
-					"line": 532,
+					"line": 552,
 					"column": 4,
 					"label": ""
 				},
 				{
-					"line": 1037,
+					"line": 991,
 					"column": 0,
 					"label": ""
 				}
@@ -124,22 +139,22 @@
 					"label": ""
 				},
 				{
-					"line": 560,
+					"line": 552,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 597,
+					"line": 589,
 					"column": 6,
 					"label": ""
 				},
 				{
-					"line": 773,
+					"line": 765,
 					"column": 38,
 					"label": ""
 				},
 				{
-					"line": 866,
+					"line": 858,
 					"column": 35,
 					"label": ""
 				}
@@ -159,18 +174,23 @@
 			"path": "plugins/notes.lua",
 			"bookmarks": [
 				{
-					"line": 722,
-					"column": 28,
+					"line": 147,
+					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 999,
-					"column": 34,
+					"line": 388,
+					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 1686,
-					"column": 12,
+					"line": 677,
+					"column": 2,
+					"label": ""
+				},
+				{
+					"line": 728,
+					"column": 4,
 					"label": ""
 				}
 			]
@@ -179,7 +199,7 @@
 			"path": "plugins/addonscheck.lua",
 			"bookmarks": [
 				{
-					"line": 260,
+					"line": 256,
 					"column": 36,
 					"label": ""
 				}
@@ -189,13 +209,48 @@
 			"path": "plugins/pastetext.lua",
 			"bookmarks": [
 				{
-					"line": 174,
-					"column": 43,
+					"line": 226,
+					"column": 25,
 					"label": ""
 				},
 				{
-					"line": 323,
+					"line": 268,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 317,
+					"column": 4,
+					"label": ""
+				},
+				{
+					"line": 366,
 					"column": 16,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "OptionsPanel.lua",
+			"bookmarks": [
+				{
+					"line": 57,
+					"column": 28,
+					"label": ""
+				},
+				{
+					"line": 220,
+					"column": 23,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "../Details_TinyThreat/Details_TinyThreat.lua",
+			"bookmarks": [
+				{
+					"line": 523,
+					"column": 5,
 					"label": ""
 				}
 			]

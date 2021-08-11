@@ -412,10 +412,49 @@ function RA:IsFriend(who)
 	end
 end
 
-function RA:IsGuildFriend(who)
-	if (IsInGuild()) then
-		return UnitIsInMyGuild(who)
+local lastGuildRosterUpdate = 0
+local IsInGuildCallback = function(who, callback)
+	print(who, callback)
+
+	local numTotal, numOnline, numOnlineAndMobile = GetNumGuildMembers()
+	if (not GetGuildRosterShowOffline()) then
+		for i = 1, numOnlineAndMobile do
+			local name, rankName, rankIndex, level, classDisplayName, zone, _, _, isOnline, status, class, achievementPoints, achievementRank, isMobile, canSoR, repStanding, GUID = GetGuildRosterInfo(i)
+			name = Ambiguate(name, "none")
+			if (name == who) then
+				print(1)
+				return callback(who, true)
+			end
+		end
+	else
+		for i = 1, numTotal do
+			local name, rankName, rankIndex, level, classDisplayName, zone, _, _, isOnline, status, class, achievementPoints, achievementRank, isMobile, canSoR, repStanding, GUID = GetGuildRosterInfo(i)
+			if (isOnline and not isMobile) then
+				name = Ambiguate(name, "none")
+				if (name == who) then
+					print(2)
+					return callback(who, true)
+				end
+			end
+		end
 	end
+
+	callback(who, false)
+end
+
+--call back when the result is available
+function RA:IsGuildFriend(who, callback)
+	if (IsInGuild()) then
+		if (lastGuildRosterUpdate < GetTime()) then
+			lastGuildRosterUpdate = GetTime()+10.1
+			C_GuildInfo.GuildRoster()
+			DetailsFramework.Schedules.NewTimer(1, IsInGuildCallback, who, callback)
+			return
+		end
+		IsInGuildCallback(_, who, callback)
+	end
+
+	callback(who, false)
 end
 
 --[=[

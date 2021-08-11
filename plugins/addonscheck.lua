@@ -122,20 +122,21 @@ function AddonsCheck.BuildOptions (frame)
 	end
 	frame.FirstRun = true
 
-	local WelcomeLabel = AddonsCheck:CreateLabel(frame, "This tool tells the raid leader who is using mandatory raid addons.\n\nSelect which addons you want to check on 'Add AddOn' button.\nClick on Sync to see the results.")
-	WelcomeLabel:SetPoint ("center", RaidAssistOptionsPanel, "center", 0, 75)
-	WelcomeLabel.align = "center"
-	AddonsCheck:SetFontSize (WelcomeLabel, 14)
-	AddonsCheck:SetFontColor (WelcomeLabel, "silver")
-	frame.welcomeLabel = WelcomeLabel
-
 	local fillPanel = AddonsCheck:CreateFillPanel(frame, {}, fillpanel_width, fillpanel_height, false, false, false, {rowheight = 16}, _, "RAAddOnsCheckFP")
 	fillPanel:SetPoint ("topleft", frame, "topleft", 0, -30)
 	AddonsCheck.fillPanel = fillPanel
-	fillPanel.WelcomeLabel = WelcomeLabel
+	
 
 	DetailsFramework:ApplyStandardBackdrop(fillPanel)
 	fillPanel:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
+
+	local WelcomeLabel = AddonsCheck:CreateLabel(fillPanel, "Check for use of mandatory addons.\n\nSelect which addons you want to check on 'Add AddOn' button.\nClick on Check Addons to see the results.")
+	WelcomeLabel:SetPoint ("bottomleft", RaidAssistOptionsPanel, "bottomleft", 225, 40)
+	WelcomeLabel.align = "left"
+	AddonsCheck:SetFontSize (WelcomeLabel, 14)
+	AddonsCheck:SetFontColor (WelcomeLabel, "gray")
+	frame.welcomeLabel = WelcomeLabel
+	fillPanel.WelcomeLabel = WelcomeLabel
 
 	local dummy = CreateFrame ("frame", nil, frame, "BackdropTemplate")
 	dummy:SetScript ("OnShow", function()

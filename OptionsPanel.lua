@@ -50,14 +50,17 @@ function RA.OpenMainOptions(plugin)
 
 	RA.db.options_panel = RA.db.options_panel or {}
 
-	local f = RA:CreateStandardFrame (UIParent, CONST_OPTIONS_FRAME_WIDTH, CONST_OPTIONS_FRAME_HEIGHT, "Raid Assist (|cFFFFAA00/raa|r)", "RaidAssistOptionsPanel", RA.db.options_panel)
-	f:SetBackdropBorderColor (1, .7, 0, .8)
-	f:SetBackdropColor (0, 0, 0, 1)
-	DetailsFramework:ApplyStandardBackdrop (f, 0.9)
+	local f = RA:CreateStandardFrame(UIParent, CONST_OPTIONS_FRAME_WIDTH, CONST_OPTIONS_FRAME_HEIGHT, "Raid Assist (|cFFFFAA00/raa|r)", "RaidAssistOptionsPanel", RA.db.options_panel)
+	f:SetBackdropBorderColor(1, .7, 0, .8)
+	f:SetBackdropColor(0, 0, 0, 1)
+	DetailsFramework:ApplyStandardBackdrop(f, 0.9)
+
+	DF:CreateScaleBar(f, RA.db.profile.addon.scale_bar)
+	DF:CreateRightClickToClose(f)
 
 	f.AllOptionsButtons = {}
 	f.AllOptionsPanels = {}
-	
+
 	--create the footer and attach it into the bottom of the main frame
 		local statusBar = CreateFrame ("frame", nil, f, "BackdropTemplate")
 		statusBar:SetPoint ("bottomleft", f, "bottomleft")
@@ -215,7 +218,7 @@ function RA.OpenMainOptions(plugin)
 		end
 
 		--auto open a plugin after /raa
-		allButtons[1]:Click()
+		allButtons[8]:Click()
 end
 
 function RA.CreateHotkeyFrame(f)

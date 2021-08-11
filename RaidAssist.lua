@@ -34,7 +34,9 @@ local defaultConfig = {
 			anchor_size = 50,
 			anchor_color = {r = 0.5, g = 0.5, b = 0.5, a = 1},
 			show_shortcuts = true,
-			
+
+			scale_bar = {scale = 1},
+
 			--when on vertical (left or right)
 			anchor_y = -100,
 			--when in horizontal (top or bottom)

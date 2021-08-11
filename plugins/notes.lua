@@ -22,7 +22,7 @@ local default_config = {
 	text_shadow = false,
 	framestrata = "LOW",
 	locked = false,
-	background = {r=0, g=0, b=0, a=0.3, show = true},
+	background = {r=0, g=0, b=0, a=0.8, show = true},
 	hide_on_combat = false,
 	auto_format = true,
 	auto_complete = true,
@@ -116,75 +116,97 @@ Notepad.OnInstall = function (plugin)
 	--frame shown in the screen
 	local screenFrame = RA:CreateCleanFrame(Notepad, "NotepadScreenFrame")
 	Notepad.screenFrame = screenFrame
-	screenFrame:SetSize(250, 20)
+	screenFrame:SetSize(250, 200)
 	screenFrame:SetClampedToScreen(true)
+	screenFrame:SetResizable(true)
+	screenFrame:SetMaxResize(600, 1024)
+	screenFrame:SetMinResize(150, 50)
 	screenFrame:Hide()
 
-	local title_text = screenFrame:CreateFontString (nil, "overlay", "GameFontNormal")
-	title_text:SetText ("Raid Assist")
-	title_text:SetTextColor (.8, .8, .8, 1)
-	title_text:SetPoint ("center", screenFrame, "center")
+	local title_text = screenFrame:CreateFontString(nil, "overlay", "GameFontNormal")
+	title_text:SetText("Raid Assist")
+	title_text:SetTextColor(.8, .8, .8, 1)
+	title_text:SetPoint("top", screenFrame, "top", 0, -8)
 	screenFrame.title_text = title_text
 
-	-- editbox (screen frame)
 	local editboxNotes = Notepad:NewSpecialLuaEditorEntry(screenFrame, 250, 200, "editboxNotes", "RaidAssignmentsNoteEditboxScreen", true)
-	editboxNotes:SetPoint ("topleft", screenFrame, "bottomleft", 0, 0)
-	editboxNotes:SetPoint ("topright", screenFrame, "bottomright", 0, 0)
-	editboxNotes:SetBackdrop (nil)
-	editboxNotes:SetFrameLevel (screenFrame:GetFrameLevel()+1)
-	editboxNotes:SetResizable (true)
-	editboxNotes:SetMaxResize (600, 1024)
-	editboxNotes:SetMinResize (150, 50)
+	editboxNotes:SetPoint("topleft", screenFrame, "topleft", 0, -20)
+	editboxNotes:SetPoint("topright", screenFrame, "topright", 0, -20)
+	editboxNotes:SetPoint("bottomleft", screenFrame, "bottomleft", 0, 0)
+	editboxNotes:SetPoint("bottomright", screenFrame, "bottomright", 0, 0)
 
+	editboxNotes:SetBackdrop(nil)
+	editboxNotes:SetFrameLevel(screenFrame:GetFrameLevel()+1)
 	screenFrame.text = editboxNotes
 
-	editboxNotes.editbox:SetTextInsets (2, 2, 3, 3)
+	editboxNotes.editbox:SetTextInsets(2, 2, 3, 3)
 	editboxNotes.scroll:ClearAllPoints()
-	editboxNotes.scroll:SetPoint ("topleft", editboxNotes, "topleft", 0, 0)
-	editboxNotes.scroll:SetPoint ("bottomright", editboxNotes, "bottomright", -26, 0)
+	editboxNotes.scroll:SetPoint("topleft", editboxNotes, "topleft", 0, 0)
+	editboxNotes.scroll:SetPoint("bottomright", editboxNotes, "bottomright", -26, 0)
 	local f, h, fl = editboxNotes.editbox:GetFont()
 	editboxNotes.editbox:SetFont (f, 12, fl)
 
 	-- background
-	local background = editboxNotes:CreateTexture (nil, "background")
-	background:SetPoint ("topleft", editboxNotes, "topleft", 0, 0)
-	background:SetPoint ("bottomright", editboxNotes, "bottomright", 0, -5)
+	local background = editboxNotes:CreateTexture(nil, "background")
+	background:SetPoint("topleft", editboxNotes, "topleft", 0, 0)
+	background:SetPoint("bottomright", editboxNotes, "bottomright", 0, 0)
 	screenFrame.background = background
 
-	-- resize button
-	local resize_button = CreateFrame ("button", nil, screenFrame, "BackdropTemplate")
-	resize_button:SetPoint ("topleft", editboxNotes, "bottomleft")
-	resize_button:SetPoint ("topright", editboxNotes, "bottomright")
-	resize_button:SetHeight (16)
-	resize_button:SetFrameLevel (screenFrame:GetFrameLevel()+5)
-	resize_button:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
-	resize_button:SetBackdropColor (0, 0, 0, 0.6)
-	resize_button:SetBackdropBorderColor (0, 0, 0, 0)
-	screenFrame.resize_button = resize_button
+	do
+		local resize_button = CreateFrame("button", nil, screenFrame, "BackdropTemplate")
+		resize_button:SetPoint("bottomleft", screenFrame, "bottomleft")
+		resize_button:SetSize(16, 16)
+		resize_button:SetAlpha(0.6)
+		screenFrame.resize_button = resize_button
+		resize_button:SetFrameLevel(screenFrame:GetFrameLevel() + 6)
 
-	local resize_texture = resize_button:CreateTexture (nil, "overlay")
-	resize_texture:SetTexture ([[Interface\CHATFRAME\UI-ChatIM-SizeGrabber-Down]])
-	resize_texture:SetPoint ("topleft", resize_button, "topleft", 0, 0)
-	resize_texture:SetSize (16, 16)
-	resize_texture:SetTexCoord (1, 0, 0, 1)
-	screenFrame.resize_texture = resize_texture
+		local resize_texture = resize_button:CreateTexture(nil, "overlay")
+		resize_texture:SetTexture([[Interface\CHATFRAME\UI-ChatIM-SizeGrabber-Down]])
+		resize_texture:SetPoint("topleft", resize_button, "topleft", 0, 0)
+		resize_texture:SetSize(16, 16)
+		resize_texture:SetTexCoord(1, 0, 0, 1)
+		screenFrame.resize_texture = resize_texture
 
-	resize_button:SetScript ("OnMouseDown", function()
-		editboxNotes:StartSizing ("bottomleft")
-	end)
-	resize_button:SetScript ("OnMouseUp", function()
-		editboxNotes:StopMovingOrSizing()
-		screenFrame:SetWidth (editboxNotes:GetWidth())
-		editboxNotes:SetPoint ("topleft", screenFrame, "bottomleft", 0, 0)
-		editboxNotes:SetPoint ("topright", screenFrame, "bottomright", 0, 0)
-	end)
+		resize_button:SetScript("OnMouseDown", function()
+			screenFrame:StartSizing("bottomleft")
+		end)
 
-	resize_button:SetScript ("OnSizeChanged", function()
-		screenFrame:SetWidth (editboxNotes:GetWidth())
-		editboxNotes:SetPoint ("topleft", screenFrame, "bottomleft", 0, 0)
-		editboxNotes:SetPoint ("topright", screenFrame, "bottomright", 0, 0)
-		Notepad.updateScrollBar()
-	end)
+		resize_button:SetScript("OnMouseUp", function()
+			screenFrame:StopMovingOrSizing()
+		end)
+
+		screenFrame:SetScript("OnSizeChanged", function()
+			Notepad.updateScrollBar()
+		end)
+	end
+
+	do
+		local resize_button = CreateFrame("button", nil, screenFrame, "BackdropTemplate")
+		resize_button:SetPoint("bottomright", screenFrame, "bottomright")
+		resize_button:SetSize(16, 16)
+		resize_button:SetAlpha(0.6)
+		screenFrame.resize_button2 = resize_button
+		resize_button:SetFrameLevel(screenFrame:GetFrameLevel() + 6)
+
+		local resize_texture = resize_button:CreateTexture(nil, "overlay")
+		resize_texture:SetTexture([[Interface\CHATFRAME\UI-ChatIM-SizeGrabber-Down]])
+		resize_texture:SetPoint("topleft", resize_button, "topleft", 0, 0)
+		resize_texture:SetSize(16, 16)
+		resize_texture:SetTexCoord(0, 1, 0, 1)
+		screenFrame.resize_texture = resize_texture
+
+		resize_button:SetScript("OnMouseDown", function()
+			screenFrame:StartSizing("bottomright")
+		end)
+
+		resize_button:SetScript("OnMouseUp", function()
+			screenFrame:StopMovingOrSizing()
+		end)
+
+		screenFrame:SetScript("OnSizeChanged", function()
+			Notepad.updateScrollBar()
+		end)
+	end
 
 	local RaidAssignmentsNoteEditboxScreenScrollBarThumbTexture = _G.RaidAssignmentsNoteEditboxScreenScrollBarThumbTexture
 	RaidAssignmentsNoteEditboxScreenScrollBarThumbTexture:SetTexture (0, 0, 0, 0.4)
@@ -214,15 +236,13 @@ Notepad.OnInstall = function (plugin)
 	-------
 
 	local lock = CreateFrame("button", "NotepadScreenFrameLockButton", screenFrame, "BackdropTemplate")
-	lock:SetSize(16, 16)
-	lock:SetNormalTexture([[Interface\LFGFRAME\UI-LFG-ICON-LOCK]])
-	lock:SetHighlightTexture([[Interface\LFGFRAME\UI-LFG-ICON-LOCK]])
-	lock:SetPushedTexture([[Interface\LFGFRAME\UI-LFG-ICON-LOCK]])
-	lock:GetPushedTexture():SetDesaturated(true)
-	lock:GetNormalTexture():SetDesaturated(true)
-	lock:GetHighlightTexture():SetDesaturated(true)
+	lock:SetSize(60, 12)
+	lock:SetAlpha(0.910)
+	lock:SetPoint("bottomright", editboxNotes, "topright", 0, 0)
 
-	lock:SetAlpha (0.7)
+	local lockLabel = RA:CreateLabel(lock, "|cFFFFAA00[|cFFFFFF00lock|r]", 12)
+	lockLabel:SetPoint("bottomright", lock, "bottomright")
+
 	lock:SetScript ("OnClick", function()
 		if (screenFrame:IsMouseEnabled()) then
 			Notepad.db.locked = true
@@ -232,7 +252,22 @@ Notepad.OnInstall = function (plugin)
 			Notepad:UpdateScreenFrameSettings()
 		end
 	end)
+
 	screenFrame.lock = lock
+
+	--
+	local settingsButton = CreateFrame("button", "NotepadScreenFrameSettingsButton", screenFrame, "BackdropTemplate")
+	settingsButton:SetSize(60, 12)
+	settingsButton:SetAlpha(0.910)
+	settingsButton:SetPoint("bottomleft", editboxNotes, "topleft", 0, 0)
+	local settingsLabel = RA:CreateLabel(settingsButton, "|cFFFFAA00[|cFFFFFF00settings|r]", 12)
+	settingsLabel:SetPoint("bottomleft", settingsButton, "bottomleft")
+
+	settingsButton:SetScript("OnClick", function()
+		RA.OpenMainOptionsByPluginIndex(1)
+	end)
+
+	screenFrame.settingsButton = settingsButton
 
 	local close = CreateFrame ("button", "NotepadScreenFrameCloseButton", screenFrame, "BackdropTemplate")
 	close:SetSize (18, 18)
@@ -243,16 +278,18 @@ Notepad.OnInstall = function (plugin)
 	close:GetPushedTexture():SetDesaturated(true)
 	close:GetNormalTexture():SetDesaturated(true)
 	close:GetHighlightTexture():SetDesaturated(true)
+
 	close:SetScript ("OnClick", function()
 		Notepad.UnshowNoteOnScreen (true)
 	end)
+
 	screenFrame.close = close
 
 	---------------
 
 	local f_anim = CreateFrame ("frame", nil, screenFrame, "BackdropTemplate")
 	local t = f_anim:CreateTexture (nil, "overlay")
-	t:SetColorTexture (1, 1, 1, 0.25)
+	t:SetColorTexture (1, 1, 1, 0.20)
 	t:SetAllPoints()
 	t:SetBlendMode ("ADD")
 	local animation = t:CreateAnimationGroup()
@@ -310,14 +347,16 @@ Notepad.OnInstall = function (plugin)
 	Notepad:RegisterEvent("PLAYER_REGEN_DISABLED")
 	Notepad:RegisterEvent("PLAYER_REGEN_ENABLED")
 	Notepad:RegisterEvent("PLAYER_LOGOUT")
+	Notepad:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+	Notepad:RegisterEvent("ENCOUNTER_END")
 
 	if (Notepad:GetCurrentlyShownBoss()) then
 		Notepad:ValidateNoteCurrentlyShown() --only removes, zone_changed has been removed
 	end
 
-	C_Timer.After (10, function()
+	C_Timer.After(10, function()
 		local _, instanceType, DifficultyID = GetInstanceInfo()
-		if (instanceType == "raid" and Notepad.playerIsInGroup and DifficultyID ~= 17) then
+		if (instanceType == "raid" and IsInGroup() and DifficultyID ~= 17) then
 			Notepad:AskForEnabledNote()
 		end
 	end)
@@ -327,10 +366,9 @@ end --end of OnInstall
 function Notepad:UpdateScreenFrameBackground()
 	local bg = Notepad.db.background
 	if (bg.show) then
-		Notepad.screenFrame.background:SetColorTexture (bg.r, bg.g, bg.b, bg.a)
-		Notepad.screenFrame.background:SetHeight (Notepad.screenFrame.text:GetHeight())
+		Notepad.screenFrame.background:SetColorTexture(bg.r, bg.g, bg.b, bg.a)
 	else
-		Notepad.screenFrame.background:SetColorTexture (0, 0, 0, 0)
+		Notepad.screenFrame.background:SetColorTexture(0, 0, 0, 0)
 	end
 end
 
@@ -338,62 +376,46 @@ function Notepad:UpdateScreenFrameSettings()
 	--font face
 	local SharedMedia = LibStub:GetLibrary("LibSharedMedia-3.0")
 	local font = SharedMedia:Fetch ("font", Notepad.db.text_font)
-	Notepad:SetFontFace (Notepad.screenFrame.text.editbox, font)
+	Notepad:SetFontFace(Notepad.screenFrame.text.editbox, font)
 
 	--font size
-	Notepad:SetFontSize (Notepad.screenFrame.text.editbox, Notepad.db.text_size)
+	Notepad:SetFontSize(Notepad.screenFrame.text.editbox, Notepad.db.text_size)
 
 	-- font shadow
-	Notepad:SetFontOutline (Notepad.screenFrame.text.editbox, Notepad.db.text_shadow)
+	Notepad:SetFontOutline(Notepad.screenFrame.text.editbox, Notepad.db.text_shadow)
 
 	--frame strata
-	Notepad.screenFrame:SetFrameStrata (Notepad.db.framestrata)
+	Notepad.screenFrame:SetFrameStrata(Notepad.db.framestrata)
 
 	--background show
 	Notepad:UpdateScreenFrameBackground()
 
+	Notepad.screenFrame:SetBackdrop(nil)
+
 	--frame locked
 	if (Notepad.db.locked) then
-		Notepad.screenFrame:EnableMouse (false)
-		Notepad.screenFrame.lock:SetAlpha (0.15)
-		Notepad.screenFrame.close:SetAlpha (0.15)
-		Notepad.screenFrame:SetBackdrop (nil)
+		Notepad.screenFrame:EnableMouse(false)
+		Notepad.screenFrame.lock:Hide()
+		Notepad.screenFrame.close:Hide()
+		Notepad.screenFrame.settingsButton:Hide()
 		Notepad.screenFrame.resize_button:Hide()
 		Notepad.screenFrame.resize_texture:Hide()
-		Notepad.screenFrame.title_text:SetTextColor (.8, .8, .8, 0.15)
+		Notepad.screenFrame.title_text:SetTextColor(.8, .8, .8, 0)
 
 	else
-		Notepad.screenFrame:EnableMouse (true)
-		Notepad.screenFrame.lock:SetAlpha (1)
-		Notepad.screenFrame.close:SetAlpha (1)
-		Notepad.screenFrame:SetBackdrop ({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
-		Notepad.screenFrame:SetBackdropColor (0, 0, 0, 0.8)
-		Notepad.screenFrame:SetBackdropBorderColor (unpack(RA.BackdropBorderColor))
+		Notepad.screenFrame:EnableMouse(true)
+		Notepad.screenFrame.lock:Show()
+		Notepad.screenFrame.close:Show()
+		Notepad.screenFrame.settingsButton:Show()
 		Notepad.screenFrame.resize_button:Show()
 		Notepad.screenFrame.resize_texture:Show()
 
 		Notepad.screenFrame.title_text:SetTextColor (.8, .8, .8, 1)
 	end
 
-	--text justify and lock butotn
-	Notepad.screenFrame.text.editbox:SetJustifyH (Notepad.db.text_justify)
-	Notepad.screenFrame.text:ClearAllPoints()
-	Notepad.screenFrame.lock:ClearAllPoints()
-	Notepad.screenFrame.close:ClearAllPoints()
-
-	if (Notepad.db.text_justify == "left") then
-		Notepad.screenFrame.lock:SetPoint ("left", Notepad.screenFrame, "left", 4, -2)
-		Notepad.screenFrame.close:SetPoint ("left", Notepad.screenFrame.lock, "right", -3, 1)
-		Notepad.screenFrame.text:SetPoint ("topleft", Notepad.screenFrame, "bottomleft", 0, 0)
-
-	elseif (Notepad.db.text_justify == "right") then
-		Notepad.screenFrame.lock:SetPoint ("right", Notepad.screenFrame, "right", 0, 0)
-		Notepad.screenFrame.close:SetPoint ("right", Notepad.screenFrame.lock, "left", 2, 0)
-		Notepad.screenFrame.text:SetPoint ("topright", Notepad.screenFrame, "bottomright", -0, 0)
-	end
-
-	Notepad.screenFrame.text:EnableMouse (false)
-	Notepad.screenFrame.text.editbox:EnableMouse (false)
+	Notepad.screenFrame.text.editbox:SetJustifyH(Notepad.db.text_justify)
+	Notepad.screenFrame.text:EnableMouse(false)
+	Notepad.screenFrame.text.editbox:EnableMouse(false)
 end
 
 Notepad.OnEnable = function (plugin)
@@ -566,7 +588,7 @@ local updateScrollBar = function()
 	else
 		RaidAssignmentsNoteEditboxScreenScrollBar:Hide()
 	end
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton:SetScript ("OnUpdate", nil)
+	RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton:SetScript("OnUpdate", nil)
 end
 Notepad.updateScrollBar = updateScrollBar
 
@@ -603,11 +625,14 @@ function Notepad:ShowNoteOnScreen(bossId)
 		end
 
 		Notepad.screenFrame.text:SetText(formatedText)
+		RaidAssignmentsNoteEditboxScreenScrollBar:SetValue(0)
+
+		C_Timer.After(0.4, function()
+			ScrollFrame_OnScrollRangeChanged(RaidAssignmentsNoteEditboxScreen.scroll)
+		end)
 
 		RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton:SetScript("OnUpdate", updateScrollBar)
-		C_Timer.After (0.5, updateScrollBar)
-
-		RaidAssignmentsNoteEditboxScreenScrollBar:SetValue (0)
+		C_Timer.After(0.5, updateScrollBar)
 
 		Notepad.DoFlashAnim()
 
@@ -633,7 +658,7 @@ function Notepad.UnshowNoteOnScreen(from_close_button)
 			Notepad.mainFrame.frameNoteShown:Hide()
 		end
 
-		if (from_close_button and type (from_close_button) == "boolean") then
+		if (from_close_button) then
 			if (isRaidLeader("player")) then
 				RA:ShowPromptPanel("Close it on All Raid Members as Well?", function() Notepad:SendHideShownNote() end, function() end)
 			end
@@ -642,8 +667,17 @@ function Notepad.UnshowNoteOnScreen(from_close_button)
 end
 
 function Notepad:ValidateNoteCurrentlyShown()
-	if (not IsInRaid()) then
+	if (not IsInRaid() and not IsInGroup()) then
 		return Notepad.UnshowNoteOnScreen()
+	end
+end
+
+function Notepad:ZONE_CHANGED_NEW_AREA()
+	local _, instanceType = GetInstanceInfo()
+	if (instanceType ~= "raid" and instanceType ~= "party") then
+		if (Notepad:GetCurrentlyShownBoss()) then
+			Notepad.UnshowNoteOnScreen()
+		end
 	end
 end
 
@@ -682,6 +716,19 @@ function Notepad:PLAYER_LOGOUT()
 	local bossId = Notepad:GetCurrentlyShownBoss()
 	if (bossId) then
 		Notepad:SetCurrentlyShownBoss(bossId)
+	end
+end
+
+function Notepad:ENCOUNTER_END(...)
+	local bossId = Notepad:GetCurrentlyShownBoss()
+	if (bossId) then
+		local bossName = Notepad:GetBossName(bossId)
+		local encounterID, encounterName, difficultyID, raidSize, endStatus = select(1, ...)
+		if (bossName == encounterName) then
+			if (endStatus == 1) then
+				Notepad.UnshowNoteOnScreen()
+			end
+		end
 	end
 end
 
@@ -751,8 +798,70 @@ function Notepad.BuildOptions(frame)
 	
 	local options_list = {
 	
+		{type = "label", get = function() return "Frame:" end, text_template = Notepad:GetTemplate ("font", "ORANGE_FONT_TEMPLATE")},
+		--
+		{
+			type = "toggle",
+			get = function() return Notepad.db.locked end,
+			set = function (self, fixedparam, value) 
+				Notepad.db.locked = value
+				Notepad:UpdateScreenFrameSettings()
+			end,
+			desc = L["S_PLUGIN_FRAME_LOCKED_DESC"],
+			name = L["S_PLUGIN_FRAME_LOCKED"],
+			
+		},
+
+		{
+			type = "toggle",
+			get = function() return Notepad.db.background.show end,
+			set = function (self, fixedparam, value) 
+				Notepad.db.background.show = value
+				Notepad:UpdateScreenFrameSettings()
+			end,
+			desc = "",
+			name = "Frame Background",
+		},
+
+		{
+			type = "color",
+			get = function() 
+				return {Notepad.db.background.r, Notepad.db.background.g, Notepad.db.background.b, Notepad.db.background.a} 
+			end,
+			set = function (self, r, g, b, a) 
+				local color = Notepad.db.background
+				color.r, color.g, color.b, color.a = r, g, b, a
+				Notepad:UpdateScreenFrameSettings()
+			end,
+			name = "Background Color",
+		},
+
+		{
+			type = "select",
+			get = function() return Notepad.db.framestrata end,
+			values = function() return strataTable end,
+			name = "Frame Strata"
+		},
+
+		{type = "blank"},
+		{
+			type = "toggle",
+			get = function() return Notepad.db.hide_on_combat end,
+			set = function (self, fixedparam, value) 
+				Notepad.db.hide_on_combat = value
+				Notepad:UpdateScreenFrameSettings()
+			end,
+			desc = "",
+			name = "Hide in Combat",
+		},
+
+		--
+		{
+			type = "blank",
+		},
+		--
+
 		{type = "label", get = function() return "Text:" end, text_template = Notepad:GetTemplate ("font", "ORANGE_FONT_TEMPLATE")},
-		
 		{
 			type = "range",
 			get = function() return Notepad.db.text_size end,
@@ -764,14 +873,12 @@ function Notepad.BuildOptions(frame)
 			max = 32,
 			step = 1,
 			name = L["S_PLUGIN_TEXT_SIZE"],
-			
 		},
 		{
 			type = "select",
 			get = function() return Notepad.db.text_font end,
 			values = function() return Notepad:BuildDropDownFontList (on_select_text_font) end,
 			name = L["S_PLUGIN_TEXT_FONT"],
-			
 		},
 		{
 			type = "select",
@@ -787,65 +894,6 @@ function Notepad.BuildOptions(frame)
 				Notepad:UpdateScreenFrameSettings()
 			end,
 			name = L["S_PLUGIN_TEXT_SHADOW"],
-		},
-		
-		--
-		{
-			type = "blank",
-		},
-		--
-		{type = "label", get = function() return "Frame:" end, text_template = Notepad:GetTemplate ("font", "ORANGE_FONT_TEMPLATE")},
-		--
-		{
-			type = "select",
-			get = function() return Notepad.db.framestrata end,
-			values = function() return strataTable end,
-			name = "Frame Strata"
-		},
-		{
-			type = "toggle",
-			get = function() return Notepad.db.locked end,
-			set = function (self, fixedparam, value) 
-				Notepad.db.locked = value
-				Notepad:UpdateScreenFrameSettings()
-			end,
-			desc = L["S_PLUGIN_FRAME_LOCKED_DESC"],
-			name = L["S_PLUGIN_FRAME_LOCKED"],
-			
-		},
-		{
-			type = "toggle",
-			get = function() return Notepad.db.background.show end,
-			set = function (self, fixedparam, value) 
-				Notepad.db.background.show = value
-				Notepad:UpdateScreenFrameSettings()
-			end,
-			desc = "",
-			name = "Frame Background",
-			
-		},
-		{
-			type = "color",
-			get = function() 
-				return {Notepad.db.background.r, Notepad.db.background.g, Notepad.db.background.b, Notepad.db.background.a} 
-			end,
-			set = function (self, r, g, b, a) 
-				local color = Notepad.db.background
-				color.r, color.g, color.b, color.a = r, g, b, a
-				Notepad:UpdateScreenFrameSettings()
-			end,
-			name = "Background Color",
-		},
-		{type = "blank"},
-		{
-			type = "toggle",
-			get = function() return Notepad.db.hide_on_combat end,
-			set = function (self, fixedparam, value) 
-				Notepad.db.hide_on_combat = value
-				Notepad:UpdateScreenFrameSettings()
-			end,
-			desc = "",
-			name = "Hide in Combat",
 		},
 	}
 
@@ -1612,24 +1660,28 @@ function Notepad.BuildOptions(frame)
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+
 	editboxNotes:SetScript("OnShow", function()
 		colors_panel:SetScript("OnUpdate", do_text_format)
+		editboxNotes:SetScript("OnUpdate", Notepad.OnUpdate)
 		Notepad:UpdateBossAbilities()
 	end)
 	editboxNotes:SetScript("OnHide", function()
 		colors_panel:SetScript("OnUpdate", nil)
+		editboxNotes:SetScript("OnUpdate", nil)
 	end)
 	
-	local lastword, characters_count = "", 0
+	Notepad.currentWord = ""
+	local characters_count = "", 0
 
 	local get_last_word = function()
-		lastword = ""
+		Notepad.currentWord = ""
 		local cursor_pos = mainFrame.editboxNotes.editbox:GetCursorPosition()
 		local text = mainFrame.editboxNotes.editbox:GetText()
 		for i = cursor_pos, 1, -1 do
 			local character = text:sub (i, i)
 			if (character:match ("%a")) then
-				lastword = character .. lastword
+				Notepad.currentWord = character .. Notepad.currentWord
 			else
 				break
 			end
@@ -1640,7 +1692,7 @@ function Notepad.BuildOptions(frame)
 		local chars_now = mainFrame.editboxNotes.editbox:GetText():len()
 		--> backspace
 		if (chars_now == characters_count -1) then
-			lastword = lastword:sub (1, lastword:len()-1)
+			Notepad.currentWord = Notepad.currentWord:sub (1, Notepad.currentWord:len()-1)
 		--> delete lots of text
 		elseif (chars_now < characters_count) then
 			mainFrame.editboxNotes.editbox.end_selection = nil
@@ -1706,7 +1758,7 @@ function Notepad.BuildOptions(frame)
 			mainFrame.editboxNotes.editbox:Insert ("\n")
 		end
 		
-		lastword = ""
+		Notepad.currentWord = ""
 	end)
 	
 	editboxNotes.editbox:SetScript ("OnEditFocusGained", function (self) 
@@ -1717,24 +1769,34 @@ function Notepad.BuildOptions(frame)
 
 	editboxNotes.editbox:SetScript ("OnChar", function (self, char) 
 		mainFrame.editboxNotes.editbox.end_selection = nil
-	
+
 		if (mainFrame.editboxNotes.editbox.ignore_input) then
 			return
 		end
-		if (char:match ("%a")) then
-			lastword = lastword .. char
+		if (char:match("%a") or char:match("%p")) then
+			Notepad.currentWord = Notepad.currentWord .. char
 		else
-			lastword = ""
+			if (char == "") then
+
+			elseif (char:match("%s")) then
+				Notepad.currentWord = ""
+
+			elseif (char:match("%c")) then
+				Notepad.currentWord = ""
+
+			elseif (char == "\n") then
+				Notepad.currentWord = ""
+			end
 		end
-		
+
 		mainFrame.editboxNotes.editbox.ignore_input = true
-		if (lastword:len() >= 2 and Notepad.db.auto_complete) then
+		if (Notepad.currentWord:len() >= 2 and Notepad.db.auto_complete) then
 			for i = 1, GetNumGroupMembers() do
 				local name = UnitName ("raid" .. i) or UnitName ("party" .. i)
 				--print (name, string.find ("keyspell", "^key"))
-				if (name and (name:find ("^" .. lastword) or name:lower():find ("^" .. lastword))) then
-					local rest = name:gsub (lastword, "")
-					rest = rest:lower():gsub (lastword, "")
+				if (name and (name:find ("^" .. Notepad.currentWord) or name:lower():find ("^" .. Notepad.currentWord))) then
+					local rest = name:gsub (Notepad.currentWord, "")
+					rest = rest:lower():gsub (Notepad.currentWord, "")
 					local cursor_pos = self:GetCursorPosition()
 					mainFrame.editboxNotes.editbox:Insert (rest)
 					mainFrame.editboxNotes.editbox:HighlightText (cursor_pos, cursor_pos + rest:len())
@@ -1746,6 +1808,112 @@ function Notepad.BuildOptions(frame)
 		end
 		mainFrame.editboxNotes.editbox.ignore_input = false
 	end)
+
+
+	local interval, guildInterval, playersCache, updateGuildPlayers = -1, -1, {}, false
+	function Notepad.OnUpdate(self, deltaTime)
+
+		interval = interval - deltaTime
+		guildInterval = guildInterval - deltaTime
+
+		if (interval > 0) then
+			return
+		else
+			interval = 0.5
+		end
+
+		if (guildInterval < 0) then
+			C_GuildInfo.GuildRoster()
+			guildInterval = 11
+			interval = 1
+			updateGuildPlayers = true
+			return
+		end
+
+		for i = 1, GetNumGroupMembers() do
+			local name, rank, subgroup, level, class, fileName, zone, online, isDead, role = GetRaidRosterInfo(i)
+			if (name) then
+				name = Ambiguate(name, "none")
+				playersCache[name] = fileName
+			end
+		end
+
+		if (IsInGuild() and updateGuildPlayers) then
+			local numTotalGuildMembers, numOnlineGuildMembers, numOnlineAndMobileMembers = GetNumGuildMembers()
+			local showOfflineUsers = GetGuildRosterShowOffline()
+			SetGuildRosterShowOffline(true)
+
+			for i = 1, numTotalGuildMembers do
+				local name, rankName, rankIndex, level, classDisplayName, zone, _, _, isOnline, status, class, achievementPoints, achievementRank, isMobile, canSoR, repStanding, GUID = GetGuildRosterInfo(i)
+				name = Ambiguate(name, "none")
+				playersCache[name] = class
+			end
+
+			SetGuildRosterShowOffline(showOfflineUsers)
+		end
+
+		updateGuildPlayers = false
+
+		if (Notepad.db.auto_format) then
+			local file = mainFrame.editboxNotes.editbox:GetText()
+			local cursorPosition = 0
+
+			if (Notepad.currentWord:len() >= 1) then
+				return
+			end
+
+			local highlightStart, highlightEnd = GetTextHighlight(mainFrame.editboxNotes.editbox)
+			if (highlightStart ~= highlightEnd) then
+				return
+			end
+
+			for playerName, playerClass in pairs(playersCache) do
+				local startPoint, endPoint = file:find(playerName)
+				while (startPoint) do
+					if (startPoint) then
+						local checkColorInit = strfind(file, "|c%x%x%x%x%x%x%x%x" .. playerName, startPoint-11)
+						local checkColorTermination = strfind(file, playerName .. "|r", startPoint)
+
+						if (not checkColorTermination and not checkColorInit) then
+							local unitclasscolor = RAID_CLASS_COLORS[playerClass] and RAID_CLASS_COLORS[playerClass].colorStr
+							file = file:gsub(playerName, "|c" .. unitclasscolor .. playerName .. "|r")
+							cursorPosition = endPoint + 12 + playerName:len()
+						end
+					end
+
+					startPoint, endPoint = strfind(file, playerName, endPoint+3)
+				end
+			end
+
+			if (cursorPosition > 0) then
+				mainFrame.editboxNotes.editbox:SetText(file)
+				local currentCursorPos = mainFrame.editboxNotes.editbox:GetCursorPosition()
+				mainFrame.editboxNotes.editbox:SetCursorPosition(currentCursorPos-3)
+			end
+
+			local gotReplacements = false
+			for playerName, playerClass in pairs(playersCache) do
+				local amountRepalced = 0
+				local lowerName = playerName:lower()
+				file, amountRepalced = file:gsub(lowerName, playerName)
+
+				if (amountRepalced > 0) then
+					gotReplacements = true
+				end
+
+				local upperName = playerName:upper()
+				file, amountRepalced = file:gsub(upperName, playerName)
+
+				if (amountRepalced > 0) then
+					gotReplacements = true
+				end
+			end
+
+			if (gotReplacements) then
+				mainFrame.editboxNotes.editbox:SetText(file)
+			end
+		end
+	end
 end
 
 function Notepad:FormatText(mytext)
