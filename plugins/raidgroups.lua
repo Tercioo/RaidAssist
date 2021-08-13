@@ -1199,7 +1199,13 @@ function RaidGroups.UpdatePlayer(raidIndex, name, rank, subgroup, level, class, 
 
 		slot.classicon:SetTexture ([[Interface\ARENAENEMYFRAME\UI-CLASSES-CIRCLES]])
 		slot.classicon:SetTexture ([[Interface\WorldStateFrame\ICONS-CLASSES]])
-		slot.classicon:SetTexCoord (unpack (coords))
+
+		if (coords) then
+			slot.classicon:SetTexCoord (unpack (coords)) --raidgroups.lua:1202: bad argument #1 to 'unpack' (table expected, got nil)
+			slot.classicon:Show()
+		else
+			slot.classicon:Hide()
+		end
 
 		if (rank == 2) then
 			slot.assisticon:SetTexture ([[Interface\GROUPFRAME\UI-Group-LeaderIcon]])
