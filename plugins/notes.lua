@@ -1073,6 +1073,38 @@ function Notepad.BuildOptions(frame)
 	RaidAssignmentsNoteEditboxScrollBar:SetPoint("topleft", editboxNotes, "topright", -20, -16)
 	RaidAssignmentsNoteEditboxScrollBar:SetPoint("bottomleft", editboxNotes, "bottomright", -20, 16)
 
+	function Notepad.ColorPlayerNames()
+		if (Notepad.db.auto_format) then
+			local file = mainFrame.editboxNotes.editbox:GetText()
+
+			local RAID_CLASS_COLORS = _G["RAID_CLASS_COLORS"]
+			for playerName, playerClass in pairs(Notepad.playersCache) do
+				if (playerClass and RAID_CLASS_COLORS[playerClass]) then
+					--regular case
+					local unitclasscolor = RAID_CLASS_COLORS[playerClass].colorStr
+					file = file:gsub("|c" .. unitclasscolor .. playerName .. "|r", playerName)
+					file = file:gsub(playerName, "|c" .. unitclasscolor .. playerName .. "|r")
+
+					--lower case
+					playerName = playerName:lower()
+					local unitclasscolor = RAID_CLASS_COLORS[playerClass].colorStr
+					file = file:gsub("|c" .. unitclasscolor .. playerName .. "|r", playerName)
+					file = file:gsub(playerName, "|c" .. unitclasscolor .. playerName .. "|r")
+				end
+			end
+
+			for playerName, playerClass in pairs(Notepad.playersCache) do
+				local lowerName = playerName:lower()
+				file = file:gsub(lowerName, playerName)
+
+				local upperName = playerName:upper()
+				file = file:gsub(upperName, playerName)
+			end
+
+			mainFrame.editboxNotes.editbox:SetText(file)
+		end
+	end
+
 	editboxNotes:Hide()
 
 	local clearEditbox = function()
@@ -1080,6 +1112,7 @@ function Notepad.BuildOptions(frame)
 	end
 
 	local saveChanges = function()
+		Notepad.ColorPlayerNames()
 		Notepad:SaveCurrentEditingNote()
 		local bossId = Notepad:GetCurrentEditingBossId()
 		Notepad:ShowNoteOnScreen(bossId)
@@ -1098,6 +1131,7 @@ function Notepad.BuildOptions(frame)
 
 	local saveChangesAndClose = function()
 		--saveChanges()
+		Notepad.ColorPlayerNames()
 		Notepad:SaveCurrentEditingNote()
 		Notepad:CancelNoteEditing()
 	end
@@ -1687,6 +1721,22 @@ function Notepad.BuildOptions(frame)
 			end
 		end
 	end
+
+	local getLatestWord = function()
+		local cursorPos = mainFrame.editboxNotes.editbox:GetCursorPosition()
+		local text = mainFrame.editboxNotes.editbox:GetText()
+
+		local latestWord = ""
+
+		for o = cursorPos-1, 1, -1 do
+			local character = text:sub(o, o)
+			if (character:match("%a")) then
+				latestWord = character .. latestWord
+			else
+				return latestWord
+			end
+		end
+	end
 	
 	editboxNotes.editbox:SetScript ("OnTextChanged", function (self)
 		local chars_now = mainFrame.editboxNotes.editbox:GetText():len()
@@ -1736,7 +1786,7 @@ function Notepad.BuildOptions(frame)
 	DF:CreateAnimation (save_button_feedback_animation, "rotation", 4, speed, -rotation)
 	--
 
-	editboxNotes.editbox:SetScript ("OnEnterPressed", function (self)
+	editboxNotes.editbox:SetScript("OnEnterPressed", function (self)
 		--if shift is pressed when the user pressed enter, save/apply the script and don't lose the focus of the editor
 		if (IsShiftKeyDown()) then
 			local cursorPosition = editboxNotes.editbox:GetCursorPosition()
@@ -1750,67 +1800,99 @@ function Notepad.BuildOptions(frame)
 		end
 
 		if (mainFrame.editboxNotes.editbox.end_selection) then
-			mainFrame.editboxNotes.editbox:SetCursorPosition (mainFrame.editboxNotes.editbox.end_selection)
-			mainFrame.editboxNotes.editbox:HighlightText (0, 0)
+			mainFrame.editboxNotes.editbox:SetCursorPosition(mainFrame.editboxNotes.editbox.end_selection)
+			mainFrame.editboxNotes.editbox:HighlightText(0, 0)
+			mainFrame.editboxNotes.editbox:Insert(" ")
 			mainFrame.editboxNotes.editbox.end_selection = nil
-			mainFrame.editboxNotes.editbox:Insert (" ")
 		else
-			mainFrame.editboxNotes.editbox:Insert ("\n")
+			mainFrame.editboxNotes.editbox:Insert("\n")
 		end
-		
+
 		Notepad.currentWord = ""
 	end)
-	
-	editboxNotes.editbox:SetScript ("OnEditFocusGained", function (self) 
+
+	editboxNotes.editbox:SetScript("OnEditFocusGained", function (self) 
 		get_last_word()
 		mainFrame.editboxNotes.editbox.end_selection = nil
 		characters_count = mainFrame.editboxNotes.editbox:GetText():len()
 	end)
 
-	editboxNotes.editbox:SetScript ("OnChar", function (self, char) 
+	local interval, guildInterval, playersCache, updateGuildPlayers = -1, -1, {}, false
+	Notepad.playersCache = playersCache
+
+	editboxNotes.editbox:SetScript("OnChar", function (self, char) 
 		mainFrame.editboxNotes.editbox.end_selection = nil
 
 		if (mainFrame.editboxNotes.editbox.ignore_input) then
 			return
 		end
+
+		local wordFinished = false
 		if (char:match("%a") or char:match("%p")) then
-			Notepad.currentWord = Notepad.currentWord .. char
+			if (char == "," or char == "." or char == ";") then
+				wordFinished = true
+			else
+				Notepad.currentWord = Notepad.currentWord .. char
+			end
 		else
 			if (char == "") then
 
 			elseif (char:match("%s")) then
 				Notepad.currentWord = ""
+				wordFinished = true
 
 			elseif (char:match("%c")) then
 				Notepad.currentWord = ""
+				wordFinished = true
 
 			elseif (char == "\n") then
 				Notepad.currentWord = ""
+				wordFinished = true
+			end
+		end
+
+		if (wordFinished) then
+			local latestWord = getLatestWord()
+			if (latestWord and type(latestWord) == "string" and latestWord:len() >= 2) then
+				local latestWordAstyped = latestWord
+				latestWord = string.gsub(" " .. latestWord, "%W%l", string.upper):sub(2)
+				local playerClass = Notepad.playersCache[latestWord]
+
+				if (playerClass) then
+					local cursorPosition = editboxNotes.editbox:GetCursorPosition()
+					local unitClassColor = "|c" .. RAID_CLASS_COLORS[playerClass].colorStr
+
+					editboxNotes.editbox:HighlightText(cursorPosition - latestWord:len() - 1, cursorPosition-1)
+					editboxNotes.editbox:Insert(latestWord)
+
+					editboxNotes.editbox:HighlightText(cursorPosition - latestWord:len() - 1, cursorPosition-1)
+					ColorSelection(editboxNotes.editbox, unitClassColor)
+					editboxNotes.editbox:HighlightText(0, 0)
+					editboxNotes.editbox:SetCursorPosition(cursorPosition + unitClassColor:len() + 2)
+				end
 			end
 		end
 
 		mainFrame.editboxNotes.editbox.ignore_input = true
+
 		if (Notepad.currentWord:len() >= 2 and Notepad.db.auto_complete) then
-			for i = 1, GetNumGroupMembers() do
-				local name = UnitName ("raid" .. i) or UnitName ("party" .. i)
-				--print (name, string.find ("keyspell", "^key"))
-				if (name and (name:find ("^" .. Notepad.currentWord) or name:lower():find ("^" .. Notepad.currentWord))) then
-					local rest = name:gsub (Notepad.currentWord, "")
+			for playerName, class in pairs(playersCache) do
+				if (playerName and (playerName:find ("^" .. Notepad.currentWord) or playerName:lower():find ("^" .. Notepad.currentWord))) then
+					local rest = playerName:gsub (Notepad.currentWord, "")
 					rest = rest:lower():gsub (Notepad.currentWord, "")
 					local cursor_pos = self:GetCursorPosition()
-					mainFrame.editboxNotes.editbox:Insert (rest)
-					mainFrame.editboxNotes.editbox:HighlightText (cursor_pos, cursor_pos + rest:len())
-					mainFrame.editboxNotes.editbox:SetCursorPosition (cursor_pos)
+					mainFrame.editboxNotes.editbox:Insert(rest)
+					mainFrame.editboxNotes.editbox:HighlightText(cursor_pos, cursor_pos + rest:len())
+					mainFrame.editboxNotes.editbox:SetCursorPosition(cursor_pos)
 					mainFrame.editboxNotes.editbox.end_selection = cursor_pos + rest:len()
 					break
 				end
 			end
 		end
+
 		mainFrame.editboxNotes.editbox.ignore_input = false
 	end)
 
-
-	local interval, guildInterval, playersCache, updateGuildPlayers = -1, -1, {}, false
 	function Notepad.OnUpdate(self, deltaTime)
 
 		interval = interval - deltaTime
@@ -1830,12 +1912,16 @@ function Notepad.BuildOptions(frame)
 			return
 		end
 
-		for i = 1, GetNumGroupMembers() do
-			local name, rank, subgroup, level, class, fileName, zone, online, isDead, role = GetRaidRosterInfo(i)
-			if (name) then
-				name = Ambiguate(name, "none")
-				playersCache[name] = fileName
+		if (IsInGroup()) then
+			for i = 1, GetNumGroupMembers() do
+				local name, rank, subgroup, level, class, fileName, zone, online, isDead, role = GetRaidRosterInfo(i)
+				if (name) then
+					name = Ambiguate(name, "none")
+					playersCache[name] = fileName
+				end
 			end
+
+			playersCache[UnitName("player")] = select(2, UnitClass("player"))
 		end
 
 		if (IsInGuild() and updateGuildPlayers) then
@@ -1850,68 +1936,6 @@ function Notepad.BuildOptions(frame)
 			end
 
 			SetGuildRosterShowOffline(showOfflineUsers)
-		end
-
-		updateGuildPlayers = false
-
-		if (Notepad.db.auto_format) then
-			local file = mainFrame.editboxNotes.editbox:GetText()
-			local cursorPosition = 0
-
-			if (Notepad.currentWord:len() >= 1) then
-				return
-			end
-
-			local highlightStart, highlightEnd = GetTextHighlight(mainFrame.editboxNotes.editbox)
-			if (highlightStart ~= highlightEnd) then
-				return
-			end
-
-			for playerName, playerClass in pairs(playersCache) do
-				local startPoint, endPoint = file:find(playerName)
-				while (startPoint) do
-					if (startPoint) then
-						local checkColorInit = strfind(file, "|c%x%x%x%x%x%x%x%x" .. playerName, startPoint-11)
-						local checkColorTermination = strfind(file, playerName .. "|r", startPoint)
-
-						if (not checkColorTermination and not checkColorInit) then
-							local unitclasscolor = RAID_CLASS_COLORS[playerClass] and RAID_CLASS_COLORS[playerClass].colorStr
-							file = file:gsub(playerName, "|c" .. unitclasscolor .. playerName .. "|r")
-							cursorPosition = endPoint + 12 + playerName:len()
-						end
-					end
-
-					startPoint, endPoint = strfind(file, playerName, endPoint+3)
-				end
-			end
-
-			if (cursorPosition > 0) then
-				mainFrame.editboxNotes.editbox:SetText(file)
-				local currentCursorPos = mainFrame.editboxNotes.editbox:GetCursorPosition()
-				mainFrame.editboxNotes.editbox:SetCursorPosition(currentCursorPos-3)
-			end
-
-			local gotReplacements = false
-			for playerName, playerClass in pairs(playersCache) do
-				local amountRepalced = 0
-				local lowerName = playerName:lower()
-				file, amountRepalced = file:gsub(lowerName, playerName)
-
-				if (amountRepalced > 0) then
-					gotReplacements = true
-				end
-
-				local upperName = playerName:upper()
-				file, amountRepalced = file:gsub(upperName, playerName)
-
-				if (amountRepalced > 0) then
-					gotReplacements = true
-				end
-			end
-
-			if (gotReplacements) then
-				mainFrame.editboxNotes.editbox:SetText(file)
-			end
 		end
 	end
 end

@@ -174,23 +174,13 @@
 			"path": "plugins/notes.lua",
 			"bookmarks": [
 				{
-					"line": 147,
-					"column": 0,
+					"line": 1093,
+					"column": 6,
 					"label": ""
 				},
 				{
-					"line": 388,
-					"column": 0,
-					"label": ""
-				},
-				{
-					"line": 677,
-					"column": 2,
-					"label": ""
-				},
-				{
-					"line": 728,
-					"column": 4,
+					"line": 1857,
+					"column": 5,
 					"label": ""
 				}
 			]
@@ -251,6 +241,31 @@
 				{
 					"line": 523,
 					"column": 5,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "plugins/readycheck.lua",
+			"bookmarks": [
+				{
+					"line": 217,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 403,
+					"column": 2,
+					"label": ""
+				},
+				{
+					"line": 519,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 569,
+					"column": 4,
 					"label": ""
 				}
 			]

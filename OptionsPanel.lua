@@ -218,7 +218,7 @@ function RA.OpenMainOptions(plugin)
 		end
 
 		--auto open a plugin after /raa
-		allButtons[8]:Click()
+		allButtons[1]:Click()
 end
 
 function RA.CreateHotkeyFrame(f)
