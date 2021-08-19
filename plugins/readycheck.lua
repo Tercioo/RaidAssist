@@ -39,6 +39,8 @@ local raidBuffs = {
 	{name = "Food", spellId = DetailsFramework.FoodIDs, texture = "INV_Misc_Food_100_HardCheese", enabled = true, db = "buff_indicator_food"},
 }
 
+--[Surprisingly Palatable Feast] [Feast of Gluttonous Hedonism]
+
 local raidBuffsClass = {
 	["PRIEST"] = 1,
 	["MAGE"] = 2,
@@ -166,6 +168,7 @@ function ReadyCheck.BuildScreenFrames()
 		local playerHasAura = self.playersWithByBuff
 
 		GameCooltip2:Preset(2)
+		local shouldShowTooltip = false
 
 		for playerName in pairs(ReadyCheck.AnswerTable) do
 			if (not playerHasAura[playerName]) then
@@ -179,10 +182,14 @@ function ReadyCheck.BuildScreenFrames()
 				else
 					GameCooltip2:AddLine(playerName)
 				end
+
+				shouldShowTooltip = true
 			end
 		end
 
-		GameCooltip2:Show(self)
+		if (shouldShowTooltip) then
+			GameCooltip2:Show(self)
+		end
 	end
 
 	local onLeaveFunc = function(self)
@@ -306,6 +313,10 @@ local playerHasAura = function(unitId, spellId)
 	end
 end
 
+local timeToScamBuffs = 0
+local playerTotal = 0
+local intervalToCheckBuffs = 0.2
+
 local onUpdate = function(self, deltaTime)
 	for _, Player in ipairs (ReadyCheck.PlayerList) do
 		Player:Hide()
@@ -325,59 +336,69 @@ local onUpdate = function(self, deltaTime)
 	-- "offline" = offline at the start of the check
 
 	local index = 1
-	local playerTotal = 0
 
 	--get weapon enchants data
 	local raidStatusLib = LibStub:GetLibrary("LibRaidStatus-1.0")
 	local allPlayersGear = raidStatusLib.gearManager.GetAllPlayersGear()
 
+	timeToScamBuffs = timeToScamBuffs - deltaTime
+	local updatedAuras = false
+
+	if (timeToScamBuffs < 0) then
+		playerTotal = 0
+	end
+
 	for player, answer in pairs(ReadyCheck.AnswerTable) do
 		local _, class = UnitClass(player)
 
-		playerTotal = playerTotal + 1
+		if (timeToScamBuffs < 0) then
+			playerTotal = playerTotal + 1
 
-		--check raid buffs on this player
-		for index, playerNames in pairs(ReadyCheck.BuffsAvailable) do
-			if (not playerNames[player]) then
-				local raidBuff = raidBuffs[index]
-				local spellIds = raidBuff.spellId
+			--check raid buffs on this player
+			for index, playerNames in pairs(ReadyCheck.BuffsAvailable) do
+				if (not playerNames[player]) then
+					local raidBuff = raidBuffs[index]
+					local spellIds = raidBuff.spellId
 
-				for spellId in pairs(spellIds) do
-					if (playerHasAura(player, spellId)) then
-						playerNames[player] = true
-						ReadyCheck.BuffCounter[index] = (ReadyCheck.BuffCounter[index] or 0) + 1
-					end
-				end
-			end
-		end
-
-		--check individual buffs on this player
-		for index, playerNames in pairs(ReadyCheck.IndividualBuffs) do
-			if (not playerNames[player]) then
-				local raidBuff = raidBuffs[index]
-				local spellIds = raidBuff.spellId --table with many spellIds
-				local isWeaponEnchant  = raidBuff.weaponEnchant
-
-				if (isWeaponEnchant) then
-					local playerName = Ambiguate(player, "none")
-					local playerGear = allPlayersGear[playerName]
-					if (playerGear) then
-						local weaponEnchant = playerGear.weaponEnchant
-						if (weaponEnchant == 1) then
-							playerNames[player] = true
-							ReadyCheck.BuffCounter[index] = (ReadyCheck.BuffCounter[index] or 0) + 1
-						end
-					end
-				else
 					for spellId in pairs(spellIds) do
 						if (playerHasAura(player, spellId)) then
 							playerNames[player] = true
 							ReadyCheck.BuffCounter[index] = (ReadyCheck.BuffCounter[index] or 0) + 1
-							break
 						end
 					end
 				end
 			end
+
+			--check individual buffs on this player
+			for index, playerNames in pairs(ReadyCheck.IndividualBuffs) do
+				if (not playerNames[player]) then
+					local raidBuff = raidBuffs[index]
+					local spellIds = raidBuff.spellId --table with many spellIds
+					local isWeaponEnchant  = raidBuff.weaponEnchant
+
+					if (isWeaponEnchant) then
+						local playerName = Ambiguate(player, "none")
+						local playerGear = allPlayersGear[playerName]
+						if (playerGear) then
+							local weaponEnchant = playerGear.weaponEnchant
+							if (weaponEnchant == 1) then
+								playerNames[player] = true
+								ReadyCheck.BuffCounter[index] = (ReadyCheck.BuffCounter[index] or 0) + 1
+							end
+						end
+					else
+						for spellId in pairs(spellIds) do
+							if (playerHasAura(player, spellId)) then
+								playerNames[player] = true
+								ReadyCheck.BuffCounter[index] = (ReadyCheck.BuffCounter[index] or 0) + 1
+								break
+							end
+						end
+					end
+				end
+			end
+
+			updatedAuras = true
 		end
 
 		if (answer == "offline") then
@@ -420,31 +441,35 @@ local onUpdate = function(self, deltaTime)
 
 	--raid buffs
 	--get the table with indicator frames
-	local indicatorFrames = ReadyCheck.ScreenPanel.indicators
+	if (updatedAuras) then
+		local indicatorFrames = ReadyCheck.ScreenPanel.indicators
 
-	for index, raidBuff in ipairs(raidBuffs) do
-		local indicator = indicatorFrames[index]
+		for index, raidBuff in ipairs(raidBuffs) do
+			local indicator = indicatorFrames[index]
 
-		--print("amountWithBuffs", index, ReadyCheck.BuffCounter[index])
-		local amountWithBuffs = ReadyCheck.BuffCounter[index] or 0
+			--print("amountWithBuffs", index, ReadyCheck.BuffCounter[index])
+			local amountWithBuffs = ReadyCheck.BuffCounter[index] or 0
 
-		if (amountWithBuffs < playerTotal) then
-			--somebody is missing this buff, need to show the icon
-			--all indicators are refreshed here, their can be hide and show, update the counter text
-			indicator:SetAlpha(0.9)
-			indicator.texture:SetDesaturated(false)
-			indicator.redBackground:Show()
-			indicator.number:Show()
-			indicator.number:SetText(playerTotal - amountWithBuffs)
-		else
-			indicator:SetAlpha(0.5)
-			indicator.texture:SetDesaturated(true)
-			indicator.redBackground:Hide()
-			indicator.number:Hide()
+			if (amountWithBuffs < playerTotal) then
+				--somebody is missing this buff, need to show the icon
+				--all indicators are refreshed here, their can be hide and show, update the counter text
+				indicator:SetAlpha(0.9)
+				indicator.texture:SetDesaturated(false)
+				indicator.redBackground:Show()
+				indicator.number:Show()
+				indicator.number:SetText(playerTotal - amountWithBuffs)
+			else
+				indicator:SetAlpha(0.5)
+				indicator.texture:SetDesaturated(true)
+				indicator.redBackground:Hide()
+				indicator.number:Hide()
+			end
+
+			--make a list of people without the buff for tooltips
+			indicator.playersWithByBuff = ReadyCheck.BuffsAvailable[index] or ReadyCheck.IndividualBuffs[index]
 		end
 
-		--make a list of people without the buff for tooltips
-		indicator.playersWithByBuff = ReadyCheck.BuffsAvailable[index] or ReadyCheck.IndividualBuffs[index]
+		timeToScamBuffs = intervalToCheckBuffs
 	end
 
 	index = index - 1
