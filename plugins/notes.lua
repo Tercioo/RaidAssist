@@ -16,6 +16,7 @@ local default_config = {
 	notes = {},
 	currently_shown = false,
 	currently_shown_time = 0,
+	currently_shown_noteId = 0,
 	text_size = 12,
 	text_face = "Friz Quadrata TT",
 	text_justify = "left",
@@ -27,7 +28,10 @@ local default_config = {
 	auto_format = true,
 	auto_complete = true,
 	editing_boss_id = 0,
-	boss_notes = {}
+	editing_boss_note_id = 0,
+	boss_notes2 = {},
+	latest_menu_option_boss_selected = 0,
+	latest_menu_option_note_selected = 0,
 }
 
 local icon_texture
@@ -99,10 +103,10 @@ Notepad.PLAYER_LOGIN = function()
 
 	--check if it was showing a note on screen
 	C_Timer.After(5, function()
-		local bossId, shownAt = Notepad:GetCurrentlyShownBoss()
+		local bossId, shownAt, noteId = Notepad:GetCurrentlyShownBoss()
 		if (bossId and shownAt) then
 			if (shownAt+60 > time()) then
-				Notepad:ShowNoteOnScreen(bossId)
+				Notepad:ShowNoteOnScreen(bossId, noteId)
 			else
 				Notepad:UnshowNoteOnScreen()
 			end
@@ -145,6 +149,13 @@ Notepad.OnInstall = function (plugin)
 	editboxNotes.scroll:SetPoint("bottomright", editboxNotes, "bottomright", -26, 0)
 	local f, h, fl = editboxNotes.editbox:GetFont()
 	editboxNotes.editbox:SetFont (f, 12, fl)
+
+	--
+	local commandLineText = editboxNotes:CreateFontString(nil, "overlay", "GameFontNormal")
+	commandLineText:SetText("/RAA")
+	commandLineText:SetTextColor(.9, .9, .9, 0.1)
+	DetailsFramework:SetFontOutline(commandLineText, true)
+	commandLineText:SetPoint("topright", screenFrame, "topright", -2, -25)
 
 	-- background
 	local background = editboxNotes:CreateTexture(nil, "background")
@@ -442,51 +453,156 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
-function Notepad:GetNote(bossId)
-	local bossNote = Notepad.db.boss_notes[bossId]
-	if (not bossNote) then
-		bossNote = ""
-		Notepad.db.boss_notes[bossId] = bossNote
-	end
+local getRandomNoteSeed = function()
+	return tostring(time()) .. tostring(random(1000))
+end
+
+local createBossNoteStructure = function(bossId)
+	local bossNote = {
+		notes = {},
+		lastInUse = 1,
+		bossId = bossId,
+	}
+
+	Notepad.db.boss_notes2[bossId] = bossNote
+
 	return bossNote
 end
 
-function Notepad:SaveNote(note, bossId)
+local createNewNote = function(bossNote)
+	local newNote = {name = "default", note = "", seed = getRandomNoteSeed(), bossId = bossNote.bossId}
+	bossNote.notes[#bossNote.notes+1] = newNote
+	return newNote, #bossNote.notes
+end
+
+local createNewNoteWithSeed = function(bossNote, seed)
+	local newNote = {name = "default", note = "", seed = seed, bossId = bossNote.bossId}
+	bossNote.notes[#bossNote.notes+1] = newNote
+	return newNote, #bossNote.notes
+end
+
+local getLatestNoteOnBossNote = function(bossNote)
+	return bossNote.notes[#bossNote.notes]
+end
+
+function Notepad:GetNoteBySeed(bossId, seed)
+	--check if the structure for this boss exists
+	local bossNote = Notepad.db.boss_notes2[bossId]
+	if (not bossNote) then
+		bossNote = createBossNoteStructure(bossId)
+	end
+
+	local note, noteId
+
+	--search for a note with the seed
+	for i = 1, #bossNote.notes do
+		local thisNote = bossNote.notes[i]
+		if (thisNote.seed == seed) then
+			note = thisNote
+			noteId = i
+			break
+		end
+	end
+
+	if (not note) then
+		--create a new note with the seed passed
+		note, noteId = createNewNoteWithSeed(bossNote, seed)
+	end
+
+	return note, noteId
+end
+
+function Notepad:GetNote(bossId, noteId)
+	--check if the structure for this boss exists
+	local bossNote = Notepad.db.boss_notes2[bossId]
+	if (not bossNote) then
+		bossNote = createBossNoteStructure(bossId)
+	end
+
+	if (type(noteId) == "boolean" and noteId) then
+		local newNote, noteId = createNewNote(bossNote)
+		return newNote, noteId
+	end
+
+	noteId = noteId or 1
+
+	local note = bossNote.notes[noteId]
+
+	--check if the note asked exists, create one otherwise
+	if (not note) then
+		local newNote, noteId = createNewNote(bossNote)
+		return newNote, noteId
+	end
+
+	return note, noteId
+end
+
+function Notepad:SaveNote(note, bossId, noteId)
+	if (not note or not bossId or not noteId) then
+		return
+	end
+
+	local thisNote = Notepad:GetNote(bossId, noteId)
+	thisNote.note = note
+
+	return thisNote
+end
+
+function Notepad:SaveNoteFromComm(note, bossId)
 	if (not note or not bossId) then
 		return
 	end
-	Notepad.db.boss_notes[bossId] = note
+
+	local thisNote, noteId = Notepad:GetNoteBySeed(bossId, note.seed)
+	thisNote.note = note.note
+	thisNote.name = note.name
+
+	return thisNote, noteId
 end
 
 function Notepad:GetCurrentlyShownBoss()
-	return Notepad.db.currently_shown, Notepad.db.currently_shown_time
+	return Notepad.db.currently_shown, Notepad.db.currently_shown_time, Notepad.db.currently_shown_noteId
 end
 
-function Notepad:SetCurrentlyShownBoss(bossId)
+function Notepad:SetCurrentlyShownBoss(bossId, noteId)
 	Notepad.db.currently_shown = bossId
+	Notepad.db.currently_shown_noteId = noteId
 	Notepad.db.currently_shown_time = time()
 end
 
 function Notepad:SaveCurrentEditingNote()
-	local currentBossId = Notepad:GetCurrentEditingBossId()
-	if (currentBossId and currentBossId ~= 0) then
-		Notepad:SaveNote(Notepad.mainFrame.editboxNotes:GetText(), currentBossId)
+	local currentBossId, noteId = Notepad:GetCurrentEditingBossId()
+	if (currentBossId and noteId) then
+		Notepad:SaveNote(Notepad.mainFrame.editboxNotes:GetText(), currentBossId, noteId)
 	end
 end
 
 function Notepad:GetCurrentEditingNote()
-	local currentBossId = Notepad:GetCurrentEditingBossId()
-	return Notepad:GetNote(currentBossId)
+	local currentBossId, noteId = Notepad:GetCurrentEditingBossId()
+	return Notepad:GetNote(currentBossId, noteId)
 end
 
 function Notepad:GetNoteList()
-	return Notepad.db.boss_notes
+	return Notepad.db.boss_notes2
 end
 
 function Notepad:BuildBossList()
 	local bossTable = {}
 	Notepad.bossListHashTable = {} --carry a list of bosses of the current expansion where the boss index is key
 	Notepad.bossListTable = bossTable --carry a indexed list of bosses
+
+	bossTable[#bossTable+1] = {
+		bossName = "General Notes",
+		bossId = 0,
+		bossRaidName = "any note in general",
+		bossIcon = [[Interface\AddOns\RaidAssist\Media\note_icon]],
+		bossIconCoords = {0, 1, 0, 1},
+		bossIconSize = {bossLinesHeight+30, bossLinesHeight-4},
+		instanceId = 0,
+		uiMapId = 0,
+		instanceIndex = 0,
+		journalInstanceId = 0,
+	}
 
     for instanceIndex = 10, 1, -1 do
 		local instanceID, zoneName = _G.EJ_GetInstanceByIndex(instanceIndex, true)
@@ -501,6 +617,8 @@ function Notepad:BuildBossList()
 						bossId = bossID,
 						bossRaidName = zoneName,
 						bossIcon = iconImage,
+						bossIconCoords = {0, 1, 0, 0.95},
+						bossIconSize = {bossLinesHeight + 30, bossLinesHeight - 4},
 						instanceId = instanceID,
 						uiMapId = UiMapID,
 						instanceIndex = instanceIndex,
@@ -533,14 +651,19 @@ function Notepad:GetBossName(bossId)
 end
 
 function Notepad:GetCurrentEditingBossId()
-	return Notepad.db.editing_boss_id
+	return Notepad.db.editing_boss_id, Notepad.db.editing_boss_note_id
 end
 
-function Notepad:SetCurrentEditingBossId(bossId)
+function Notepad:SetCurrentEditingBossId(bossId, noteId)
 	Notepad.db.editing_boss_id = bossId
-	local mainFrame = Notepad.mainFrame
+	Notepad.db.editing_boss_note_id = noteId
+	Notepad.db.latest_menu_option_boss_selected = bossId
+	Notepad.db.latest_menu_option_note_selected = noteId
 
-	mainFrame.BossSelectionBox:Refresh()
+	local mainFrame = Notepad.mainFrame
+	noteId = noteId or 1
+
+	mainFrame.BossSelectionBox:RefreshMe()
 
 	--open the boss to change the text
 	mainFrame.buttonCancel:Enable()
@@ -550,15 +673,15 @@ function Notepad:SetCurrentEditingBossId(bossId)
 	mainFrame.editboxNotes:Enable()
 	mainFrame.editboxNotes:SetFocus()
 
-	local note = Notepad:GetNote(bossId)
-	mainFrame.editboxNotes:SetText(note)
+	local note = Notepad:GetNote(bossId, noteId)
+	mainFrame.editboxNotes:SetText(note.note)
 	Notepad:FormatText()
 
 	mainFrame.editboxNotes:Show()
 	mainFrame.userScreenPanelOptions:Hide()
 
 	--is empty?
-	if (#note == 0) then
+	if (#note.note == 0) then
 		mainFrame.editboxNotes.editbox:SetText("\n\n\n")
 	end
 
@@ -602,11 +725,11 @@ local track_mouse_position = function()
 	end
 end
 
-function Notepad:ShowNoteOnScreen(bossId)
-	local note = Notepad:GetNote(bossId)
-	if (note) then
+function Notepad:ShowNoteOnScreen(bossId, noteId)
+	local thisNote = Notepad:GetNote(bossId, noteId)
+	if (thisNote) then
 		--currently shown in the screen
-		Notepad:SetCurrentlyShownBoss(bossId)
+		Notepad:SetCurrentlyShownBoss(bossId, noteId)
 
 		if (Notepad.UpdateFrameShownOnOptions) then
 			Notepad:UpdateFrameShownOnOptions()
@@ -614,7 +737,7 @@ function Notepad:ShowNoteOnScreen(bossId)
 
 		Notepad.screenFrame:Show()
 
-		local formatedText = Notepad:FormatText(note)
+		local formatedText = Notepad:FormatText(thisNote.note)
 		local playerName = UnitName("player")
 
 		local locclass, class = UnitClass("player")
@@ -641,6 +764,10 @@ function Notepad:ShowNoteOnScreen(bossId)
 		C_Timer.After(3, track_mouse_position)
 
 		Notepad:UpdateScreenFrameBackground()
+
+		if (Notepad.screenFrame:GetHeight() < 5) then
+			Notepad.screenFrame:SetHeight(20)
+		end
 	end
 end
 
@@ -713,14 +840,14 @@ end
 function Notepad:PLAYER_LOGOUT()
 	--if there's a boss shown in the screen, dave it again to refresh when it was set in the screen
 	--when the player logon again, check if the logout was not long time ago and show again to the screen
-	local bossId = Notepad:GetCurrentlyShownBoss()
+	local bossId, _, noteId = Notepad:GetCurrentlyShownBoss()
 	if (bossId) then
-		Notepad:SetCurrentlyShownBoss(bossId)
+		Notepad:SetCurrentlyShownBoss(bossId, noteId)
 	end
 end
 
 function Notepad:ENCOUNTER_END(...)
-	local bossId = Notepad:GetCurrentlyShownBoss()
+	local bossId, _, noteId = Notepad:GetCurrentlyShownBoss()
 	if (bossId) then
 		local bossName = Notepad:GetBossName(bossId)
 		local encounterID, encounterName, difficultyID, raidSize, endStatus = select(1, ...)
@@ -742,7 +869,28 @@ end
 function Notepad.BuildOptions(frame)
 	if (frame.FirstRun) then
 		return
+	else
+
+		--wipe(Notepad.db.boss_notes2)
+
+		--convert db from single note per boss to multi notes per boss
+		local allNotes = Notepad.db.boss_notes2
+		if (allNotes) then
+			local firstNote = next(allNotes)
+			--old storage
+			if (firstNote and allNotes[firstNote] and type(allNotes[firstNote]) == "string") then
+				for bossId, noteString in pairs(allNotes) do
+					local bossNoteStructure = createBossNoteStructure(bossId)
+					local newNote, noteId = createNewNote(bossNoteStructure)
+					newNote.note = noteString
+				end
+			end
+		end
 	end
+
+	Notepad.db.latest_menu_option_boss_selected = Notepad.db.latest_menu_option_boss_selected or 0
+	Notepad.db.latest_menu_option_note_selected = Notepad.db.latest_menu_option_note_selected or 1
+
 	frame.FirstRun = true
 
 	local mainFrame = frame
@@ -908,48 +1056,222 @@ function Notepad.BuildOptions(frame)
 
 	--left boss selection scroll frame functions
 	local refreshBossList = function(self, data, offset, totalLines)
+
 		local lastBossSelected = Notepad.db.editing_boss_id
-		if (lastBossSelected == 0) then
-			lastBossSelected = data[#data].bossId
-		end
 
 		--update boss scroll
 		for i = 1, totalLines do
 			local index = i + offset
-			local bossData = data[index]
-			if (bossData) then
-				--get the data
-				local bossName = bossData.bossName
-				local bossRaidName = bossData.bossRaidName
-				local bossIcon = bossData.bossIcon
-				local bossId = bossData.bossId
+			local thisData = data[index]
+			if (thisData) then
 
-				--update the line
 				local line = self:GetLine(i)
-				line.bossName:SetText(bossName)
-				DF:TruncateText(line.bossName, 130)
-				line.bossRaidName:SetText(bossRaidName)
-				DF:TruncateText(line.bossRaidName, 130)
 
-				line.bossIcon:SetTexture(bossIcon)
-				line.bossIcon:SetTexCoord(0, 1, 0, .95)
+				if (thisData.newNoteButtom) then --create new note button
+					local bossId = thisData.bossId
+					local bossIcon = thisData.bossIcon
 
-				if (bossId == lastBossSelected) then
-					line:SetBackdropColor(unpack(scrollbox_line_backdrop_color_selected))
-				else
+					--update the line
+					line.noteIndicator:Show()
+					line.bossName:SetText("Create New Note")
+					line.bossName:SetPoint("left", line.bossIcon, "right", 5, 0)
+					DF:TruncateText(line.bossName, 130)
+					line.bossRaidName:SetText("")
+					DF:TruncateText(line.bossRaidName, 130)
+
+					line.bossIcon:SetTexture([[Interface\PaperDollInfoFrame\Character-Plus]])
+					line.bossIcon:SetTexCoord(0, 1, 0, 1)
+					line.bossIcon:SetSize(16, 16)
+					line.bossIcon:SetPoint("left", line, "left", 15, 0)
+
 					line:SetBackdropColor(unpack(scrollbox_line_backdrop_color))
-				end
+					--line:SetBackdropColor(.3, .3, .3, 1)
 
-				line.bossId = bossId
+					line.deleteButton:Hide()
+					line.renameButton:Hide()
+
+					line.bossId = bossId
+					line.noteId = 1
+					line.seed = nil
+					line.createButton = true
+
+				elseif (thisData.name and thisData.note) then --select note button
+					local noteName = thisData.name
+					local bossId = thisData.bossId
+					local seed = thisData.seed
+					local noteId = thisData.noteId
+
+					--update the line
+					line.noteIndicator:Show()
+					line.bossName:SetText(noteName)
+					line.bossName:SetPoint("left", line.bossIcon, "right", 5, 0)
+					DF:TruncateText(line.bossName, 130)
+					line.bossRaidName:SetText("") --seed
+					DF:TruncateText(line.bossRaidName, 130)
+
+					line.bossIcon:SetTexture([[Interface\ICONS\INV_Inscription_Parchment]])
+					line.bossIcon:SetTexCoord(0.95, 0.05, 0.05, 0.95)
+					line.bossIcon:SetSize(16, 16)
+					line.bossIcon:SetPoint("left", line, "left", 15, 0)
+
+					if (thisData.isSelected) then
+						line:SetBackdropColor(unpack(scrollbox_line_backdrop_color_selected))
+					else
+						line:SetBackdropColor(unpack(scrollbox_line_backdrop_color))
+					end
+
+					if (thisData.amountNotes >= 1) then
+						line.deleteButton:Show()
+						line.renameButton:Show()
+					else
+						line.deleteButton:Hide()
+						line.renameButton:Hide()
+					end
+
+					line.bossId = bossId
+					line.noteId = noteId
+					line.seed = seed
+					line.createButton = false
+
+				else --select boss button
+					local bossName = thisData.bossName
+					local bossRaidName = thisData.bossRaidName
+					local bossIcon = thisData.bossIcon
+					local bossId = thisData.bossId
+
+					--update the line
+					line.noteIndicator:Hide()
+					line.bossName:SetText(bossName)
+					line.bossName:SetPoint("left", line.bossIcon, "right", -8, 6)
+					DF:TruncateText(line.bossName, 130)
+					line.bossRaidName:SetText(bossRaidName)
+					DF:TruncateText(line.bossRaidName, 130)
+
+					line.bossIcon:SetTexture(bossIcon)
+					line.bossIcon:SetTexCoord(unpack(thisData.bossIconCoords))
+					line.bossIcon:SetSize(thisData.bossIconSize[1], thisData.bossIconSize[2])
+
+					line.bossIcon:SetPoint("left", line, "left", 2, 0)
+
+					if (bossId == lastBossSelected) then
+						line:SetBackdropColor(unpack(scrollbox_line_backdrop_color_selected))
+					else
+						line:SetBackdropColor(unpack(scrollbox_line_backdrop_color))
+					end
+
+					line.deleteButton:Hide()
+					line.renameButton:Hide()
+
+					line.bossId = bossId
+					line.seed = nil
+
+					local notesForThisBoss = Notepad.db.boss_notes2[bossId]
+					if (notesForThisBoss) then
+						line.noteId = notesForThisBoss.lastInUse
+					else
+						line.noteId = 1
+					end
+
+					line.createButton = false
+				end
 
 				line:Show()
 			end
 		end
 	end
 
+	function Notepad.SelectNote(bossId, noteId)
+		local notesForThisBoss = Notepad.db.boss_notes2[bossId]
+		notesForThisBoss.lastInUse = noteId
+
+		Notepad.db.latest_menu_option_boss_selected = bossId
+		Notepad.db.latest_menu_option_note_selected = noteId
+
+		Notepad:SetCurrentEditingBossId(bossId, noteId)
+	end
+
+	local onClickDeleteNote = function(self)
+		local line = self:GetParent()
+		local bossId = line.bossId
+		local noteId = line.noteId
+
+		local notesForThisBoss = Notepad.db.boss_notes2[bossId]
+		local noteSelected = notesForThisBoss.lastInUse
+
+		tremove(notesForThisBoss.notes, noteId)
+
+		if (noteSelected == noteId) then
+			--select note 1
+			notesForThisBoss.lastInUse = 1
+			Notepad:SetCurrentEditingBossId(bossId, 1)
+
+		elseif (noteSelected > noteId) then
+			notesForThisBoss.lastInUse = notesForThisBoss.lastInUse - 1
+			Notepad:SetCurrentEditingBossId(bossId, notesForThisBoss.lastInUse)
+		end
+	end
+
+	local onDeleteNoteMouseDown = function(self)
+		self:GetNormalTexture():SetPoint("center", 1, -1)
+	end
+
+	local onDeleteNoteMouseUp = function(self)
+		self:GetNormalTexture():SetPoint("center", 0, 0)
+	end
+
+	local onClickRenameNote = function(self)
+		local line = self:GetParent()
+		local bossId = line.bossId
+		local noteId = line.noteId
+
+		local notesForThisBoss = Notepad.db.boss_notes2[bossId]
+		local thisNote = notesForThisBoss.notes[noteId]
+		local noteName = thisNote.name
+
+		line.renameEntry:Show()
+		line.renameEntry:SetFocus(true)
+	end
+
+	local onRenameNoteMouseDown = function(self)
+		self:GetNormalTexture():SetPoint("center", 1, -1)
+	end
+
+	local onRenameNoteMouseUp = function(self)
+		self:GetNormalTexture():SetPoint("center", 0, 0)
+	end
+
 	local onClickBossLine = function(self)
 		local bossId = self.bossId
-		Notepad:SetCurrentEditingBossId(bossId)
+		local noteId = self.noteId
+
+		if (self.createButton) then
+			--create new note
+			local notesForThisBoss = Notepad.db.boss_notes2[bossId]
+			local newNote, newNoteId = createNewNote(notesForThisBoss)
+
+			Notepad.db.latest_menu_option_boss_selected = bossId
+			Notepad.db.latest_menu_option_note_selected = newNote
+			noteId = newNoteId
+
+			notesForThisBoss.lastInUse = #notesForThisBoss.notes
+
+			Notepad:SetCurrentEditingBossId(bossId, noteId)
+
+			local menuLines = mainFrame.bossScrollFrame:GetFrames()
+			for i = 1, #menuLines do
+				local line = menuLines[i]
+				if (line.seed == newNote.seed) then
+					line.renameButton.isCreating = true
+					onClickRenameNote(line.renameButton)
+					break
+				end
+			end
+		else
+			Notepad.SelectNote(bossId, noteId)
+			C_Timer.After(0, function()
+				mainFrame.BossSelectionBox:RefreshMe()
+			end)
+		end
 	end
 
 	local onEnterBossLine = function(self)
@@ -975,6 +1297,15 @@ function Notepad.BuildOptions(frame)
 		line:SetScript("OnLeave", onLeaveBossLine)
 		line:SetScript("OnClick", onClickBossLine)
 
+		line.index = index
+
+		--note indicator
+		local noteIndicator = line:CreateTexture(nil, "overlay")
+		noteIndicator:SetColorTexture(.7, .7, .7, .3)
+		noteIndicator:SetPoint("topleft", line, "topleft", 5, -1)
+		noteIndicator:SetPoint("bottomleft", line, "bottomleft", 5, 1)
+		noteIndicator:SetWidth(4)
+
 		--boss icon
 		local bossIcon = line:CreateTexture("$parentIcon", "overlay")
 		bossIcon:SetSize(bossLinesHeight + 30, bossLinesHeight-4)
@@ -990,8 +1321,111 @@ function Notepad.BuildOptions(frame)
 		DF:SetFontSize(bossRaid, 9)
 		DF:SetFontColor(bossRaid, "silver")
 
+		--erase button
+		local deleteButton = CreateFrame("button", nil, line, "BackdropTemplate")
+		deleteButton:SetPoint("right", line, "right", -3, 0)
+		deleteButton:SetSize(16, 16)
+		deleteButton:SetScript("OnClick", onClickDeleteNote)
+		deleteButton:SetScript("OnMouseDown", onDeleteNoteMouseDown)
+		deleteButton:SetScript("OnMouseUp", onDeleteNoteMouseUp)
+
+		deleteButton:SetNormalTexture([[Interface\GLUES\LOGIN\Glues-CheckBox-Check]])
+		deleteButton:GetNormalTexture():ClearAllPoints()
+		deleteButton:GetNormalTexture():SetPoint("center", 0, 0)
+
+		deleteButton:SetScript("OnEnter", function()
+			deleteButton:GetNormalTexture():SetBlendMode("ADD")
+		end)
+
+		deleteButton:SetScript("OnLeave", function()
+			deleteButton:GetNormalTexture():SetBlendMode("BLEND")
+		end)
+
+		--edit button
+		local renameButton = CreateFrame("button", nil, line, "BackdropTemplate")
+		renameButton:SetPoint("right", deleteButton, "left", -2, 0)
+		renameButton:SetSize(16, 16)
+		renameButton:SetScript("OnClick", onClickRenameNote)
+		renameButton:SetScript("OnMouseDown", onRenameNoteMouseDown)
+		renameButton:SetScript("OnMouseUp", onRenameNoteMouseUp)
+
+		renameButton:SetNormalTexture([[Interface\BUTTONS\UI-GuildButton-PublicNote-Up]])
+		renameButton:GetNormalTexture():ClearAllPoints()
+		renameButton:GetNormalTexture():SetPoint("center", 0, 0)
+
+		renameButton:SetScript("OnEnter", function()
+			renameButton:GetNormalTexture():SetBlendMode("ADD")
+		end)
+
+		renameButton:SetScript("OnLeave", function()
+			renameButton:GetNormalTexture():SetBlendMode("BLEND")
+		end)
+
+		local onRenameCommit = function()
+			local bossId = line.bossId
+			local noteId = line.noteId
+
+			local newName = line.renameEntry:GetText()
+			if (#newName > 0) then
+				bossName:SetText(newName)
+				local notesForThisBoss = Notepad.db.boss_notes2[bossId]
+				local thisNote = notesForThisBoss.notes[noteId]
+				thisNote.name = newName
+
+				if (line.renameButton.isCreating) then
+					--this note just got created, select it to edit
+					Notepad.SelectNote(bossId, noteId)
+				end
+			end
+
+			bossName:Show()
+			line.renameEntry:ClearFocus()
+			line.renameEntry:Hide()
+
+			line.renameButton.isCreating = nil
+		end
+
+		--text entry to type the new note name
+		local renameEntry = DetailsFramework:CreateTextEntry(line, onRenameCommit, 120, 20, _, _, _, DetailsFramework:GetTemplate("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+		renameEntry:SetPoint("left", bossName, "left", -8, 1)
+		renameEntry:SetPoint("right", renameButton, "left", -2, 1)
+		renameEntry:SetJustifyH("left")
+		renameEntry:SetBackdrop(nil)
+		renameEntry:Hide()
+
+		renameEntry:SetHook("OnEditFocusGained", function()
+			local bossId = line.bossId
+			local noteId = line.noteId
+
+			local notesForThisBoss = Notepad.db.boss_notes2[bossId]
+			local thisNote = notesForThisBoss.notes[noteId]
+			local noteName = thisNote.name
+
+			bossName:Hide()
+			renameEntry:SetText(noteName)
+			renameEntry:HighlightText(0)
+		end)
+
+		renameEntry:SetHook("OnEditFocusLost", function()
+			bossName:Show()
+			line.renameEntry:HighlightText(0, 0)
+			line.renameEntry:ClearFocus()
+			line.renameEntry:Hide()
+			line.renameButton.isCreating = nil
+		end)
+
+		renameEntry:SetHook("OnEscapePressedHook", function()
+			renameEntry:Hide()
+			bossName:Show()
+			line.renameButton.isCreating = nil
+		end)
+
+		line.noteIndicator = noteIndicator
 		line.bossName = bossName
 		line.bossRaidName = bossRaid
+		line.deleteButton = deleteButton
+		line.renameButton = renameButton
+		line.renameEntry = renameEntry
 
 		return line
 	end
@@ -1001,6 +1435,7 @@ function Notepad.BuildOptions(frame)
 
 	--create the left scroll to select which boss to edit
 	local bossScrollFrame = DF:CreateScrollBox(mainFrame, "$parentBossScrollBox", refreshBossList, bossData, scrollBossWidth, scrollBossHeight, amoutBossLines, bossLinesHeight)
+	mainFrame.bossScrollFrame = bossScrollFrame
 
 	--create the scrollbox lines
 	for i = 1, amoutBossLines do
@@ -1011,9 +1446,57 @@ function Notepad.BuildOptions(frame)
 	DF:ApplyStandardBackdrop(bossScrollFrame)
 	mainFrame.BossSelectionBox = bossScrollFrame
 	bossScrollFrame:SetPoint("topleft", mainFrame, "topleft", 0, 5)
-	mainFrame.BossSelectionBox:Refresh()
 
-	bossScrollFrame:Refresh()
+	bossScrollFrame.RefreshMe = function(self)
+		--always will have a boss selected
+		local latestBossSelected = Notepad.db.latest_menu_option_boss_selected
+
+		--data tem a lista de boss
+		local bossData = Notepad:GetBossList()
+		--local data = bossScrollFrame:GetData()
+		local data = bossData
+		local menuList = {}
+
+		for i = 1, #data do
+			local bossData = data[i]
+			local bossId = bossData.bossId
+
+			local notesForThisBoss = Notepad.db.boss_notes2[bossId]
+			if (not notesForThisBoss) then
+				notesForThisBoss = createBossNoteStructure(bossId)
+			end
+
+			menuList[#menuList+1] = bossData
+
+			--if this is the latest selected
+			if (bossId == latestBossSelected) then
+				local bossNotes = notesForThisBoss.notes
+				local lastNoteSelected = notesForThisBoss.lastInUse
+
+				local amountNotes = #bossNotes
+
+				if (amountNotes == 0) then
+					createNewNote(notesForThisBoss)
+				end
+
+				for o = 1, amountNotes do
+					local noteCopy = DetailsFramework.table.copy({}, bossNotes[o])
+					noteCopy.noteId = o
+					noteCopy.amountNotes = amountNotes
+					noteCopy.isSelected = lastNoteSelected == o
+					menuList[#menuList+1] = noteCopy
+				end
+
+				--create the +note button
+				menuList[#menuList+1] = {newNoteButtom = true, bossId = bossId}
+			end
+		end
+
+		bossScrollFrame:SetData(menuList)
+		bossScrollFrame:Refresh()
+	end
+
+	bossScrollFrame:RefreshMe()
 	bossScrollFrame:Show()
 
 	bossScrollFrame:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
@@ -1040,17 +1523,16 @@ function Notepad.BuildOptions(frame)
 	unsendButton:SetPoint("right", frameNoteShown, "right", -8, 0)
 
 	function Notepad:UpdateFrameShownOnOptions()
-		local bossId = Notepad:GetCurrentEditingBossId()
-		local note = Notepad:GetNote(bossId)
+		local bossId, noteId = Notepad:GetCurrentEditingBossId()
+		local note = Notepad:GetNote(bossId, noteId)
 		local bossInfo = Notepad:GetBossInfo(bossId)
 
 		if (note) then
 			mainFrame.frameNoteShown:Show()
-			mainFrame.frameNoteShown.label_note_show2.text = bossInfo.bossName
+			mainFrame.frameNoteShown.label_note_show2.text = bossInfo and bossInfo.bossName or note.name
 			mainFrame.shiftEnterLabel:Hide()
 		else
 			mainFrame.frameNoteShown:Hide()
-			--mainFrame.shiftEnterLabel:Show()
 		end
 	end
 
@@ -1108,31 +1590,23 @@ function Notepad.BuildOptions(frame)
 	editboxNotes:Hide()
 
 	local clearEditbox = function()
-		editboxNotes:SetText ("")
+		editboxNotes:SetText("")
 	end
 
 	local saveChanges = function()
 		Notepad.ColorPlayerNames()
 		Notepad:SaveCurrentEditingNote()
-		local bossId = Notepad:GetCurrentEditingBossId()
-		Notepad:ShowNoteOnScreen(bossId)
-		Notepad:SendNote(bossId)
-		return true
 	end
 
 	local saveChangesAndSend = function()
-		local hasSent = saveChanges()
-		if (not hasSent) then
-			local bossId = Notepad:GetCurrentEditingBossId()
-			Notepad:ShowNoteOnScreen(bossId)
-			Notepad:SendNote(bossId)
-		end
+		saveChanges()
+		local bossId, noteId = Notepad:GetCurrentEditingBossId()
+		Notepad:ShowNoteOnScreen(bossId, noteId)
+		Notepad:SendNote(bossId, noteId)
 	end
 
 	local saveChangesAndClose = function()
-		--saveChanges()
-		Notepad.ColorPlayerNames()
-		Notepad:SaveCurrentEditingNote()
+		saveChanges()
 		Notepad:CancelNoteEditing()
 	end
 
@@ -1561,47 +2035,50 @@ function Notepad.BuildOptions(frame)
 		for buttonid, button in ipairs (bossAbilitiesButtons) do
 			button:Hide()
 		end
-		local bossId = Notepad:GetCurrentEditingBossId()
+		local bossId, noteId = Notepad:GetCurrentEditingBossId()
 		local raidInfo = Notepad:GetBossInfo(bossId)
-		local instanceId = raidInfo.instanceId
 
-		if (bossId) then
-			local spells = DetailsFramework:GetSpellsForEncounterFromJournal(instanceId, bossId)
+		if (raidInfo) then
+			local instanceId = raidInfo.instanceId
 
-			if (spells) then
-				local button_index = 1
-				local i, o = 1, 1
-				local alreadyAdded = {}
+			if (bossId) then
+				local spells = DetailsFramework:GetSpellsForEncounterFromJournal(instanceId, bossId)
 
-				for index, spellid in ipairs(spells) do
-					local spellname, _, spellicon = GetSpellInfo (spellid)
-					if (spellname and not alreadyAdded [spellname]) then
-						alreadyAdded[spellname] = true
+				if (spells) then
+					local button_index = 1
+					local i, o = 1, 1
+					local alreadyAdded = {}
 
-						local button = bossAbilitiesButtons[button_index]
-						if (not button) then
-							button = Notepad:CreateButton(colors_panel, on_bossspell_selection, iconWidth, iconWidth, "", spellid, _, _, "button_bossspell" .. button_index)
-							button.spellTexture = button:CreateTexture(nil, "artwork")
-							bossAbilitiesButtons[button_index] = button
-							button:SetHook("OnEnter", on_enter_bossspell)
-							button:SetHook("OnLeave", on_leave_bossspell)
-							button:SetPoint("topleft", editboxNotes, "topright", bossAbilitiesX + ((i-1)*(iconWidth+1)), bossAbilitiesY + (o*(iconWidth+1)*-1))
-						end
+					for index, spellid in ipairs(spells) do
+						local spellname, _, spellicon = GetSpellInfo (spellid)
+						if (spellname and not alreadyAdded [spellname]) then
+							alreadyAdded[spellname] = true
 
-						button.spellid = spellid
+							local button = bossAbilitiesButtons[button_index]
+							if (not button) then
+								button = Notepad:CreateButton(colors_panel, on_bossspell_selection, iconWidth, iconWidth, "", spellid, _, _, "button_bossspell" .. button_index)
+								button.spellTexture = button:CreateTexture(nil, "artwork")
+								bossAbilitiesButtons[button_index] = button
+								button:SetHook("OnEnter", on_enter_bossspell)
+								button:SetHook("OnLeave", on_leave_bossspell)
+								button:SetPoint("topleft", editboxNotes, "topright", bossAbilitiesX + ((i-1)*(iconWidth+1)), bossAbilitiesY + (o*(iconWidth+1)*-1))
+							end
 
-						button.spellTexture:SetTexture(spellicon)
-						button.spellTexture:SetTexCoord(5/65, 59/64, 5/65, 59/64)
-						button.spellTexture:SetAlpha(0.85)
-						button.spellTexture:SetAllPoints()
+							button.spellid = spellid
 
-						button:Show()
+							button.spellTexture:SetTexture(spellicon)
+							button.spellTexture:SetTexCoord(5/65, 59/64, 5/65, 59/64)
+							button.spellTexture:SetAlpha(0.85)
+							button.spellTexture:SetAllPoints()
 
-						button_index = button_index + 1
-						i = i + 1
-						if (i == 8) then
-							i = 1
-							o = o + 1
+							button:Show()
+
+							button_index = button_index + 1
+							i = i + 1
+							if (i == 8) then
+								i = 1
+								o = o + 1
+							end
 						end
 					end
 				end
@@ -1609,6 +2086,7 @@ function Notepad.BuildOptions(frame)
 		end
 	end
 
+	--[=[
 	--keywords
 	local labelKeywords = Notepad:CreateLabel (colors_panel, "Keywords" .. ":", Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	labelKeywords:SetPoint ("topleft", editboxNotes, "topright", 8, -470)
@@ -1662,7 +2140,7 @@ function Notepad.BuildOptions(frame)
 			o = o + 1
 		end
 	end
-
+--]=]
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	local func = function (self, fixedparam, value)
@@ -1817,7 +2295,19 @@ function Notepad.BuildOptions(frame)
 		characters_count = mainFrame.editboxNotes.editbox:GetText():len()
 	end)
 
-	local interval, guildInterval, playersCache, updateGuildPlayers = -1, -1, {}, false
+	local playersCache = {
+		["Cooldowns"] = "PRIEST",
+		["Phase"] = "PRIEST",
+		["Dispell"] = "PRIEST",
+		["Interrupt"] = "PRIEST",
+		["Adds"] = "PRIEST",
+		["Tanks"] = "PRIEST",
+		["Damagers"] = "PRIEST",
+		["Healers"] = "PRIEST",
+		["Transition"] = "PRIEST",
+	}
+
+	local interval, guildInterval, updateGuildPlayers = -1, -1, false
 	Notepad.playersCache = playersCache
 
 	editboxNotes.editbox:SetScript("OnChar", function (self, char) 
@@ -1993,7 +2483,7 @@ function Notepad:FormatText(mytext)
 	if (mytext) then
 		return text
 	else
-		Notepad.mainFrame.editboxNotes.editbox:SetText (text)
+		Notepad.mainFrame.editboxNotes.editbox:SetText(text)
 	end
 end
 
@@ -2015,8 +2505,9 @@ function Notepad:AskForEnabledNote()
 end
 
 --received a comm from another player in the raid, need to treat it
-function Notepad.OnReceiveComm(sourceName, prefix, sourcePluginVersion, sourceUnit, fullNote, bossId)
+function Notepad.OnReceiveComm(sourceName, prefix, sourcePluginVersion, sourceUnit, fullNote, bossId, noteId)
 	sourceUnit = sourceName
+	sourceUnit = Ambiguate(sourceUnit, "none")
 
 	local ZoneName, InstanceType, DifficultyID = GetInstanceInfo()
 	if (DifficultyID and DifficultyID == 17) then
@@ -2045,15 +2536,19 @@ function Notepad.OnReceiveComm(sourceName, prefix, sourcePluginVersion, sourceUn
 			if (not bossId or type(bossId) ~= "number") then
 				return
 			end
+			--has a valid noteId?
+			if (not noteId or type(noteId) ~= "number") then
+				return
+			end
 
 			--save the note
-			Notepad:SaveNote(fullNote, bossId)
+			local thisNote, noteId = Notepad:SaveNoteFromComm(fullNote, bossId)
 			--show the note
-			Notepad:ShowNoteOnScreen(bossId)
+			Notepad:ShowNoteOnScreen(bossId, noteId)
 
 			--if options window is opened, update the scroll frame and the editor
 			if (Notepad.mainFrame and Notepad.mainFrame:IsShown()) then
-				Notepad:SetCurrentEditingBossId(bossId)
+				Notepad:SetCurrentEditingBossId(bossId, noteId)
 			end
 
 	--> Requested Note - the user requested the note to the raid leader
@@ -2064,10 +2559,10 @@ function Notepad.OnReceiveComm(sourceName, prefix, sourcePluginVersion, sourceUn
 			end
 
 			if (isConnected(sourceUnit)) then
-				local currentBoss = Notepad:GetCurrentlyShownBoss()
+				local currentBoss, _, noteId = Notepad:GetCurrentlyShownBoss()
 				if (currentBoss) then
-					local note = Notepad:GetNote(currentBoss)
-					Notepad:SendPluginCommWhisperMessage(COMM_RECEIVED_FULLNOTE, sourceUnit, nil, nil, Notepad:GetPlayerNameWithRealm(), note, currentBoss)
+					local note = Notepad:GetNote(currentBoss, noteId)
+					Notepad:SendPluginCommWhisperMessage(COMM_RECEIVED_FULLNOTE, sourceUnit, nil, nil, Notepad:GetPlayerNameWithRealm(), note, currentBoss, noteId)
 				else
 					--no note is shown, just send an empty FULLNOTE
 					Notepad:SendPluginCommWhisperMessage(COMM_RECEIVED_FULLNOTE, sourceUnit, nil, nil, Notepad:GetPlayerNameWithRealm())
@@ -2102,7 +2597,7 @@ function Notepad:SendHideShownNote()
 end
 
 --> send the note for all players in the raid
-function Notepad:SendNote(bossId)
+function Notepad:SendNote(bossId, noteId)
 	--is raid leader?
 	if (isRaidLeader("player") and (IsInRaid() or IsInGroup())) then
 		local ZoneName, InstanceType, DifficultyID, _, _, _, _, ZoneMapID = GetInstanceInfo()
@@ -2112,12 +2607,12 @@ function Notepad:SendNote(bossId)
 		end
 
 		--send the note
-		local note = Notepad:GetNote(bossId)
+		local note = Notepad:GetNote(bossId, noteId)
 		if (note) then
 			if (IsInRaid()) then
-				Notepad:SendPluginCommMessage (COMM_RECEIVED_FULLNOTE, "RAID", nil, nil, Notepad:GetPlayerNameWithRealm(), note, bossId)
+				Notepad:SendPluginCommMessage (COMM_RECEIVED_FULLNOTE, "RAID", nil, nil, Notepad:GetPlayerNameWithRealm(), note, bossId, noteId)
 			else
-				Notepad:SendPluginCommMessage (COMM_RECEIVED_FULLNOTE, "PARTY", nil, nil, Notepad:GetPlayerNameWithRealm(), note, bossId)
+				Notepad:SendPluginCommMessage (COMM_RECEIVED_FULLNOTE, "PARTY", nil, nil, Notepad:GetPlayerNameWithRealm(), note, bossId, noteId)
 			end
 		end
 	end

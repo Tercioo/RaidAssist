@@ -623,7 +623,7 @@ function ReadyCheck.BuildOptions(frame)
 
 	frame.FirstRun = true
 
-	local leftOptionsPanelFrame = CreateFrame("frame", "NotepadTextOptionsPanel", frame, "BackdropTemplate")
+	local leftOptionsPanelFrame = CreateFrame("frame", "ReadyCheckOptionsPanel", frame, "BackdropTemplate")
 	frame.leftOptionsPanelFrame = leftOptionsPanelFrame
 	leftOptionsPanelFrame:SetSize(280, 615)
 	leftOptionsPanelFrame:SetPoint("topleft", frame, "topleft", 5, 5)
@@ -717,7 +717,7 @@ function ReadyCheck.BuildOptions(frame)
 
 		local nameString = "|TInterface\\ICONS\\" .. raidBuff.texture .. ":16:16:0:0:64:64:6:58:6:58|t " ..  raidBuff.name
 
-		options_list[#options_list+1] = {
+		local thisOption = {
 			type = "toggle",
 			get = function() return ReadyCheck.db[raidBuff.db] end,
 			set = function (self, fixedparam, value)
@@ -727,6 +727,8 @@ function ReadyCheck.BuildOptions(frame)
 			end,
 			name = nameString,
 		}
+
+		tinsert(options_list, thisOption)
 	end
 
 	local options_text_template = ReadyCheck:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE")
@@ -736,7 +738,7 @@ function ReadyCheck.BuildOptions(frame)
 	local options_button_template = ReadyCheck:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE")
 
 	ReadyCheck:SetAsOptionsPanel(leftOptionsPanelFrame)
-	ReadyCheck:BuildMenu(leftOptionsPanelFrame, options_list, 5, -5, 400, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
+	ReadyCheck:BuildMenu(leftOptionsPanelFrame, options_list, 5, -5, 500, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
 end
 
 RA:InstallPlugin ("Ready Check", "RAReadyCheck", ReadyCheck, default_config)
