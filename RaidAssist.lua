@@ -296,7 +296,7 @@ function RA.OnInit (self)
 	--create the floating frame in UIParent, with some delay
 	C_Timer.After (10, function()
 		--RA.db.profile.welcome_screen1 = false
-		if (not RA.db.profile.welcome_screen1) then
+		if (not RA.db.profile.welcome_screen1 and false) then --disabled
 			
 			local button_template = {
 				backdrop = {edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true},

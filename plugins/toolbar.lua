@@ -360,12 +360,7 @@ function LeaderToolbar.CreateScreenPanel()
 	readycheck_button:SetPoint ("left", status_button, "right", 2, 0)
 	
 	local function dopull()
-		if (_G.DBM and SlashCmdList ["DEADLYBOSSMODS"]) then
-			SlashCmdList ["DEADLYBOSSMODS"] ("pull " .. tostring (LeaderToolbar.db.pull_timer))
-			
-		elseif (BigWigs and SlashCmdList.BIGWIGSPULL) then
-			SlashCmdList ["BIGWIGSPULL"] (tostring (LeaderToolbar.db.pull_timer))
-		end
+		C_PartyInfo.DoCountdown(LeaderToolbar.db.pull_timer)
 	end
 	
 	local pull_button = LeaderToolbar:CreateButton (ScreenPanel, dopull, 50, 20, "Pull", _, _, _, "pull_button", _, "none", button_template)

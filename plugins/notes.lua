@@ -1,3 +1,7 @@
+-- fazer timer no Notes
+-- adicionar nos invites para pessoas de fora
+-- implementar notes de whisper para mandar para jofadoes
+-- encounter breakdown dropdown de segmentos: mostrar os segmentos de acordo com a l ista de segmentos do Details!
 
 
 local RA = _G.RaidAssist
@@ -2086,61 +2090,6 @@ function Notepad.BuildOptions(frame)
 		end
 	end
 
-	--[=[
-	--keywords
-	local labelKeywords = Notepad:CreateLabel (colors_panel, "Keywords" .. ":", Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-	labelKeywords:SetPoint ("topleft", editboxNotes, "topright", 8, -470)
-
-	local localizedKeywords = {"Cooldowns", "Phase ", "Dispell", "Interrupt", "Adds", "Sequence", "Second Pot At", "Tanks", "Dps", "Healers", "Transition"}
-
-	if (UnitFactionGroup("player") == "Horde") then
-		tinsert (localizedKeywords, "Bloodlust At")
-	else
-		tinsert (localizedKeywords, "Heroism")
-	end
-
-	local on_keyword_selection = function (self, button, keyword)
-		local cursorPos = mainFrame.editboxNotes.editbox:GetCursorPosition()
-		local textToInsert = keyword .. ":\n"
-		mainFrame.editboxNotes.editbox:Insert(textToInsert)
-		mainFrame.editboxNotes.editbox:SetFocus(true)
-		mainFrame.editboxNotes.editbox:SetCursorPosition(cursorPos + #textToInsert)
-	end
-
-	local i, o, index = 1, 1, 1
-	local button_keyword_backdrop = {edgeSize = 1, tileSize = 64, tile = true, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]]}
-
-	local on_enter_keyword = function (self)
-		local button = self.MyObject
-		button.textcolor = "orange"
-	end
-
-	local on_leave_keyword = function (self)
-		local button = self.MyObject
-		button.textcolor = "white"
-	end
-
-	for index, keyword in pairs (localizedKeywords) do
-		local keyword_button =  Notepad:CreateButton (colors_panel, on_keyword_selection, 92, 12, keyword, keyword, _, _, "button_keyword" .. index, nil, 1) --short method 1
-		keyword_button:SetBackdrop (button_keyword_backdrop)
-		keyword_button:SetBackdropColor (0, 0, 0, 0.4)
-		keyword_button:SetPoint ("topleft", editboxNotes, "topright", 6 + ((i-1)*97), -470 + (o*13*-1))
-		keyword_button:SetHook ("OnEnter", on_enter_keyword)
-		keyword_button:SetHook ("OnLeave", on_leave_keyword)
-		keyword_button.textsize = 10
-		keyword_button.textface = "Friz Quadrata TT"
-		keyword_button.textcolor = "white"
-		keyword_button.textalign = "<"
-		keyword_button.keyword = keyword
-
-		index = index + 1
-		i = i +1
-		if (i == 3) then
-			i = 1
-			o = o + 1
-		end
-	end
---]=]
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 	local func = function (self, fixedparam, value)
@@ -2171,7 +2120,6 @@ function Notepad.BuildOptions(frame)
 	labelAutocomplete:SetPoint ("left", checkbox2, "right", 2, 0)
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
-
 
 	editboxNotes:SetScript("OnShow", function()
 		colors_panel:SetScript("OnUpdate", do_text_format)

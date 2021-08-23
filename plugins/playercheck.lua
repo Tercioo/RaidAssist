@@ -133,6 +133,7 @@ function PlayerCheck.BuildOptions(frame)
 	end
 
 	frame.FirstRun = true
+	raidStatusLib.RequestAllPlayersInfo()
 
 	--> register callback on libRaidStatus
 		function PlayerCheck.RefreshScrollData()
@@ -608,14 +609,27 @@ function PlayerCheck.BuildOptions(frame)
 			local conduits = playerGeneralInfo.conduits or {}
 			local covenantId = playerGeneralInfo.covenantId or 0
 
+			local specSortToken = (((specId) + 700) ^ 4) + tonumber(string.byte(playerName, 1) .. string.byte(playerName, 2))
+			--print(playerName, specSortToken, specId, type(specSortToken))
+
 			thisResult[7] = specId
 			thisResult[8] = renown
 			thisResult[9] = talents
 			thisResult[10] = conduits
 			thisResult[11] = covenantId
 
+			--sort id for spec
+			thisResult[12] = specSortToken
+
 			if (needToAdd) then
 				result[#result+1] = thisResult
+			end
+		end
+
+		for i = 1, #result do
+			local thisResult = result[i]
+			if (not thisResult[12]) then
+				thisResult[12] = thisResult[7] or 0
 			end
 		end
 

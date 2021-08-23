@@ -48,15 +48,24 @@ function RA.OpenMainOptions(plugin)
 		return
 	end
 
-	RA.db.options_panel = RA.db.options_panel or {}
+	RA.db.profile.options_panel = RA.db.profile.options_panel or {}
+	RA.db.profile.options_panel.libwindow = RA.db.profile.options_panel.libwindow or {}
 
-	local f = RA:CreateStandardFrame(UIParent, CONST_OPTIONS_FRAME_WIDTH, CONST_OPTIONS_FRAME_HEIGHT, "Raid Assist (|cFFFFAA00/raa|r)", "RaidAssistOptionsPanel", RA.db.options_panel)
+	local f = RA:CreateStandardFrame(UIParent, CONST_OPTIONS_FRAME_WIDTH, CONST_OPTIONS_FRAME_HEIGHT, "Raid Assist (|cFFFFAA00/raa|r)", "RaidAssistOptionsPanel")
 	f:SetBackdropBorderColor(1, .7, 0, .8)
 	f:SetBackdropColor(0, 0, 0, 1)
 	DetailsFramework:ApplyStandardBackdrop(f, 0.9)
+	f:SetScript("OnMouseDown", nil)
+	f:SetScript("OnMouseUp", nil)
 
 	DF:CreateScaleBar(f, RA.db.profile.addon.scale_bar)
+	--f:SetScale(RA.db.profile.addon.scale_bar.scale)
 	DF:CreateRightClickToClose(f)
+
+	local LibWindow = LibStub("LibWindow-1.1")
+	LibWindow.RegisterConfig(f, RA.db.profile.options_panel.libwindow)
+	LibWindow.RestorePosition(f)
+	LibWindow.MakeDraggable(f)
 
 	f.AllOptionsButtons = {}
 	f.AllOptionsPanels = {}

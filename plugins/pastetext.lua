@@ -59,6 +59,7 @@ local recentlyReceivedFrom = {}
 function PasteText.PluginCommReceived (sourceName, prefix, sourcePluginVersion, sourceUnit, data)
 	sourceUnit = sourceName
 	
+
 	if (not PasteText.db.enabled) then
 		return
 	end
@@ -79,14 +80,19 @@ function PasteText.PluginCommReceived (sourceName, prefix, sourcePluginVersion, 
 		end
 		recentlyReceivedFrom[unitName] = time()
 
+		local ZoneName, InstanceType, DifficultyID, _, _, _, _, ZoneMapID = GetInstanceInfo()
+		if (DifficultyID and DifficultyID == 17) then
+			--ignore raid finder
+			return
+		end
+
 		--check if is in the same guild
 		local playerGuild = GetGuildInfo("player")
 		local receivedFromGuild = GetGuildInfo(unitName)
-
 		if (not playerGuild) then
-			return
+			--return
 		elseif (playerGuild ~= receivedFromGuild) then
-			return
+			--return
 		end
 
 		--add the text

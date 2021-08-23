@@ -49,17 +49,22 @@
 			"path": "plugins/playercheck.lua",
 			"bookmarks": [
 				{
-					"line": 175,
-					"column": 22,
+					"line": 126,
+					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 414,
+					"line": 415,
 					"column": 2,
 					"label": ""
 				},
 				{
-					"line": 650,
+					"line": 572,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 663,
 					"column": 2,
 					"label": ""
 				}
@@ -109,22 +114,22 @@
 					"label": ""
 				},
 				{
-					"line": 434,
+					"line": 437,
 					"column": 12,
 					"label": ""
 				},
 				{
-					"line": 503,
+					"line": 506,
 					"column": 38,
 					"label": ""
 				},
 				{
-					"line": 552,
+					"line": 555,
 					"column": 4,
 					"label": ""
 				},
 				{
-					"line": 991,
+					"line": 994,
 					"column": 0,
 					"label": ""
 				}
@@ -134,27 +139,27 @@
 			"path": "plugins/aurachecker.lua",
 			"bookmarks": [
 				{
-					"line": 127,
+					"line": 121,
 					"column": 1,
 					"label": ""
 				},
 				{
-					"line": 552,
+					"line": 554,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 589,
+					"line": 591,
 					"column": 6,
 					"label": ""
 				},
 				{
-					"line": 765,
+					"line": 767,
 					"column": 38,
 					"label": ""
 				},
 				{
-					"line": 858,
+					"line": 860,
 					"column": 35,
 					"label": ""
 				}
@@ -174,27 +179,22 @@
 			"path": "plugins/notes.lua",
 			"bookmarks": [
 				{
-					"line": 598,
+					"line": 603,
 					"column": 24,
 					"label": ""
 				},
 				{
-					"line": 1271,
+					"line": 1276,
 					"column": 4,
 					"label": ""
 				},
 				{
-					"line": 2089,
-					"column": 0,
-					"label": ""
-				},
-				{
-					"line": 2543,
+					"line": 2492,
 					"column": 27,
 					"label": ""
 				},
 				{
-					"line": 2593,
+					"line": 2542,
 					"column": 41,
 					"label": ""
 				}
@@ -214,22 +214,22 @@
 			"path": "plugins/pastetext.lua",
 			"bookmarks": [
 				{
-					"line": 226,
+					"line": 234,
 					"column": 25,
 					"label": ""
 				},
 				{
-					"line": 268,
+					"line": 276,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 317,
+					"line": 325,
 					"column": 4,
 					"label": ""
 				},
 				{
-					"line": 366,
+					"line": 374,
 					"column": 16,
 					"label": ""
 				}
@@ -239,12 +239,7 @@
 			"path": "OptionsPanel.lua",
 			"bookmarks": [
 				{
-					"line": 57,
-					"column": 28,
-					"label": ""
-				},
-				{
-					"line": 220,
+					"line": 227,
 					"column": 23,
 					"label": ""
 				}

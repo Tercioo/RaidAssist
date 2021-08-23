@@ -105,12 +105,6 @@ end
 
 local lower = string.lower
 local sortFunction = function (t1, t2) return t2[1] < t1[1] end
-local sortFunction2 = function (t1, t2) return lower(t2) > lower(t1) end
-
---reuse some tables to update the fill panel
-local alphabeticalPlayers = {}
-local auraNames = {}
-local panelHeader = {}
 
 function AuraCheck.UpdateAurasFillPanel(fillPanel)
 	fillPanel = fillPanel or (AuraCheckerAurasFrame and AuraCheckerAurasFrame.fillPanel)
@@ -118,9 +112,9 @@ function AuraCheck.UpdateAurasFillPanel(fillPanel)
 		return
 	end
 
-	wipe(alphabeticalPlayers)
-	wipe(auraNames)
-	wipe(panelHeader)
+	local alphabeticalPlayers = {}
+	local auraNames = {}
+	local panelHeader = {}
 
 	--alphabetical order
 	for playerName, auraStateTable in pairs(AuraCheck.AuraState) do
@@ -162,6 +156,14 @@ function AuraCheck.UpdateAurasFillPanel(fillPanel)
 					(stateTable [auraName] == RESPONSE_TYPE_OFFLINE and "|cFFFF0000offline|r") --the user is offline
 				)
 		end
+
+		local _, class = UnitClass(playerName)
+		if (class) then
+			local originalPlayerName = playerName
+			playerName = DetailsFramework:AddClassColorToText(playerName, class)
+			playerName = DetailsFramework:AddClassIconToText(playerName, originalPlayerName, class, true, 20)
+		end
+
 		return {playerName, unpack(temp)}
 	end)
 
@@ -232,7 +234,7 @@ function AuraCheck.BuildOptions (frame)
 		aurasFrame:SetSize (unpack (framesSize))
 
 		--fillpanel - auras panel
-		local fillPanel = AuraCheck:CreateFillPanel (aurasFrame, {}, fillpanel_width, fillpanel_height, false, false, false, {rowheight = 13}, _, "AuraCheckerAurasFrameFillPanel")
+		local fillPanel = AuraCheck:CreateFillPanel (aurasFrame, {}, fillpanel_width, fillpanel_height, false, false, false, {rowheight = 19}, _, "AuraCheckerAurasFrameFillPanel")
 		fillPanel:SetPoint ("topleft", aurasFrame, "topleft", 0, 0)
 		aurasFrame.fillPanel = fillPanel
 		DetailsFramework:ApplyStandardBackdrop(fillPanel)
@@ -895,7 +897,8 @@ function AuraCheck.PluginCommReceived(sourceName, prefix, sourcePluginVersion, p
 
 		--check if the sender isnt 'me'
 		if (UnitIsUnit(sourceName, "player")) then
-			--return
+			AuraCheck:SendPluginCommMessage(COMM_AURA_CHECKRECEIVED, AuraCheck.GetChannel(), _, _, AuraCheck:GetPlayerNameWithRealm(), auraName, 1)
+			return
 		end
 
 		--disabling this
@@ -912,8 +915,8 @@ function AuraCheck.PluginCommReceived(sourceName, prefix, sourcePluginVersion, p
 			end
 		end
 
-		--check for trusted - auto install if trusted
 		if (type(auraString) == "string") then
+			--check for trusted - auto install if trusted
 			if (AuraCheck.db.auto_install_from_trusted) then
 				if (AuraCheck.IsTrusted(playerName)) then
 					AuraCheck.InstallAura(auraName, playerName, auraString, time())

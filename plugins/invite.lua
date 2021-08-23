@@ -427,6 +427,9 @@ function Invite.BuildOptions (frame)
 		panel.dropdown_schedule = dropdown_schedule_select
 		dropdown_schedule_select:SetPoint ("left", label_schedule_select, "right", 2, 0)
 		label_schedule_select:SetPoint (10, -305)
+		dropdown_schedule_select:SetScript("OnShow", function()
+			dropdown_schedule_select:Refresh()
+		end)
 
 		--raid leader
 		local msgToSendToPlayers = RA:CreateLabel (presetSetupFrame, "Msg to players: ", Invite:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
