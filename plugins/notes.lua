@@ -1,7 +1,4 @@
--- fazer timer no Notes
--- adicionar nos invites para pessoas de fora
--- implementar notes de whisper para mandar para jofadoes
--- encounter breakdown dropdown de segmentos: mostrar os segmentos de acordo com a l ista de segmentos do Details!
+
 
 
 local RA = _G.RaidAssist
@@ -15,6 +12,9 @@ if (_G ["RaidAssistNotepad"]) then
 end
 local Notepad = {version = 1, pluginname = "Notes"}
 _G ["RaidAssistNotepad"] = Notepad
+_G ["OpenRaidNotepad"] = Notepad
+_G ["ORNotes"] = Notepad
+_G ["RANotes"] = Notepad
 
 local default_config = {
 	notes = {},
@@ -36,7 +36,13 @@ local default_config = {
 	boss_notes2 = {},
 	latest_menu_option_boss_selected = 0,
 	latest_menu_option_note_selected = 0,
+	can_scroll_to_phase = true,
+	dbm_boss_timers = {},
+	bw_boss_timers = {},
+	bar_texture = "You Are Beautiful!",
 }
+
+local CONST_MACRO_INDEXNAME = 1
 
 local icon_texture
 local icon_texcoord = {l=4/32, r=28/32, t=4/32, b=28/32}
@@ -74,6 +80,8 @@ if (UnitFactionGroup("player") == "Horde") then
 else
 	icon_texture = [[Interface\WorldStateFrame\AllianceFlag]]
 end
+
+Notepad.currentEncounter = {}
 
 Notepad.menu_text = function (plugin)
 	if (Notepad.db.enabled) then
@@ -118,11 +126,84 @@ Notepad.PLAYER_LOGIN = function()
 	end)
 end
 
+function Notepad.InstallBossModsHandlers()
+	--dbm
+    if (_G.DBM) then
+        local DBMCallbackPhase = function(event, msg, ...)
+            if (event == "DBM_Announce") then
+                if (msg:find("Stage")) then
+					local currentPhase = Notepad.currentEncounter.phase
+
+					if (currentPhase) then
+						msg = msg:gsub("%a", "")
+						msg = msg:gsub("%s+", "")
+						local phase = tonumber(msg)
+
+						if (phase and type(phase) == "number") then
+							if (currentPhase ~= phase) then
+								--phase has been changed
+								local oldPhase = currentPhase
+								Notepad.OnPhaseChanged(oldPhase, phase)
+							end
+						end
+					end
+                end
+            end
+        end
+
+        DBM:RegisterCallback("DBM_Announce", DBMCallbackPhase)
+
+		if (_G.DBM) then
+			local DBMCallbackTimer = function(bar_type, id, msg, timer, icon, bartype, spellId, colorId, modid)
+				local spell = tostring(spellId)
+				local encounterIdCL = Notepad.currentEncounter.encounterIdCL
+				local encounterIdEJ = Notepad.currentEncounter.encounterIdEJ
+				--store the timer in the database
+				Notepad.db.dbm_boss_timers[spell] = {encounterIdCL, encounterIdEJ, spell, id, msg, timer, icon, bartype, spellId, colorId, modid}
+				--send the new timer to the bar manager
+
+			end
+			DBM:RegisterCallback("DBM_TimerStart", DBMCallbackTimer)
+		end
+    end
+
+    if (BigWigsLoader and not _G.DBM) then
+		--bigwigs
+        function Notepad:BigWigs_SetStage(event, module, phase)
+            phase = tonumber(phase)
+			local currentPhase = Notepad.currentEncounter.phase
+
+            if (phase and type(phase) == "number" and currentPhase and currentPhase ~= phase) then
+				--phase has been changed
+				local oldPhase = currentPhase
+				Notepad.OnPhaseChanged(oldPhase, phase)
+            end
+        end
+
+		function Notepad:BigWigs_StartBar(event, module, spellid, bar_text, time, icon, ...)
+			spellid = tostring(spellid)
+			local encounterIdCL = Notepad.currentEncounter.encounterIdCL
+			local encounterIdEJ = Notepad.currentEncounter.encounterIdEJ
+			--store the timer in the database
+			Notepad.db.bw_boss_timers[spellid] = {encounterIdCL, encounterIdEJ, (type(module) == "string" and module) or (module and module.moduleName) or "", spellid or "", bar_text or "", time or 0, icon or ""}
+			--send the new timer to the bar manager
+
+		end
+
+        if (BigWigsLoader.RegisterMessage) then
+            BigWigsLoader.RegisterMessage(Notepad, "BigWigs_SetStage")
+			BigWigsLoader.RegisterMessage(Notepad, "BigWigs_StartBar")
+        end
+    end
+end
+
 Notepad.OnInstall = function (plugin)
 	Notepad.db.menu_priority = default_priority
 
+	C_Timer.After(5, Notepad.InstallBossModsHandlers)
+
 	--frame shown in the screen
-	local screenFrame = RA:CreateCleanFrame(Notepad, "NotepadScreenFrame")
+	local screenFrame = RA:CreateCleanFrame(Notepad, "NotepadScreenFrame") --~screenframe ~screenpanel
 	Notepad.screenFrame = screenFrame
 	screenFrame:SetSize(250, 200)
 	screenFrame:SetClampedToScreen(true)
@@ -137,35 +218,111 @@ Notepad.OnInstall = function (plugin)
 	title_text:SetPoint("top", screenFrame, "top", 0, -8)
 	screenFrame.title_text = title_text
 
-	local editboxNotes = Notepad:NewSpecialLuaEditorEntry(screenFrame, 250, 200, "editboxNotes", "RaidAssignmentsNoteEditboxScreen", true)
-	editboxNotes:SetPoint("topleft", screenFrame, "topleft", 0, -20)
-	editboxNotes:SetPoint("topright", screenFrame, "topright", 0, -20)
-	editboxNotes:SetPoint("bottomleft", screenFrame, "bottomleft", 0, 0)
-	editboxNotes:SetPoint("bottomright", screenFrame, "bottomright", 0, 0)
+	--line frame
+	local f = CreateFrame("frame", "RaidAssignmentsNoteEditboxScreen", screenFrame, "BackdropTemplate")
+	f:SetPoint("topleft", screenFrame, "topleft", 0, -20)
+	f:SetPoint("topright", screenFrame, "topright", 0, -20)
+	f:SetPoint("bottomleft", screenFrame, "bottomleft", 0, 0)
+	f:SetPoint("bottomright", screenFrame, "bottomright", 0, 0)
+    f:SetResizable(true)
+    --DetailsFramework:ApplyStandardBackdrop(f)
+	f:SetFrameLevel(screenFrame:GetFrameLevel()+1)
+	screenFrame.text = f
+	screenFrame.lineFrame = f
 
-	editboxNotes:SetBackdrop(nil)
-	editboxNotes:SetFrameLevel(screenFrame:GetFrameLevel()+1)
-	screenFrame.text = editboxNotes
+	--background
+	local background = f:CreateTexture(nil, "background")
+	background:SetPoint("topleft", f, "topleft", 0, 0)
+	background:SetPoint("bottomright", f, "bottomright", 0, 0)
+	screenFrame.background = background
 
-	editboxNotes.editbox:SetTextInsets(2, 2, 3, 3)
-	editboxNotes.scroll:ClearAllPoints()
-	editboxNotes.scroll:SetPoint("topleft", editboxNotes, "topleft", 0, 0)
-	editboxNotes.scroll:SetPoint("bottomright", editboxNotes, "bottomright", -26, 0)
-	local f, h, fl = editboxNotes.editbox:GetFont()
-	editboxNotes.editbox:SetFont (f, 12, fl)
+	f.virtualScrollPosition = 0
+	f.lineHeight = 16
+	f.fontSize = 12
+	f.Lines = {}
 
-	--
-	local commandLineText = editboxNotes:CreateFontString(nil, "overlay", "GameFontNormal")
+    function f.CreateNewLine(lineId)
+        local line = CreateFrame("frame", "$parentLine" .. lineId, f, "BackdropTemplate")
+        line:SetPoint("topleft", f, "topleft", 2, (lineId-1) * -f.lineHeight)
+        line:SetSize(f:GetWidth(), f.lineHeight)
+
+		local progressBar = DetailsFramework:CreateBar(line, "", line:GetWidth(), line:GetHeight(), 0)
+		progressBar:SetPoint("topleft", line, "topleft", 0, 0)
+		progressBar:SetPoint("bottomright", line, "bottomright", -1, 0)
+		progressBar:SetFrameLevel(line:GetFrameLevel() - 1)
+		progressBar:EnableMouse(false)
+		line.progressBar = progressBar
+
+        --create the label 1
+        local label1 = DetailsFramework:CreateLabel(line)
+        label1:SetPoint("left", line, "left", 0, 0)
+        label1.fontsize = f.fontSize
+        line.text1 = label1
+
+        --create the label 2
+        local label2 = DetailsFramework:CreateLabel(line)
+        label2:SetPoint("left", line, "left", 24, 0)
+        label2.fontsize = f.fontSize
+        line.text2 = label2
+
+        label1:SetText("=====================")
+
+        --store the line in the line table
+        tinsert(f.Lines, line)
+    end
+
+    function f.UpdateBars()
+        --calc the frame size
+        local frameHeight = f:GetHeight()
+        local amountToUse = ceil(frameHeight / f.lineHeight)
+        local amtLinesCreated = #f.Lines
+
+        if (amtLinesCreated < amountToUse) then
+            for i = amtLinesCreated, amountToUse do
+                --create new lines
+                f.CreateNewLine(i)
+            end
+
+        elseif (amtLinesCreated > amountToUse) then
+            for i = amtLinesCreated, amountToUse, -1 do
+                --hide exceded lines
+                f.Lines[i].text1:SetText("")
+                f.Lines[i].text2:SetText("")
+                f.Lines[i]:Hide()
+            end
+        end
+
+        --update the created amount
+        amtLinesCreated = #f.Lines
+
+        for i = 1, amountToUse do
+            local line = f.Lines[i]
+            line:Show()
+
+            local text1 = line.text1
+            local text2 = line.text2
+
+            text1:SetText("")
+            text2:SetText("")
+        end
+
+		Notepad:UpdateScreenFrameSettings()
+
+        if (screenFrame:IsShown()) then
+			--call the update text
+			Notepad.UpdateShownText()
+		end
+    end
+
+	--end of line frame
+
+	local commandLineText = f:CreateFontString(nil, "overlay", "GameFontNormal")
 	commandLineText:SetText("/RAA")
 	commandLineText:SetTextColor(.9, .9, .9, 0.1)
 	DetailsFramework:SetFontOutline(commandLineText, true)
 	commandLineText:SetPoint("topright", screenFrame, "topright", -2, -25)
 
-	-- background
-	local background = editboxNotes:CreateTexture(nil, "background")
-	background:SetPoint("topleft", editboxNotes, "topleft", 0, 0)
-	background:SetPoint("bottomright", editboxNotes, "bottomright", 0, 0)
-	screenFrame.background = background
+	local updateDelay = 0
 
 	do
 		local resize_button = CreateFrame("button", nil, screenFrame, "BackdropTemplate")
@@ -188,10 +345,14 @@ Notepad.OnInstall = function (plugin)
 
 		resize_button:SetScript("OnMouseUp", function()
 			screenFrame:StopMovingOrSizing()
+			f.UpdateBars()
 		end)
 
 		screenFrame:SetScript("OnSizeChanged", function()
-			Notepad.updateScrollBar()
+			if (updateDelay < GetTime()) then
+				f.UpdateBars()
+				updateDelay = GetTime() + 0.2
+			end
 		end)
 	end
 
@@ -216,44 +377,21 @@ Notepad.OnInstall = function (plugin)
 
 		resize_button:SetScript("OnMouseUp", function()
 			screenFrame:StopMovingOrSizing()
+			f.UpdateBars()
 		end)
 
 		screenFrame:SetScript("OnSizeChanged", function()
-			Notepad.updateScrollBar()
+			if (updateDelay < GetTime()) then
+				f.UpdateBars()
+				updateDelay = GetTime() + 0.2
+			end
 		end)
 	end
-
-	local RaidAssignmentsNoteEditboxScreenScrollBarThumbTexture = _G.RaidAssignmentsNoteEditboxScreenScrollBarThumbTexture
-	RaidAssignmentsNoteEditboxScreenScrollBarThumbTexture:SetTexture (0, 0, 0, 0.4)
-	RaidAssignmentsNoteEditboxScreenScrollBarThumbTexture:SetSize (14, 17)
-
-	local RaidAssignmentsNoteEditboxScreenScrollBarScrollUpButton = _G.RaidAssignmentsNoteEditboxScreenScrollBarScrollUpButton
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollUpButton:SetNormalTexture ([[Interface\Buttons\Arrow-Up-Up]])
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollUpButton:SetHighlightTexture ([[Interface\Buttons\Arrow-Up-Up]])
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollUpButton:SetPushedTexture ([[Interface\Buttons\Arrow-Up-Down]])
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollUpButton:SetDisabledTexture ([[Interface\Buttons\Arrow-Up-Disabled]])
-
-	local RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton = _G.RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton:SetNormalTexture ([[Interface\Buttons\Arrow-Down-Up]])
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton:SetHighlightTexture ([[Interface\Buttons\Arrow-Down-Up]])
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton:SetPushedTexture ([[Interface\Buttons\Arrow-Down-Down]])
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton:SetDisabledTexture ([[Interface\Buttons\Arrow-Down-Disabled]])
-
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollUpButton.Normal:SetTexCoord (0, 1, 0, 1)
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollUpButton.Disabled:SetTexCoord (0, 1, 0, 1)
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollUpButton.Highlight:SetTexCoord (0, 1, 0, 1)
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollUpButton.Pushed:SetTexCoord (0, 1, 0, 1)
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton.Normal:SetTexCoord (0, 1, 0, 1)
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton.Disabled:SetTexCoord (0, 1, 0, 1)
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton.Highlight:SetTexCoord (0, 1, 0, 1)
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton.Pushed:SetTexCoord (0, 1, 0, 1)
-
-	-------
 
 	local lock = CreateFrame("button", "NotepadScreenFrameLockButton", screenFrame, "BackdropTemplate")
 	lock:SetSize(60, 12)
 	lock:SetAlpha(0.910)
-	lock:SetPoint("bottomright", editboxNotes, "topright", 0, 0)
+	lock:SetPoint("bottomright", f, "topright", 0, 0)
 
 	local lockLabel = RA:CreateLabel(lock, "|cFFFFAA00[|cFFFFFF00lock|r]", 12)
 	lockLabel:SetPoint("bottomright", lock, "bottomright")
@@ -274,7 +412,7 @@ Notepad.OnInstall = function (plugin)
 	local settingsButton = CreateFrame("button", "NotepadScreenFrameSettingsButton", screenFrame, "BackdropTemplate")
 	settingsButton:SetSize(60, 12)
 	settingsButton:SetAlpha(0.910)
-	settingsButton:SetPoint("bottomleft", editboxNotes, "topleft", 0, 0)
+	settingsButton:SetPoint("bottomleft", f, "topleft", 0, 0)
 	local settingsLabel = RA:CreateLabel(settingsButton, "|cFFFFAA00[|cFFFFFF00settings|r]", 12)
 	settingsLabel:SetPoint("bottomleft", settingsButton, "bottomleft")
 
@@ -309,8 +447,6 @@ Notepad.OnInstall = function (plugin)
 	t:SetBlendMode ("ADD")
 	local animation = t:CreateAnimationGroup()
 	local anim1 = animation:CreateAnimation ("Alpha")
-	local anim2 = animation:CreateAnimation ("Alpha")
-	local anim3 = animation:CreateAnimation ("Alpha")
 	local anim4 = animation:CreateAnimation ("Alpha")
 	local anim5 = animation:CreateAnimation ("Alpha")
 
@@ -335,9 +471,9 @@ Notepad.OnInstall = function (plugin)
 
 	Notepad.DoFlashAnim = function()
 		f_anim:Show()
-		f_anim:SetParent (block)
-		f_anim:SetPoint ("topleft", editboxNotes, "topleft")
-		f_anim:SetPoint ("bottomright", editboxNotes, "bottomright")
+		f_anim:SetParent(f)
+		f_anim:SetPoint("topleft", f, "topleft")
+		f_anim:SetPoint("bottomright", f, "bottomright")
 		animation:Play()
 
 		if (Notepad.PlayerAFKTicker and Notepad.MouseCursorX and Notepad.MouseCursorY) then
@@ -363,6 +499,7 @@ Notepad.OnInstall = function (plugin)
 	Notepad:RegisterEvent("PLAYER_REGEN_ENABLED")
 	Notepad:RegisterEvent("PLAYER_LOGOUT")
 	Notepad:RegisterEvent("ZONE_CHANGED_NEW_AREA")
+	Notepad:RegisterEvent("ENCOUNTER_START")
 	Notepad:RegisterEvent("ENCOUNTER_END")
 
 	if (Notepad:GetCurrentlyShownBoss()) then
@@ -377,7 +514,6 @@ Notepad.OnInstall = function (plugin)
 	end)
 end --end of OnInstall
 
-
 function Notepad:UpdateScreenFrameBackground()
 	local bg = Notepad.db.background
 	if (bg.show) then
@@ -388,23 +524,41 @@ function Notepad:UpdateScreenFrameBackground()
 end
 
 function Notepad:UpdateScreenFrameSettings()
-	--font face
 	local SharedMedia = LibStub:GetLibrary("LibSharedMedia-3.0")
-	local font = SharedMedia:Fetch ("font", Notepad.db.text_font)
-	Notepad:SetFontFace(Notepad.screenFrame.text.editbox, font)
+	local font = SharedMedia:Fetch("font", Notepad.db.text_font)
+	local textSize = Notepad.db.text_size
+	local textShadow = Notepad.db.text_shadow
+	local textJustify = Notepad.db.text_justify
+	local barTexture = SharedMedia:Fetch("statusbar", Notepad.db.bar_texture)
 
-	--font size
-	Notepad:SetFontSize(Notepad.screenFrame.text.editbox, Notepad.db.text_size)
+	local lineFrame = Notepad.screenFrame.lineFrame
+	for i = 1, #lineFrame.Lines do
+		local line = lineFrame.Lines[i]
+		--font face
+		Notepad:SetFontFace(line.text1, font)
+		Notepad:SetFontFace(line.text2, font)
 
-	-- font shadow
-	Notepad:SetFontOutline(Notepad.screenFrame.text.editbox, Notepad.db.text_shadow)
+		--font size
+		Notepad:SetFontSize(line.text1, textSize)
+		Notepad:SetFontSize(line.text2, textSize)
+
+		--font shadow
+		Notepad:SetFontOutline(line.text1, textShadow)
+		Notepad:SetFontOutline(line.text2, textShadow)
+
+		--text alignment
+		line.text1:SetJustifyH(textJustify)
+		line.text2:SetJustifyH(textJustify)
+
+		--progress bar texture
+		line.progressBar:SetTexture(barTexture)
+	end
 
 	--frame strata
 	Notepad.screenFrame:SetFrameStrata(Notepad.db.framestrata)
 
 	--background show
 	Notepad:UpdateScreenFrameBackground()
-
 	Notepad.screenFrame:SetBackdrop(nil)
 
 	--frame locked
@@ -428,9 +582,7 @@ function Notepad:UpdateScreenFrameSettings()
 		Notepad.screenFrame.title_text:SetTextColor (.8, .8, .8, 1)
 	end
 
-	Notepad.screenFrame.text.editbox:SetJustifyH(Notepad.db.text_justify)
-	Notepad.screenFrame.text:EnableMouse(false)
-	Notepad.screenFrame.text.editbox:EnableMouse(false)
+	lineFrame:EnableMouse(false)
 end
 
 Notepad.OnEnable = function (plugin)
@@ -709,16 +861,6 @@ function Notepad:CancelNoteEditing()
 	mainFrame.userScreenPanelOptions:Show()
 end
 
-local updateScrollBar = function()
-	if (RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton:IsEnabled()) then
-		RaidAssignmentsNoteEditboxScreenScrollBar:Show()
-	else
-		RaidAssignmentsNoteEditboxScreenScrollBar:Hide()
-	end
-	RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton:SetScript("OnUpdate", nil)
-end
-Notepad.updateScrollBar = updateScrollBar
-
 local track_mouse_position = function()
 	local x, y = GetCursorPosition()
 	if (Notepad.MouseCursorX == x and Notepad.MouseCursorY == y) then
@@ -729,7 +871,521 @@ local track_mouse_position = function()
 	end
 end
 
-function Notepad:ShowNoteOnScreen(bossId, noteId)
+function Notepad.BuildListOfPlayersInRaid()
+	local playerList = {
+		all = {},
+		all_class = {},
+		all_role = {},
+		all_index = {},
+		class = {},
+		class_index = {},
+		class_healer_index = {},
+		HEALER = {},
+		TANK = {},
+		DAMAGER = {},
+	}
+
+	for i = 1, #CLASS_SORT_ORDER do
+		playerList.class[CLASS_SORT_ORDER[i]] = {}
+		playerList.class_healer_index[CLASS_SORT_ORDER[i]] = {}
+		playerList.class_index[CLASS_SORT_ORDER[i]] = {}
+	end
+
+	if (IsInRaid()) then
+		local _, _, difficultyID = GetInstanceInfo()
+		local isMythicRaid = difficultyID == 16
+		local isNormalOrHeroic = difficultyID == 14 or difficultyID == 15
+
+		local amountOfPlayers = (isMythicRaid and 20) or (isNormalOrHeroic and 30) or 40
+
+		for i = 1, amountOfPlayers do
+			local name, rank, subgroup, level, class, fileName, zone, online, isDead, role = GetRaidRosterInfo(i)
+			if (name) then
+				name = Ambiguate(name, "short")
+				playerList.all_role[name] = role
+				playerList.all_class[name] = fileName
+
+				playerList.all_index[#playerList.all_index+1] = name
+
+				playerList.class[fileName][name] = role
+				local classTable = playerList.class_index[fileName]
+				classTable[#classTable+1] = name
+
+				local roleTable = playerList[role]
+				if (roleTable) then
+					roleTable[#roleTable+1] = name
+
+					if (role == "HEALER") then
+						playerList.class_healer_index[fileName][#playerList.class_healer_index[fileName]+1] = name
+					end
+				end
+			end
+		end
+
+	elseif (IsInGroup()) then
+		for i = 1, GetNumGroupMembers() - 1 do
+			local name, rank, subgroup, level, class, fileName, zone, online, isDead, role = GetRaidRosterInfo(i)
+			if (name) then
+				name = Ambiguate(name, "short")
+				playerList.all_role[name] = role
+				playerList.all_class[name] = fileName
+
+				playerList.all_index[#playerList.all_index+1] = name
+
+				playerList.class[fileName][name] = role
+				local classTable = playerList.class_index[fileName]
+				classTable[#classTable+1] = name
+
+				local roleTable = playerList[role]
+				if (roleTable) then
+					roleTable[#roleTable+1] = name
+
+					if (role == "HEALER") then
+						playerList.class_healer_index[fileName][#playerList.class_healer_index[fileName]+1] = name
+					end
+				end
+			end
+		end
+
+		playerList[UnitName("player")] = DetailsFramework.UnitGroupRolesAssigned("player")
+	end
+
+	Notepad.playersInTheGroup = playerList
+end
+
+function Notepad.GetPlayers(ofClass, ofRole)
+	local playerList = Notepad.playersInTheGroup
+
+	ofClass = ofClass and ofClass:upper()
+	ofRole = ofRole and ofRole:upper()
+
+	if (ofClass and ofRole) then
+		local result =  {}
+		for playerName, role in pairs(playerList.all_role) do
+			if (role == ofRole) then
+				if (playerList.all_class[playerName] == ofClass) then
+					result[#result+1] = playerName
+				end
+			end
+		end
+		return result
+
+	elseif (ofClass) then
+		return playerList.class_index[ofClass]
+
+	elseif (ofRole) then
+		return playerList[ofRole]
+	end
+
+	return playerList
+end
+
+function Notepad:ParseTextForMacros(text)
+	--split it into lines
+	local lines = DetailsFramework:SplitTextInLines(text)
+	local macros = {}
+
+	--macro example: --[phase(2); timer(352145); playerlist(Ditador, Jvr, Veloso, Miudo)]
+
+	for lineId, thisLine in ipairs(lines) do
+		local macroText = thisLine:match("%[(.+)%]")
+
+		--[playerlist(Jvr ,Miudo, Ditador,Demodemoroo); phase(2); ]
+		--[loop(); if(@phase, =, 1); spell(334212); playerlist1; timer(30)]
+		--print(thisLine, macroText)
+
+		if (macroText and type(macroText) == "string" and #macroText > 0) then
+
+			--remove the macro text from the text which will be shown to the player
+			lines[lineId] = thisLine:gsub("%[(.+)%]", "")
+
+			--remove any scape sequence from the text
+			macroText = macroText:gsub("|c%x%x%x%x%x%x%x%x", "")
+			macroText = macroText:gsub("|r", "")
+
+			macroText = macroText:gsub("%$", "@")
+
+			local thisLineMacros = {}
+
+			for macro in macroText:gmatch("([^;]+)") do
+
+				--remove spaces
+				macro = macro:gsub("%s", "")
+				--split command and parameters
+				local token, value = macro:match("(%w+)=(.+)")
+
+				--check if the token and value are valid
+				if (token) then
+					--parse token
+					token = token:lower()
+
+					--phase
+					if (token == "phase" or token == "p") then
+						local phaseId = tonumber(value)
+						if (phaseId) then
+							tinsert(thisLineMacros, {"phase", phaseId})
+						else
+							RA:Msg("Notepad> macro 'phase' expect a number, example: phase(2)")
+						end
+
+					--cooldown
+					elseif (token == "cooldown" or token == "cd") then
+						local spellId = tonumber(value)
+						local isSpell = GetSpellTexture(spellId or -1)
+
+						if (spellId and isSpell) then
+							tinsert(thisLineMacros, {"cooldown", spellId})
+						else
+							RA:Msg("Notepad> macro 'cooldown' expect a spellId, example: cooldown(325412)")
+						end
+
+					--enemy spell
+					elseif (token == "enemyspell" or token == "es") then
+						local spellId = tonumber(value)
+						local isSpell = GetSpellTexture(spellId or -1)
+
+						if (spellId and isSpell) then
+							tinsert(thisLineMacros, {"enemyspell", spellId})
+						else
+							RA:Msg("Notepad> macro 'enemyspell' expect a spellId, example: cooldown(325412)")
+						end
+
+					--timer
+					elseif (token == "timer" or token == "t") then
+						local minutes, seconds = value:match("(%d+):(%d+)")
+						local added = false
+						if (minutes and seconds) then
+							minutes = tonumber(minutes)
+							seconds = tonumber(seconds)
+							if (minutes and seconds) then
+								tinsert(thisLineMacros, {"timer", minutes*60 + seconds})
+								added = true
+							else
+								RA:Msg("Notepad> macro 'timer' expect time, example: timer(180) or timer(3:00)")
+							end
+						end
+
+						if (not added) then
+							local timeInSeconds = tonumber(value)
+							if (timeInSeconds) then
+								tinsert(thisLineMacros, {"timer", timeInSeconds})
+							else
+								RA:Msg("Notepad> macro 'timer' expect time, example: timer(180) or timer(3:00)")
+							end
+						end
+
+					--player list
+					elseif (token == "playerlist" or token == "pl") then
+						local listOfPlayers = {}
+						if (value) then
+							for playerName in value:gmatch("([^,]+)") do
+								if (playerName) then
+									tinsert(listOfPlayers, playerName)
+								end
+							end
+							tinsert(thisLineMacros, {"playerlist", listOfPlayers})
+						else
+							RA:Msg("Notepad> macro 'playerlist' expect a list of players, example: playerlist(playerName1, playerName2)")
+						end
+
+					--boss timer
+					elseif (token == "bosstimer" or token == "bt") then
+						if (value) then
+							tinsert(thisLineMacros, {"bosstimer", value})
+						else
+							RA:Msg("Notepad> macro 'bosstimer' expect a boss timerId, example: bosstimer(335641)")
+						end
+
+					--if condition
+					elseif (token == "if" or token == "ifor" or token == "ifand") then
+						if (value) then
+							local value1, operator, value2 = value:match("(%w+),(.+),(%w+)")
+							value1 = tonumber(value1) or value1
+							value2 = tonumber(value2) or value2
+
+							if (token == "if") then
+								token = "ifand"
+							end
+							tinsert(thisLineMacros, {token, value1, operator, value2})
+						else
+							RA:Msg("Notepad> macro 'if' expect any data to compare, example: if(@phase, =, 2)")
+						end
+
+					--loop
+					elseif (token == "loop" or token == "l") then
+						tinsert(thisLineMacros, {"loop"})
+
+					--flash
+					elseif (token == "flash" or token == "f") then
+						tinsert(thisLineMacros, {"flash"})
+
+					--external
+					elseif (token == "external" or token == "e") then
+						tinsert(thisLineMacros, {"external"})
+
+					--add to boss mods bars
+					elseif (token == "addbm" or token == "abm") then
+						tinsert(thisLineMacros, {"addbm"})
+
+					--make text
+					elseif (token == "maketext" or token == "mt") then
+						tinsert(thisLineMacros, {"maketext"})
+					end
+				end
+			end
+
+			tinsert(macros, thisLineMacros)
+		end
+	end
+
+	return lines, macros
+end
+
+function Notepad.CreateMacroPlayback(macroList)
+	local macrosInOrder = {
+		playerList = {},
+		phases = {}
+	}
+
+	local phasesLineIndex = macrosInOrder.phases
+	local playersInTheGroup = Notepad.GetPlayers()
+
+	for i = 1, #macroList do
+		local thisMacro = macroList[i]
+		local command = thisMacro[CONST_MACRO_INDEXNAME]
+
+		if (command == "playerlist") then --can be changed now
+			--parse the player list
+			local playerList = thisMacro[2]
+
+			local newPlayerList = {}
+
+			for i, unitToken in ipairs(playerList) do
+				if (unitToken:match("^@")) then
+					--it's a variable
+
+				end
+			end
+
+			--tinsert(macrosInOrder.playerList, playerList)
+
+		elseif (command == "phase") then
+			local phaseId = thisMacro[2]
+			phasesLineIndex[phaseId] = i
+		end
+	end
+
+	return macrosInOrder
+end
+
+function Notepad.UpdateShownText(thisNote)
+	if (not thisNote) then
+		thisNote = Notepad:GetNote(Notepad.db.currently_shown, Notepad.db.currently_shown_noteId)
+	end
+
+	--clean all lines
+	local lineFrame = Notepad.screenFrame.lineFrame
+	for i = 1, #lineFrame.Lines do
+		local line = lineFrame.Lines[i]
+		line.text1:SetText("")
+		line.text2:SetText("")
+	end
+
+	if (thisNote) then
+		local noteText = thisNote.note
+
+		--parse macros
+		local textLines, macroList = Notepad:ParseTextForMacros(noteText)
+
+		local playerName = UnitName("player")
+		local _, class = UnitClass("player")
+
+		for lineId, text in ipairs(textLines) do
+			local formatedText = Notepad:FormatText(text)
+
+			local unitclasscolor = RAID_CLASS_COLORS[class] and RAID_CLASS_COLORS[class].colorStr
+			if (unitclasscolor) then
+				formatedText = formatedText:gsub(playerName, "|cFFFFFF00[|r|c" .. unitclasscolor .. playerName:upper() .. "|r|cFFFFFF00]|r")
+				formatedText = formatedText:gsub(playerName:lower(), "|cFFFFFF00[|r|c" .. unitclasscolor .. playerName:upper() .. "|r|cFFFFFF00]|r")
+			end
+
+			textLines[lineId] = formatedText
+		end
+
+		--> set the text into the lines
+			Notepad.UpdateTextOnScreenFrame(textLines)
+		--> organize the macro list to be played when the encounter start
+			local mountedMacros = Notepad.CreateMacroPlayback(macroList)
+
+		Notepad.currentText = textLines
+		Notepad.currentMacros = macroList
+	end
+end
+
+function Notepad.UpdateTextOnScreenFrame(textLines)
+	if (not textLines) then
+		local thisNote = Notepad:GetNote(Notepad.db.currently_shown, Notepad.db.currently_shown_noteId)
+		if (thisNote) then
+			textLines = thisNote.note
+		end
+	end
+
+	if (not textLines) then
+		return
+	end
+
+	local lineId = 0
+	local lineFrame = Notepad.screenFrame.lineFrame
+	local amountOfLines = #lineFrame.Lines
+	local amountOfText = #textLines
+
+	--clear the text on all lines
+	for i = 1, amountOfLines do
+		local line = lineFrame.Lines[i]
+		line.text1.text = ""
+		line.text2.text = ""
+	end
+
+	--set the current text
+	for i = lineFrame.virtualScrollPosition, amountOfText do
+		lineId = lineId + 1
+		if (lineId <= amountOfLines) then
+			local line = lineFrame.Lines[lineId]
+			line.text1.text = textLines[i] or ""
+		end
+	end
+end
+
+--called when the phase has changed
+function Notepad.OnPhaseChanged(oldPhase, newPhase)
+	--check if there's a screen panel shown
+	if (Notepad:GetCurrentlyShownBoss()) then
+		Notepad.currentEncounter.phase = newPhase
+		--a note is currently shown, check if can scroll the note
+		if (Notepad.db.can_scroll_to_phase) then
+			--call the macro control?
+		end
+	end
+end
+
+local macroParserTick = function()
+	local encounterInfo = Notepad.currentEncounter
+
+	--> update elapsed time
+		local currentTime = GetTime()
+		encounterInfo.elapsedTime = encounterInfo.elapsedTime + (currentTime - encounterInfo.latestTickTime)
+		encounterInfo.phaseElapsedTime = encounterInfo.phaseElapsedTime + (currentTime - encounterInfo.latestTickTime)
+		encounterInfo.latestTickTime = currentTime
+
+	--> check for new phase
+		local currentPhase, oldPhase, phaseHasChanged = encounterInfo.currentPhase, encounterInfo.currentPhase, false
+		if (currentPhase ~= encounterInfo.Phase) then
+			encounterInfo.currentPhase = encounterInfo.Phase
+			currentPhase = encounterInfo.Phase
+			phaseHasChanged = true
+		end
+
+	--> check if the phase has changed
+		if (phaseHasChanged) then
+			--shutdown all progress bars running exclusive for the prior phase
+
+			--scroll the text for the new phase landmark
+
+			--start progress bars for the new phase
+
+		end
+
+
+
+
+
+end
+
+
+function RANotes.GetNoteLines() --external
+	--check if there's some note shown
+	local bossId, _, noteId = Notepad:GetCurrentlyShownBoss()
+	if (bossId) then
+		return Notepad.currentText
+	end
+end
+
+--TODO: need to get the player list from the source which already parsed the player list
+function RANotes.GetPlayerList(playerListId) --external
+	playerListId = playerListId or 1
+
+	--check if there's some note shown
+	local bossId, _, noteId = Notepad:GetCurrentlyShownBoss()
+	if (bossId) then
+		--build a list of players list
+		local allPlayerLists = {}
+		local macros = Notepad.currentMacros --numeric table with tables inside
+
+		for i = 1, #macros do
+			local macroTable = macros[i]
+
+			for macroIndex = 1, #macroTable do
+				local thisMacro = macroTable[macroIndex]
+
+				if (thisMacro[CONST_MACRO_INDEXNAME] == "playerlist") then
+					allPlayerLists[#allPlayerLists+1] = thisMacro[2] --second index is a table with a list of players
+
+				end
+			end
+		end
+
+		return allPlayerLists[playerListId]
+	end
+end
+
+function Notepad.OnEncounterStart()
+	local encounterInfo = Notepad.currentEncounter
+
+	--check if the note shown is a note for the encounter
+	local bossId, _, noteId = Notepad:GetCurrentlyShownBoss()
+	if (bossId == encounterInfo.encounterIdEJ) then
+		local newTicker = DetailsFramework.Schedules.NewTicker(0.5, macroParserTick)
+		Notepad.currentMacroTicker = newTicker
+	end
+
+	--	encounterIdCL = encounterID,
+	--	encounterIdEJ = EJID,
+	--	encounterName = encounterName,
+	--	startTime = GetTime(),
+	--	isEnded = false,
+	--	phase = 1,
+	--	phaseElapsedTime = 0,
+	--	combatElapsedTime = 0,
+	--	latestTickTime = GetTime(),
+end
+
+function Notepad.OnEncounterEnd(encounterID, encounterName, difficultyID, raidSize, endStatus)
+	local bossId, _, noteId = Notepad:GetCurrentlyShownBoss()
+	if (bossId) then
+		local bossName = Notepad:GetBossName(bossId)
+		if (bossName == encounterName) then
+			if (endStatus == 1) then
+				Notepad.UnshowNoteOnScreen()
+			end
+		end
+	end
+
+	Notepad.currentEncounter.isEnded = true
+
+	--stop macro ticker
+	if (Notepad.currentMacroTicker) then
+		Notepad.currentMacroTicker:Cancel()
+		Notepad.currentMacroTicker =  nil
+	end
+
+	--clear progress bars
+
+
+	--hide progress bars externals
+end
+
+
+function Notepad:ShowNoteOnScreen(bossId, noteId) --~showscreen ~shownote
 	local thisNote = Notepad:GetNote(bossId, noteId)
 	if (thisNote) then
 		--currently shown in the screen
@@ -740,37 +1396,20 @@ function Notepad:ShowNoteOnScreen(bossId, noteId)
 		end
 
 		Notepad.screenFrame:Show()
+		Notepad.screenFrame.Macros = {}
+		Notepad.UpdateShownText(thisNote)
 
-		local formatedText = Notepad:FormatText(thisNote.note)
-		local playerName = UnitName("player")
-
-		local locclass, class = UnitClass("player")
-		local unitclasscolor = RAID_CLASS_COLORS[class] and RAID_CLASS_COLORS[class].colorStr
-		if (unitclasscolor) then
-			formatedText = formatedText:gsub (playerName, "|cFFFFFF00[|r|c" .. unitclasscolor .. string.upper (playerName) .. "|r|cFFFFFF00]|r")
-			formatedText = formatedText:gsub (string.lower (playerName), "|cFFFFFF00[|r|c" .. unitclasscolor .. string.upper (playerName) .. "|r|cFFFFFF00]|r")
-		end
-
-		Notepad.screenFrame.text:SetText(formatedText)
-		RaidAssignmentsNoteEditboxScreenScrollBar:SetValue(0)
-
-		C_Timer.After(0.4, function()
-			ScrollFrame_OnScrollRangeChanged(RaidAssignmentsNoteEditboxScreen.scroll)
-		end)
-
-		RaidAssignmentsNoteEditboxScreenScrollBarScrollDownButton:SetScript("OnUpdate", updateScrollBar)
-		C_Timer.After(0.5, updateScrollBar)
-
+		--play flash animation
 		Notepad.DoFlashAnim()
 
+		--track mouse position to detect player afk
 		Notepad.MouseCursorX, Notepad.MouseCursorY = GetCursorPosition()
-
 		C_Timer.After(3, track_mouse_position)
 
 		Notepad:UpdateScreenFrameBackground()
 
 		if (Notepad.screenFrame:GetHeight() < 5) then
-			Notepad.screenFrame:SetHeight(20)
+			Notepad.screenFrame:SetHeight(40)
 		end
 	end
 end
@@ -825,20 +1464,22 @@ function Notepad:GROUP_ROSTER_UPDATE()
 		end
 	end
 	Notepad.playerIsInGroup = IsInGroup()
+
+	Notepad.BuildListOfPlayersInRaid()
 end
 
 function Notepad:PLAYER_REGEN_DISABLED()
 	if (Notepad.db.hide_on_combat and (InCombatLockdown() or UnitAffectingCombat ("player")) and Notepad:GetCurrentlyShownBoss() and not Notepad.mainFrame:IsShown()) then
-		Notepad.screenFrame.on_combat = true
 		Notepad.screenFrame:Hide()
 	end
+	Notepad.screenFrame.on_combat = true
 end
 
 function Notepad:PLAYER_REGEN_ENABLED()
 	if (Notepad:GetCurrentlyShownBoss() and Notepad.screenFrame.on_combat) then
 		Notepad.screenFrame:Show()
-		Notepad.screenFrame.on_combat = nil
 	end
+	Notepad.screenFrame.on_combat = nil
 end
 
 function Notepad:PLAYER_LOGOUT()
@@ -850,17 +1491,45 @@ function Notepad:PLAYER_LOGOUT()
 	end
 end
 
-function Notepad:ENCOUNTER_END(...)
-	local bossId, _, noteId = Notepad:GetCurrentlyShownBoss()
-	if (bossId) then
-		local bossName = Notepad:GetBossName(bossId)
-		local encounterID, encounterName, difficultyID, raidSize, endStatus = select(1, ...)
-		if (bossName == encounterName) then
-			if (endStatus == 1) then
-				Notepad.UnshowNoteOnScreen()
+function Notepad:ENCOUNTER_START(...)
+	local encounterID, encounterName, difficultyID, raidSize = ...
+	local EJID --encounter journal ID
+
+	for i = 1, 20 do
+		local name, _, thisEJID, _, _, _, dungeonEncounterID = EJ_GetEncounterInfoByIndex(i)
+		if (name) then
+			if (encounterID == dungeonEncounterID) then
+				EJID = thisEJID
+				break
 			end
+		else
+			break
 		end
 	end
+
+	Notepad.currentEncounter = {
+		encounterIdCL = encounterID,
+		encounterIdEJ = EJID,
+		encounterName = encounterName,
+		startTime = GetTime(),
+		isEnded = false,
+		phase = 1,
+		currentPhase = 1,
+		phaseElapsedTime = 0,
+		combatElapsedTime = 0,
+		latestTickTime = GetTime(),
+	}
+
+	Notepad.OnEncounterStart()
+end
+
+function Notepad.GetCurrentEncounterData()
+	return Notepad.currentEncounter
+end
+
+function Notepad:ENCOUNTER_END(...)
+	local encounterID, encounterName, difficultyID, raidSize, endStatus = ...
+	Notepad.OnEncounterEnd(encounterID, encounterName, difficultyID, raidSize, endStatus)
 end
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -873,23 +1542,6 @@ end
 function Notepad.BuildOptions(frame)
 	if (frame.FirstRun) then
 		return
-	else
-
-		--wipe(Notepad.db.boss_notes2)
-
-		--convert db from single note per boss to multi notes per boss
-		local allNotes = Notepad.db.boss_notes2
-		if (allNotes) then
-			local firstNote = next(allNotes)
-			--old storage
-			if (firstNote and allNotes[firstNote] and type(allNotes[firstNote]) == "string") then
-				for bossId, noteString in pairs(allNotes) do
-					local bossNoteStructure = createBossNoteStructure(bossId)
-					local newNote, noteId = createNewNote(bossNoteStructure)
-					newNote.note = noteString
-				end
-			end
-		end
 	end
 
 	Notepad.db.latest_menu_option_boss_selected = Notepad.db.latest_menu_option_boss_selected or 0
@@ -1046,6 +1698,16 @@ function Notepad.BuildOptions(frame)
 				Notepad:UpdateScreenFrameSettings()
 			end,
 			name = L["S_PLUGIN_TEXT_SHADOW"],
+		},
+
+		{type = "breakline"},
+		{
+			type = "toggle",
+			get = function() return Notepad.db.can_scroll_to_phase end,
+			set = function (self, fixedparam, value)
+				Notepad.db.can_scroll_to_phase = value
+			end,
+			name = "Auto Scroll to Phase",
 		},
 	}
 
@@ -2270,7 +2932,9 @@ function Notepad.BuildOptions(frame)
 			if (char == "," or char == "." or char == ";") then
 				wordFinished = true
 			else
-				Notepad.currentWord = Notepad.currentWord .. char
+				if (char ~= "[" and char ~= "]") then
+					Notepad.currentWord = Notepad.currentWord .. char
+				end
 			end
 		else
 			if (char == "") then

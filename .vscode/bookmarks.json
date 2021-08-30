@@ -179,23 +179,38 @@
 			"path": "plugins/notes.lua",
 			"bookmarks": [
 				{
-					"line": 603,
-					"column": 24,
+					"line": 150,
+					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 1276,
-					"column": 4,
+					"line": 306,
+					"column": 3,
 					"label": ""
 				},
 				{
-					"line": 2492,
-					"column": 27,
+					"line": 538,
+					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 2542,
-					"column": 41,
+					"line": 982,
+					"column": 3,
+					"label": ""
+				},
+				{
+					"line": 1181,
+					"column": 42,
+					"label": ""
+				},
+				{
+					"line": 1279,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 1512,
+					"column": 15,
 					"label": ""
 				}
 			]
