@@ -1,4 +1,5 @@
 
+
 local RA = _G.RaidAssist
 local L = _G.LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
@@ -1108,7 +1109,7 @@ function Notepad:ParseTextForMacros(text)
 						else
 							RA:Msg("Notepad> macro 'if' expect any data to compare, example: if(@phase, =, 2)")
 						end
-
+						
 					--loop
 					elseif (token == "loop" or token == "l") then
 						tinsert(thisLineMacros, {"loop"})
@@ -1311,29 +1312,26 @@ end
 --TODO: need to get the player list from the source which already parsed the player list
 function RANotes.GetPlayerList(playerListId) --external
 	playerListId = playerListId or 1
+	local allPlayerLists = {}
 
 	--check if there's some note shown
 	local bossId, _, noteId = Notepad:GetCurrentlyShownBoss()
 	if (bossId) then
 		--build a list of players list
-		local allPlayerLists = {}
 		local macros = Notepad.currentMacros --numeric table with tables inside
 
 		for i = 1, #macros do
 			local macroTable = macros[i]
-
 			for macroIndex = 1, #macroTable do
 				local thisMacro = macroTable[macroIndex]
-
 				if (thisMacro[CONST_MACRO_INDEXNAME] == "playerlist") then
 					allPlayerLists[#allPlayerLists+1] = thisMacro[2] --second index is a table with a list of players
-
 				end
 			end
 		end
-
-		return allPlayerLists[playerListId]
 	end
+
+	return allPlayerLists[playerListId]
 end
 
 function Notepad.OnEncounterStart()
@@ -1532,6 +1530,172 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
+function Notepad.ShowPickFrame(whatToShow)
+	if (whatToShow == "playerlist") then
+		Notepad.mainFrame.pickFrame:Show()
+		Notepad.mainFrame.pickFrame.selectPlayerFrame:Show()
+		Notepad.mainFrame.pickFrame.selectMacroFrame:Hide()
+
+		--update the scroll frame showing the list of players
+		Notepad.mainFrame.pickFrame.selectPlayerFrame.playerSelectionScroll.UpdatePlayerList()
+
+	elseif (whatToShow == "macros") then
+		Notepad.mainFrame.pickFrame:Show()
+		Notepad.mainFrame.pickFrame.selectPlayerFrame:Hide()
+		Notepad.mainFrame.pickFrame.selectMacroFrame:Show()
+
+
+	end
+end
+
+local createPickFrame = function(mainFrame)
+	local pFrame = CreateFrame("frame", "$parentPickFrame", mainFrame, "BackdropTemplate")
+	pFrame:SetWidth(200)
+	pFrame:SetPoint("topleft", RaidAssistOptionsPanel, "topright", 0, 0)
+	pFrame:SetPoint("bottomleft", RaidAssistOptionsPanel, "bottomright", 0, 0)
+	mainFrame.pickFrame = pFrame
+
+	local playerSelectionAmoutLines = 20
+	local playerSelectionLinesHeight = 20
+
+	DetailsFramework:ApplyStandardBackdrop(pFrame)
+
+	--> select player frame
+		local selectPlayerFrame = CreateFrame("frame", "$parentSelectPlayer", pFrame, "BackdropTemplate")
+		selectPlayerFrame:SetAllPoints()
+		pFrame.selectPlayerFrame = selectPlayerFrame
+
+		--update scroll lines
+		local refreshPlayerList = function(self, data, offset, totalLines)
+			--update boss scroll
+			for i = 1, totalLines do
+				local index = i + offset
+				local playerName = data[index]
+				if (playerName) then
+
+					local line = self:GetLine(i)
+					if (line) then --create new note button
+						local _, className = UnitClass(playerName)
+						local cleanName = playerName --text without class color
+						playerName = DetailsFramework:AddClassColorToText(playerName, className)
+
+						line.PlayerName = playerName
+						line.PlayerNameClean = cleanName
+
+						local l, r, t, b, texture = DetailsFramework:GetClassTCoordsAndTexture(className)
+
+						line.classIcon:SetTexture(texture)
+						line.classIcon:SetTexCoord(l, r, t, b)
+						line.playerName:SetText(playerName)
+						line:Show()
+					end
+				end
+			end
+		end
+
+		--scroll frame
+		local playerSelectionScroll = DF:CreateScrollBox(selectPlayerFrame, "$parentScroll", refreshPlayerList, {}, pFrame:GetWidth()-2, pFrame:GetHeight(), playerSelectionAmoutLines, playerSelectionLinesHeight)
+		selectPlayerFrame.playerSelectionScroll = playerSelectionScroll
+		DetailsFramework:ReskinSlider(playerSelectionScroll)
+		playerSelectionScroll:SetAllPoints()
+		playerSelectionScroll:SetPoint("topleft", selectPlayerFrame, "topleft", 0, 0)
+		playerSelectionScroll:SetPoint("bottomright", selectPlayerFrame, "bottomright", -22, 0)
+
+		function playerSelectionScroll.UpdatePlayerList()
+			local listOfPlayers = {}
+
+			if (IsInRaid()) then
+				for i = 1, GetNumGroupMembers() do
+					local playerName = UnitName("raid" .. i)
+					if (playerName) then
+						listOfPlayers[#listOfPlayers+1] = playerName
+					end
+				end
+
+			elseif (IsInGroup()) then
+				for i = 1, GetNumGroupMembers()-1 do
+					local playerName = UnitName("party" .. i)
+					if (playerName) then
+						listOfPlayers[#listOfPlayers+1] = playerName
+					end
+					listOfPlayers[#listOfPlayers+1] = UnitName("player")
+				end
+
+			else
+				listOfPlayers[#listOfPlayers+1] = UnitName("player")
+			end
+
+			playerSelectionScroll:SetData(listOfPlayers)
+			playerSelectionScroll:Refresh()
+		end
+
+		local onEnterLine = function(self)
+			self:SetBackdropColor(unpack(scrollbox_line_backdrop_color_hightlight))
+		end
+
+		local onLeaveLine = function(self)
+			self:SetBackdropColor(unpack(scrollbox_line_backdrop_color))
+		end
+
+		local onClickLine = function(self)
+			local playerName = self.PlayerName
+			if (playerName) then
+				Notepad.mainFrame.editboxNotes.editbox:SetFocus(true)
+				local cursorPos = Notepad.mainFrame.editboxNotes.editbox:GetCursorPosition()
+				Notepad.mainFrame.editboxNotes.editbox:Insert(playerName)
+				Notepad.mainFrame.editboxNotes.editbox:SetCursorPosition(cursorPos + #playerName)
+			end
+		end
+
+		--create scroll lines
+		local createPlayerLine = function(self, index)
+			local line = CreateFrame("button", "$parentLine" .. index, self, "BackdropTemplate")
+			line:SetPoint("topleft", self, "topleft", 0, -((index-1) * (playerSelectionLinesHeight+1)) - 1)
+			line:SetSize(self:GetWidth(), playerSelectionLinesHeight)
+			line:RegisterForClicks("LeftButtonDown", "RightButtonDown")
+			DetailsFramework:ApplyStandardBackdrop(line)
+
+			line:SetScript("OnEnter", onEnterLine)
+			line:SetScript("OnLeave", onLeaveLine)
+			line:SetScript("OnClick", onClickLine)
+
+			line.index = index
+
+			--icon
+			local classIcon = line:CreateTexture("$parentIcon", "overlay")
+			classIcon:SetSize(playerSelectionLinesHeight, playerSelectionLinesHeight)
+			classIcon:SetPoint("left", line, "left", 2, 0)
+			line.classIcon = classIcon
+
+			local playerName = line:CreateFontString(nil, "overlay", "GameFontNormal")
+			playerName:SetPoint("left", classIcon, "right", 2, 0)
+
+			DetailsFramework:SetFontSize(playerName, 11)
+
+			line.classIcon = classIcon
+			line.playerName = playerName
+
+			return line
+		end
+
+		--create the scrollbox lines
+		for i = 1, playerSelectionAmoutLines do
+			playerSelectionScroll:CreateLine(createPlayerLine, i)
+		end
+
+
+
+	--> select macro frame
+		local selectMacroFrame = CreateFrame("frame", "$parentSelectMacro", pFrame, "BackdropTemplate")
+		selectMacroFrame:SetAllPoints()
+		pFrame.selectMacroFrame = selectMacroFrame
+
+		local listOfMacros = {
+			["playerlist"] = {example = "", desc = "", alias = ""},
+		}
+
+end
+
 function Notepad.OnShowOnOptionsPanel()
 	local OptionsPanel = Notepad.OptionsPanel
 	Notepad.BuildOptions (OptionsPanel)
@@ -1539,8 +1703,11 @@ end
 
 function Notepad.BuildOptions(frame)
 	if (frame.FirstRun) then
+		Notepad.ShowPickFrame("playerlist")
 		return
 	end
+
+	C_Timer.After(0, function() Notepad.ShowPickFrame("playerlist") end)
 
 	Notepad.db.latest_menu_option_boss_selected = Notepad.db.latest_menu_option_boss_selected or 0
 	Notepad.db.latest_menu_option_note_selected = Notepad.db.latest_menu_option_note_selected or 1
@@ -1550,6 +1717,8 @@ function Notepad.BuildOptions(frame)
 	local mainFrame = frame
 	mainFrame:SetSize (840, 680)
 	Notepad.mainFrame = mainFrame
+
+	createPickFrame(mainFrame)
 
 	mainFrame:SetScript ("OnShow", function()
 		if (Notepad:GetCurrentlyShownBoss()) then

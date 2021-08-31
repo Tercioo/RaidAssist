@@ -144,22 +144,27 @@
 					"label": ""
 				},
 				{
-					"line": 554,
+					"line": 301,
+					"column": 2,
+					"label": ""
+				},
+				{
+					"line": 563,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 591,
+					"line": 600,
 					"column": 6,
 					"label": ""
 				},
 				{
-					"line": 767,
+					"line": 776,
 					"column": 38,
 					"label": ""
 				},
 				{
-					"line": 860,
+					"line": 869,
 					"column": 35,
 					"label": ""
 				}
@@ -179,37 +184,37 @@
 			"path": "plugins/notes.lua",
 			"bookmarks": [
 				{
-					"line": 148,
+					"line": 149,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 304,
+					"line": 305,
 					"column": 3,
 					"label": ""
 				},
 				{
-					"line": 536,
+					"line": 537,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 980,
+					"line": 981,
 					"column": 3,
 					"label": ""
 				},
 				{
-					"line": 1179,
+					"line": 1180,
 					"column": 42,
 					"label": ""
 				},
 				{
-					"line": 1277,
+					"line": 1278,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 1510,
+					"line": 1508,
 					"column": 15,
 					"label": ""
 				}

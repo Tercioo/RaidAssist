@@ -253,15 +253,9 @@ function AuraCheck.BuildOptions (frame)
 		AuraCheck:SetFontColor (ResultInfoLabel, "gray")
 		fillPanel.NoAuraLabel = NoAuraLabel
 		fillPanel.ResultInfoLabel = ResultInfoLabel
-		
-		--fauxscroll - auras scrollbar
-		
-		local updateAddonsList = function(self)
-			local auras = AuraCheck:GetAllWeakAurasNamesAndIcons()
 
-			if (not auras) then
-				return
-			end
+		local refreshAuraScroll = function(self, data, offset, totalLines)
+			local auras = data
 
 			if (self.SearchingFor ~= "") then
 				local search = lower(self.SearchingFor)
@@ -273,58 +267,61 @@ function AuraCheck.BuildOptions (frame)
 				end
 			end
 
-			FauxScrollFrame_Update (self, #auras, CONST_AURALIST_ROWS, CONST_AURALIST_ROW_HEIGHT) --self, amt, amt frames, height of each frame
+			--FauxScrollFrame_Update (self, #auras, CONST_AURALIST_ROWS, CONST_AURALIST_ROW_HEIGHT) --self, amt, amt frames, height of each frame
+			--local offset = FauxScrollFrame_GetOffset(self)
 
-			local offset = FauxScrollFrame_GetOffset(self)
-
-			for i = 1, CONST_AURALIST_ROWS do
+			for i = 1, totalLines do
 				local index = i + offset
-				local button = self.Frames[i]
+				--local button = self.Frames[i]
 				local data = auras[index]
 				
 				if (data) then
-					local auraName = data[1]
-					local auraIcon = data[2]
+					local button = self:GetLine(i)
+					if (button) then
+						local auraName = data[1]
+						--local auraIcon = data[2]
 
-					--button.Icon:SetTexture(auraIcon)
-					button.Label:SetText(auraName)
-					DetailsFramework:TruncateText(button.Label, button:GetWidth()-4)
+						--button.Icon:SetTexture(auraIcon)
+						button.Label:SetText(auraName)
+						--DetailsFramework:TruncateText(button.Label, button:GetWidth()-4)
 
-					if (auraName == self.CurrentAuraSelected) then
-						button:SetBackdropColor(DetailsFramework:ParseColors("gray"))
-					else
-						button:SetBackdropColor(unpack (backdropColor))
+						if (auraName == self.CurrentAuraSelected) then
+							button:SetBackdropColor(DetailsFramework:ParseColors("gray"))
+						else
+							button:SetBackdropColor(unpack (backdropColor))
+						end
+						button:Show()
 					end
-					button:Show()
 				else
 					button.Label:SetText("")
 					button:Hide()
 				end
 			end
-
-			self:Show()
 		end
 
-		local auraScroll = CreateFrame("scrollframe", "AuraCheckerAurasFrameAuraScroll", frame, "FauxScrollFrameTemplate, BackdropTemplate")
+		local auraScroll = DetailsFramework:CreateScrollBox(frame, "AuraCheckerAurasFrameAuraScroll", refreshAuraScroll, {}, 180, CONST_AURALIST_ROWS*(CONST_AURALIST_ROW_HEIGHT+1), CONST_AURALIST_ROWS, CONST_AURALIST_ROW_HEIGHT)
 		auraScroll:SetPoint("topleft", aurasFrame, "topleft", aura_scroll_x_pos, -5)
-		auraScroll:SetSize(180, CONST_AURALIST_ROWS*(CONST_AURALIST_ROW_HEIGHT+1))
 
 		auraScroll.CurrentAuraSelected = "-none-"
 		auraScroll.SearchingFor = ""
 
+		function auraScroll.RefreshMe()
+			local auras = AuraCheck:GetAllWeakAurasNamesAndIcons()
+			if (auras) then
+				auraScroll:SetData(auras)
+				auraScroll:Refresh()
+			else
+				auraScroll:SetData({})
+			end
+		end
+
 		DetailsFramework:ReskinSlider(auraScroll)
 		DetailsFramework:ApplyStandardBackdrop(auraScroll)
-
-		auraScroll:SetScript ("OnVerticalScroll", function (self, offset)
-			FauxScrollFrame_OnVerticalScroll(self, offset, CONST_AURALIST_ROW_HEIGHT, updateAddonsList)
-		end)
-
-		auraScroll.Frames = {}
 
 		local on_mousedown = function(self)
 			if (self.Label:GetText() ~= "") then
 				auraScroll.CurrentAuraSelected = self.Label:GetText()
-				updateAddonsList(auraScroll)
+				auraScroll.RefreshMe()
 
 				local now = GetTime()
 				if (self.LastClick + 0.22 > now) then
@@ -355,8 +352,9 @@ function AuraCheck.BuildOptions (frame)
 		end
 		
 		--> aura selection
-		for i = 1, CONST_AURALIST_ROWS do
-			local f = CreateFrame ("frame", "AuraCheckerAurasFrameAuraScroll_Button" .. i, auraScroll, "BackdropTemplate")
+		local createAuraLine = function(self, i)
+		--for i = 1, CONST_AURALIST_ROWS do
+			local f = CreateFrame ("frame", "AuraCheckerAurasFrameAuraScroll_Button" .. i, self, "BackdropTemplate")
 			f:SetPoint ("topleft", auraScroll, "topleft", 1, -(i-1)* (CONST_AURALIST_ROW_HEIGHT+1))
 			f:SetScript ("OnMouseUp", on_mousedown)
 			f:SetScript ("OnEnter", aura_on_enter)
@@ -383,14 +381,22 @@ function AuraCheck.BuildOptions (frame)
 			f.Label = label
 			f.Icon = auraIcon
 			f.timeToShare = timeToShare
-			tinsert (auraScroll.Frames, f)
+
+			return f
 		end
+
+		--create the scrollbox lines
+		for i = 1, CONST_AURALIST_ROWS do
+			auraScroll:CreateLine(createAuraLine, i)
+		end
+
+		auraScroll.RefreshMe()
 
 		--textbox - search aura
 		local onTextChanged = function()
 			local text = frame.searchBox:GetText()
 			auraScroll.SearchingFor = text
-			updateAddonsList (auraScroll)
+			auraScroll.RefreshMe()
 		end
 
 		local searchBox = AuraCheck:CreateTextEntry (frame, function()end, 160, 20, "searchBox", _, _, AuraCheck:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
@@ -807,7 +813,7 @@ function AuraCheck.BuildOptions (frame)
 	AuraCheck.ShowAurasPanel()
 	
 	AuraCheck.UpdateAurasFillPanel (fillPanel)
-	updateAddonsList (auraScroll)
+	auraScroll.RefreshMe()
 	updateHistoryList (historyScroll)
 	
 	frame:SetScript("OnShow", function()
