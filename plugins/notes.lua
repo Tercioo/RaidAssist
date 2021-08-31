@@ -1,6 +1,4 @@
 
-
-
 local RA = _G.RaidAssist
 local L = _G.LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
