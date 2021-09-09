@@ -14,6 +14,22 @@ LIB_RAID_STATUS_COVENANT_ICONS = {
 	[[Interface\ICONS\UI_Sigil_Necrolord]], --necrolords
 }
 
+LIB_RAID_STATUS_MELEE_SPECS = {
+	[251] = "DEATHKNIGHT",
+	[252] = "DEATHKNIGHT",
+	[577] = "DEMONHUNTER",
+	[103] = "DRUID",
+	--[255] = "Survival", --not in the list due to the long interrupt time
+	[269] = "MONK",
+	[70] = "PALADIN",
+	[259] = "ROGUE",
+	[260] = "ROGUE",
+	[261] = "ROGUE",
+	[263] = "SHAMAN",
+	[71] = "WARRIOR",
+	[72] = "WARRIOR",
+}
+
 --which gear slots can be enchanted on the latest retail version of the game
 --when the value is a number, the slot only receives enchants for a specific attribute
 LIB_RAID_STATUS_ENCHANT_SLOTS = {
@@ -158,6 +174,7 @@ LIB_RAID_STATUS_COOLDOWNS_BY_SPEC = {
 			[200183] = 2, --Apotheosis
 			[47788] = 3, --Guardian Spirit
 			[64844] = 4, --Divine Hymn
+			[64843] = 4, --Divine Hymn
 			[64901] = 4, --Symbol of Hope
 			[265202] = 4, --Holy Word: Salvation (talent)
 			--[88625] = 5, --Holy Word: Chastise
@@ -773,6 +790,7 @@ LIB_RAID_STATUS_COOLDOWNS_INFO = {
 	[200183] = {cooldown = 120, duration = 20, talent = 21644, charges = 1, class = "PRIEST", type = 2},  --Apotheosis (talent)
 	[47788] = {cooldown = 180, duration = 10, talent = false, charges = 1, class = "PRIEST", type = 3},  --Guardian Spirit
 	[64844] = {cooldown = 180, duration = 8, talent = false, charges = 1, class = "PRIEST", type = 4},  --Divine Hymn
+	[64843] = {cooldown = 180, duration = 8, talent = false, charges = 1, class = "PRIEST", type = 4},  --Divine Hymn
 	[64901] = {cooldown = 300, duration = 6, talent = false, charges = 1, class = "PRIEST", type = 4},  --Symbol of Hope
 	[265202] = {cooldown = 720, duration = false, talent = 23145, charges = 1, class = "PRIEST", type = 4},  --Holy Word: Salvation (talent)
 	[109964]  = {cooldown = 60, duration = 12, talent = 21184, charges = 1, class = "PRIEST", type = 4},  --Spirit Shell (talent)

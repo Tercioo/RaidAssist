@@ -1,20 +1,17 @@
 
-
-local RA = RaidAssist
+local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local DF = DetailsFramework
 local _
 local defaultPriority = 119
-
-if (_G ["RaidAssistPlayerCheck"]) then
-	return
-end
 
 local PlayerCheck = {
 	last_data_sent = 0,
 	player_data = {},
 	version = "v0.1",
 	pluginname = "PlayerCheck",
+	pluginId = "PLCK",
+	displayName = "Check Players",
 }
 _G ["RaidAssistPlayerCheck"] = PlayerCheck
 
@@ -677,5 +674,5 @@ function PlayerCheck.BuildOptions(frame)
 end
 
 if (canInstall) then
-	local installStatus = RA:InstallPlugin ("Player Check", "RAPlayerCheck", PlayerCheck, default_config)
+	RA:InstallPlugin(PlayerCheck.displayName, "OPPlayerCheck", PlayerCheck, default_config)
 end

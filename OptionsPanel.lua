@@ -1,11 +1,7 @@
 
-local RA = RaidAssist
+local RA = _G.RaidAssist
 local _
 local DF = DetailsFramework
-
-if (_G.RaidAssistLoadDeny) then
-	return
-end
 
 --/run RaidAssist.OpenMainOptions()
 
@@ -27,6 +23,8 @@ local CONST_OPTIONSPANEL_STARTPOS_Y = -36
 local CONST_MENU_FONT_SIZE = 12
 
 local allButtons = {}
+local pluginIdToIndex = {}
+local pluginIndexToObject = {}
 
 function RA.OpenMainOptionsByPluginIndex(pluginIndex)
 	if (not allButtons[1]) then
@@ -35,17 +33,37 @@ function RA.OpenMainOptionsByPluginIndex(pluginIndex)
 
 	RA.OpenMainOptions()
 	allButtons[pluginIndex]:Click()
+	RA.UpdateKeybindToPlugin(pluginIndexToObject[pluginIndex])
 end
 
-function RA.OpenMainOptions(plugin)
+function RA.OpenMainOptions(command, value)
+
+	local plugin = command
 
 	--if a plugin object has been passed, open the options panel for it
-	if (RaidAssistOptionsPanel) then
+	if (_G.RaidAssistOptionsPanel) then
 		if (plugin) then
-			RA.OpenMainOptionsForPlugin(plugin)
+
+			if (type(plugin) == "string") then
+				local pluginIndex = pluginIdToIndex[plugin]
+				if (pluginIndex) then
+					RA.OpenMainOptionsByPluginIndex(pluginIndex)
+					RaidAssistOptionsPanel:Show()
+					return
+				end
+			else
+				RA.OpenMainOptionsForPlugin(plugin)
+				RaidAssistOptionsPanel:Show()
+				return
+			end
 		end
+
 		RaidAssistOptionsPanel:Show()
 		return
+	end
+
+	if (type(plugin) == "string") then
+		plugin = nil
 	end
 
 	RA.db.profile.options_panel = RA.db.profile.options_panel or {}
@@ -102,6 +120,8 @@ function RA.OpenMainOptions(plugin)
 			end
 
 			button:SetBackdropColor(.75, .75, .75, .9)
+
+			RA.UpdateKeybindToPlugin(plugin)
 		end
 	
 		--change the selected plugin from inside plugins
@@ -148,18 +168,21 @@ function RA.OpenMainOptions(plugin)
 				local pluginObject = data [index]
 				if (pluginObject) then
 					--get the data
-					local iconTexture, iconTexcoord, text, textColor = pluginObject.menu_text (pluginObject)
+					local iconTexture, iconTexcoord, text, textColor = pluginObject.menu_text(pluginObject)
 
 					--update the line
 					local button = self:GetLine(i)
 					button:SetText (text)
 
+					pluginIdToIndex[pluginObject.pluginId] = index
+					pluginIndexToObject[index] = pluginObject
+
 					button:SetClickFunction(onSelectPlugin, pluginObject)
 
 					if (iconTexcoord) then
-						button:SetIcon(iconTexture, 18, 18, "overlay", {iconTexcoord.l, iconTexcoord.r, iconTexcoord.t, iconTexcoord.b}, nil, 2, 2)
+						button:SetIcon(iconTexture, 18, 18, "overlay", {iconTexcoord.l, iconTexcoord.r, iconTexcoord.t, iconTexcoord.b}, nil, 5, 2)
 					else
-						button:SetIcon(iconTexture, 18, 18, "overlay", {0, 1, 0, 1}, nil, 2, 2)
+						button:SetIcon(iconTexture, 18, 18, "overlay", {0, 1, 0, 1}, nil, 4, 2)
 					end
 
 					if (pluginObject.IsDisabled) then
@@ -226,8 +249,17 @@ function RA.OpenMainOptions(plugin)
 			onSelectPlugin (nil, nil, plugin)
 		end
 
+		if (command) then
+			local pluginIndex = pluginIdToIndex[command]
+			if (pluginIndex) then
+				RA.OpenMainOptionsByPluginIndex(pluginIndex)
+				return
+			end
+		end
+
 		--auto open a plugin after /raa
 		allButtons[1]:Click()
+		RA.UpdateKeybindToPlugin(pluginIndexToObject[1])
 end
 
 function RA.CreateHotkeyFrame(f)
@@ -237,15 +269,15 @@ function RA.CreateHotkeyFrame(f)
 	local keyBindListener = CreateFrame ("frame", "RaidAssistBindListenerFrame", f, "BackdropTemplate")
 	keyBindListener.IsListening = false
 
-	local enter_the_key = CreateFrame ("frame", nil, keyBindListener, "BackdropTemplate")
-	enter_the_key:SetFrameStrata ("tooltip")
-	enter_the_key:SetSize (200, 60)
-	enter_the_key:SetBackdrop ({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 16, edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1})
-	enter_the_key:SetBackdropColor (0, 0, 0, 1)
-	enter_the_key:SetBackdropBorderColor (1, 1, 1, 1)
-	enter_the_key.text = RA:CreateLabel (enter_the_key, "- Press a keyboard key to bind.\n- Press escape to clear.\n- Click again to cancel.", 11, "orange")
-	enter_the_key.text:SetPoint ("center", enter_the_key, "center")
-	enter_the_key:Hide()
+	local enterKeybindFrame = CreateFrame ("frame", nil, keyBindListener, "BackdropTemplate")
+	enterKeybindFrame:SetFrameStrata ("tooltip")
+	enterKeybindFrame:SetSize (200, 60)
+	enterKeybindFrame:SetBackdrop ({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 16, edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1})
+	enterKeybindFrame:SetBackdropColor (0, 0, 0, 1)
+	enterKeybindFrame:SetBackdropBorderColor (1, 1, 1, 1)
+	enterKeybindFrame.text = RA:CreateLabel (enterKeybindFrame, "- Press a keyboard key to bind.\n- Press escape to clear.\n- Click again to cancel.", 11, "orange")
+	enterKeybindFrame.text:SetPoint ("center", enterKeybindFrame, "center")
+	enterKeybindFrame:Hide()
 
 	local ignoredKeys = {
 		["LSHIFT"] = true,
@@ -273,70 +305,99 @@ function RA.CreateHotkeyFrame(f)
 		["type5"] = "Button5",
 	}
 
+	local registerKeybind = function (self, key)
 
-	local registerKeybind = function (self, key) 
+		local pluginId = enterKeybindFrame.pluginObject.pluginId
+
 		if (ignoredKeys [key]) then
 			return
 
 		elseif (key == "ESCAPE" ) then
-			enter_the_key:Hide()
+			--reset the key
+			enterKeybindFrame:Hide()
 			keyBindListener.IsListening = false
-			keyBindListener:SetScript ("OnKeyDown", nil)
+			keyBindListener:SetScript("OnKeyDown", nil)
 
-			if (RA.DATABASE.OptionsKeybind and RA.DATABASE.OptionsKeybind ~= "") then
-				SetBinding (RA.DATABASE.OptionsKeybind)
-				RA:Msg ("do a /reload if this bind was a override.")
+			local currentKeybindForPlugin = RA.GetKeybindForPlugin(pluginId)
+			if (currentKeybindForPlugin) then
+				SetBinding(currentKeybindForPlugin)
+				RA:Msg("do a /reload if this bind was an override.")
 			end
 
-			RA.DATABASE.OptionsKeybind = ""
-			f.SetKeybindButton.text = ""
-			f.SetKeybindButton.text = "- click to set -"
+			RA.RegisterPluginKeybind(pluginId)
 			RA:RefreshMacros()
+
+			f.SetKeybindButton.text = "- click to set -"
 			return
 
-		elseif (mouseKeys [key] or keysToMouse [key]) then
-			enter_the_key:Hide()
+		elseif (mouseKeys[key] or keysToMouse[key]) then
+			enterKeybindFrame:Hide()
 			keyBindListener.IsListening = false
-			keyBindListener:SetScript ("OnKeyDown", nil)
+			keyBindListener:SetScript("OnKeyDown", nil)
 			return
 		end
-		
+
 		local bind = (IsShiftKeyDown() and "SHIFT-" or "") .. (IsControlKeyDown() and "CTRL-" or "") .. (IsAltKeyDown() and "ALT-" or "")
 		bind = bind .. key
-	
-		RA.DATABASE.OptionsKeybind = bind
-		f.SetKeybindButton.text = bind
-		
+
+		RA.RegisterPluginKeybind(pluginId, bind)
 		RA:RefreshMacros()
-	
+
+		f.SetKeybindButton.text = bind
+
 		keyBindListener.IsListening = false
 		keyBindListener:SetScript ("OnKeyDown", nil)
-		enter_the_key:Hide()
+		enterKeybindFrame:Hide()
 	end
-	
 
-	local set_key_bind = function (self, button, keybindIndex)
+	local setKeybind = function(self, button, keybindIndex)
 		if (keyBindListener.IsListening) then
 			local key = mouseKeys [button] or button
-			return registerKeybind (keyBindListener, key)
+			return registerKeybind(keyBindListener, key)
 		end
 
 		keyBindListener.IsListening = true
 		keyBindListener.keybindIndex = keybindIndex
-		keyBindListener:SetScript ("OnKeyDown", registerKeybind)
+		keyBindListener:SetScript("OnKeyDown", registerKeybind)
 		GameCooltip:Hide()
 		
-		enter_the_key:Show()
-		enter_the_key:SetPoint ("bottom", self, "top")
+		enterKeybindFrame:Show()
+		enterKeybindFrame:SetPoint ("bottom", self, "top")
 	end
-	
-	local setKeybindButton = RA:CreateButton (f, set_key_bind, CONST_MENU_BUTTON_WIDTH, CONST_MENU_BUTTON_HEIGHT, "", _, _, _, "SetKeybindButton", _, 0, RA:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE"), RA:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-	setKeybindButton:SetPoint ("bottomleft", f, "bottomleft", 10, 30)
-	setKeybindButton:SetClickFunction (set_key_bind, nil, nil, "left")
-	setKeybindButton:SetClickFunction (set_key_bind, nil, nil, "right")
+
+	local setKeybindButton = RA:CreateButton(f, setKeybind, CONST_MENU_BUTTON_WIDTH, CONST_MENU_BUTTON_HEIGHT, "", _, _, _, "SetKeybindButton", _, 0, RA:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE"), RA:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	setKeybindButton:SetPoint("bottomleft", f, "bottomleft", 5, 25)
+	setKeybindButton:SetClickFunction(setKeybind, nil, nil, "left")
+	setKeybindButton:SetClickFunction(setKeybind, nil, nil, "right")
 	setKeybindButton.text = currentKeyBind and currentKeyBind ~= "" and currentKeyBind or "- click to set -"
-	setKeybindButton.tooltip = "Set up a keybind to open this option panel."
-	
-	local keybind_text = RA:CreateLabel (f, "Options Panel Keybind:")
-	keybind_text:SetPoint ("bottom", setKeybindButton, "top", 0, 2)
+	setKeybindButton.tooltip = "Set up a keybind to open the options panel."
+
+	local keybindText = RA:CreateLabel(f, "Open Options Keybind:")
+	keybindText:SetPoint("bottomleft", setKeybindButton, "topleft", 0, 2)
+	keybindText:SetJustifyH("left")
+	keybindText.fontsize = 11
+
+	function RA.UpdateKeybindToPlugin(pluginObject)
+		keybindText.text = "Open " .. pluginObject.displayName
+
+		local pluginKeybinds = RA.DATABASE.PluginKeybinds
+		if (not pluginKeybinds) then
+			pluginKeybinds = {}
+			RA.DATABASE.PluginKeybinds = pluginKeybinds
+		end
+
+		local currentKeybind = pluginKeybinds[pluginObject.pluginId]
+		if (not currentKeybind) then
+			setKeybindButton.text = "Set Keybind"
+			setKeybindButton.fontsize = 16
+			setKeybindButton.fontcolor = "silver"
+
+		else
+			setKeybindButton.text = currentKeybind
+			setKeybindButton.fontsize = 16
+			setKeybindButton.fontcolor = "yellow"
+		end
+
+		enterKeybindFrame.pluginObject = pluginObject
+	end
 end

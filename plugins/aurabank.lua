@@ -1,8 +1,12 @@
 
-local RA = RaidAssist
+local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _ 
 local default_priority = 25
+
+
+--do not load this code due to the weakauras group being wrong
+if true then return end
 
 local default_config = {
 	enabled = true,
@@ -10,20 +14,16 @@ local default_config = {
 	installed_history = {},
 }
 
+local AuraBank = {version = "v0.1", pluginname = "AuraBank", pluginId = "AUBK", displayName = "Aura Bank"}
+_G ["RaidAssistAuraBank"] = AuraBank
+
+--const settings
 local text_color_enabled = {r=1, g=1, b=1, a=1}
 local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
-
 local toolbar_icon = [[Interface\CHATFRAME\UI-ChatIcon-Share]]
 local icon_texcoord = {l=0, r=1, t=0, b=1}
-
 local RAID_TIERS = {669}
 local DEFAULT_SELECTED_BOSS = 1426 --hellfire assault
-
-if (_G ["RaidAssistAuraBank"]) then
-	return
-end
-local AuraBank = {version = "v0.1", pluginname = "Aura Bank"}
-_G ["RaidAssistAuraBank"] = AuraBank
 
 AuraBank.menu_text = function (plugin)
 	if (AuraBank.db.enabled) then
@@ -580,22 +580,18 @@ function AuraBank.BuildOptions (frame)
 	AuraBank.ShowAurasPanel()
 end
  
-local install_status = RA:InstallPlugin ("Aura Bank", "RAAuraBank", AuraBank, default_config)
+RA:InstallPlugin(AuraBank.pluginname, "RAAuraBank", AuraBank, default_config)
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 function AuraBank.InstallAura (auraName, playerName, auraTable, time)
-
 	local installState = AuraBank:InstallWeakAura (auraTable)
 	if (installState == 1) then
 		--> check if there is a group for our auras
 		if (not WeakAurasSaved.displays ["Raid Assist Imported"]) then
 			local group = RA.table.copy ({}, group_prototype)
-			WeakAuras.Add (group)
+			WeakAuras.Add(group)
 		end
-		
-		--WeakAuras.FixGroupChildrenOrder()
-	
 		tinsert (AuraBank.db.installed_history, {auraName, playerName, time})
 	end
 end

@@ -1,5 +1,5 @@
 
-local RA = RaidAssist
+local RA = _G.RaidAssist
 local L = LibStub("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
 local default_priority = 26
@@ -26,7 +26,7 @@ local icon_texcoord = {l=0, r=1, t=0, b=1}
 if (_G ["RaidAssistAuraCheck"]) then
 	return
 end
-local AuraCheck = {version = "v0.1", pluginname = "Aura Check"}
+local AuraCheck = {version = "v0.1", pluginname = "AuraCheck", pluginId = "AUCK", displayName = "Aura Check"}
 _G ["RaidAssistAuraCheck"] = AuraCheck
 
 local COMM_AURA_CHECKREQUEST = "WAC" --check aura - the raid leader requested an aura check
@@ -822,7 +822,7 @@ function AuraCheck.BuildOptions (frame)
 	
 end
 
-local install_status = RA:InstallPlugin ("Aura Check", "RAAuraCheck", AuraCheck, default_config)
+RA:InstallPlugin(AuraCheck.displayName, "RAAuraCheck", AuraCheck, default_config)
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

@@ -1,5 +1,5 @@
 
-local RA = RaidAssist
+local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _ 
 local default_priority = 14
@@ -24,10 +24,7 @@ local icon_texcoord = {l=0.078125, r=0.921875, t=0.078125, b=0.921875}
 local text_color_enabled = {r=1, g=1, b=1, a=1}
 local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
 
-if (_G ["RaidAssistBisListRaid"]) then
-	return
-end
-local BisListRaid = {version = "v0.1", pluginname = "BisListRaid"}
+local BisListRaid = {version = "v0.1", pluginname = "BisListRaid", pluginId = "BILR", displayName = "Raid Bis List"}
 _G ["RaidAssistBisListRaid"] = BisListRaid
 
 BisListRaid.IsDisabled = true
@@ -36,7 +33,7 @@ BisListRaid.IsDisabled = true
 local BisList = _G ["RaidAssistBisList"]
 
 local can_install = false
-local can_install = true
+--local can_install = true
 
 BisListRaid.last_data_request = 0
 BisListRaid.last_data_sent = 0
@@ -77,7 +74,6 @@ end
 
 BisListRaid.OnEnable = function (plugin)
 	-- enabled from the options panel.
-	BisListRaid:RefreshResFrame()
 end
 
 BisListRaid.OnDisable = function (plugin)
@@ -88,7 +84,6 @@ end
 BisListRaid.OnProfileChanged = function (plugin)
 	if (plugin.db.enabled) then
 		BisListRaid.OnEnable (plugin)
-		BisListRaid:RefreshResFrame()
 	else
 		BisListRaid.OnDisable (plugin)
 	end
@@ -293,7 +288,7 @@ function BisListRaid.BuildOptions (frame)
 end
 
 if (can_install) then
-	local install_status = RA:InstallPlugin ("BisListRaid", "RABisListRaid", BisListRaid, default_config)
+	RA:InstallPlugin(BisListRaid.displayName, "OPBisListRaid", BisListRaid, default_config)
 end
 
 --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------

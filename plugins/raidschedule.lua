@@ -1,10 +1,9 @@
 
-
-
-local RA = RaidAssist
+local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
 local default_priority = 4
+local DF = DetailsFramework
 
 local GetUnitName = GetUnitName
 local GetGuildInfo = GetGuildInfo
@@ -19,10 +18,8 @@ local default_config = {
 	next_db_number = 1,
 }
 
-if (_G ["RaidAssistRaidSchedule"]) then
-	return
-end
-local RaidSchedule = {version = "v0.1", pluginname = "RaidSchedule"}
+
+local RaidSchedule = {version = "v0.1", pluginname = "RaidSchedule", pluginId = "RASC", displayName = "Raid Scheduler"}
 RaidSchedule.debug = false
 _G ["RaidAssistRaidSchedule"] = RaidSchedule
 
@@ -234,25 +231,25 @@ local dropdown_set_backdrop = function (dropdown)
 end
 
 local create_day_block = function (i, loc_day_name, self, y)
-	local label_day_name = RA:CreateLabel (self, loc_day_name .. ": ", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local label_day_name = DF:CreateLabel (self, loc_day_name .. ": ", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	label_day_name:SetPoint ("topleft", self, "topleft", 5, y)
 	
-	local switch_enabled = RA:CreateSwitch (self, empty_func, false, 60, 20, _, _, "switch_enabled" .. i, _, _, _, _, _, RaidSchedule:GetTemplate ("switch", "OPTIONS_CHECKBOX_BRIGHT_TEMPLATE"))
+	local switch_enabled = DF:CreateSwitch (self, empty_func, false, 60, 20, _, _, "switch_enabled" .. i, _, _, _, _, _, RaidSchedule:GetTemplate ("switch", "OPTIONS_CHECKBOX_BRIGHT_TEMPLATE"))
 	switch_enabled:SetAsCheckBox()
 	
-	local editbox_start_time_hour = RA:CreateDropDown (self, hour_func, 0, 60, 20, "dropdown_start_time_hour" .. i, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+	local editbox_start_time_hour = DF:CreateDropDown (self, hour_func, 0, 60, 20, "dropdown_start_time_hour" .. i, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
 	dropdown_set_backdrop (editbox_start_time_hour)
-	local two_points1 = RA:CreateLabel (self, ":", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-	local editbox_start_time_min = RA:CreateDropDown (self, min_func, 0, 60, 20, "dropdown_start_time_min" .. i, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+	local two_points1 = DF:CreateLabel (self, ":", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local editbox_start_time_min = DF:CreateDropDown (self, min_func, 0, 60, 20, "dropdown_start_time_min" .. i, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
 	dropdown_set_backdrop (editbox_start_time_min)
 	
-	local dropdown_end_day = RA:CreateDropDown (self, days_func, i, 75, 20, "dropdown_end_day" .. i, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+	local dropdown_end_day = DF:CreateDropDown (self, days_func, i, 75, 20, "dropdown_end_day" .. i, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
 	dropdown_set_backdrop (dropdown_end_day)
 	
-	local editbox_end_time_hour = RA:CreateDropDown (self, hour_func, 0, 60, 20, "dropdown_end_time_hour" .. i, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+	local editbox_end_time_hour = DF:CreateDropDown (self, hour_func, 0, 60, 20, "dropdown_end_time_hour" .. i, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
 	dropdown_set_backdrop (editbox_end_time_hour)
-	local two_points2 = RA:CreateLabel (self, ":", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-	local editbox_end_time_min = RA:CreateDropDown (self, min_func, 0, 60, 20, "dropdown_end_time_min" .. i, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+	local two_points2 = DF:CreateLabel (self, ":", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local editbox_end_time_min = DF:CreateDropDown (self, min_func, 0, 60, 20, "dropdown_end_time_min" .. i, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
 	dropdown_set_backdrop (editbox_end_time_min)
 	
 	switch_enabled:SetPoint ("topleft", self, "topleft", 65, y)
@@ -366,13 +363,13 @@ function RaidSchedule.BuildOptions (frame)
 
 	local panel = main_frame
 	
-	local label_core_name = RA:CreateLabel (panel, "Core Name" .. ": ", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-	local editbox_core_name = RA:CreateTextEntry (panel, empty_func, 160, 20, "editbox_core_name", _, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+	local label_core_name = DF:CreateLabel (panel, "Core Name" .. ": ", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local editbox_core_name = DF:CreateTextEntry (panel, empty_func, 160, 20, "editbox_core_name", _, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
 	label_core_name:SetPoint ("topleft", panel, "topleft", 0, 0)
 	editbox_core_name:SetPoint ("left", label_core_name, "right", 2, 0)
 	
-	local label_start_time = RA:CreateLabel (panel, "Start Time", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-	local label_end_time = RA:CreateLabel (panel, "End Day and Time", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local label_start_time = DF:CreateLabel (panel, "Start Time", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local label_end_time = DF:CreateLabel (panel, "End Day and Time", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	label_start_time:SetPoint ("topleft", panel, "topleft", 135, -42)
 	label_end_time:SetPoint ("topleft", panel, "topleft", 274, -42)
 	
@@ -387,8 +384,8 @@ function RaidSchedule.BuildOptions (frame)
 		return RaidSchedule:GetGuildRanks (true)
 	end
 
-	local label_admin_rank = RA:CreateLabel (panel, "Core Officer Rank" .. ": ", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-	local dropdown_admin_rank = RA:CreateDropDown (panel, get_guild_ranks, 1, 160, 20, "dropdown_admin_rank")
+	local label_admin_rank = DF:CreateLabel (panel, "Core Officer Rank" .. ": ", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local dropdown_admin_rank = DF:CreateDropDown (panel, get_guild_ranks, 1, 160, 20, "dropdown_admin_rank")
 	dropdown_set_backdrop (dropdown_admin_rank)
 	dropdown_admin_rank:SetPoint ("left", label_admin_rank, "right", 2, 0)
 	label_admin_rank:SetPoint ("topleft", panel, "topleft", 5, down_y + (-10*20))
@@ -471,7 +468,7 @@ function RaidSchedule.BuildOptions (frame)
 
 	end
 	
-	local button_create = RA:CreateButton (panel, add_attendance_table, 160, 20, "Create", _, _, _, "button_create", _, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local button_create = DF:CreateButton (panel, add_attendance_table, 160, 20, "Create", _, _, _, "button_create", _, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	
 	button_create:SetPoint ("topleft", panel, "topleft", 5, down_y + (-12*20))
 
@@ -505,13 +502,13 @@ function RaidSchedule.BuildOptions (frame)
 		end
 		return t
 	end
-	local label_edit = RA:CreateLabel (main_frame, "Edit" .. ": ", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-	local dropdown_edit = RA:CreateDropDown (main_frame, dropdown_edit_fill, _, 160, 20, "dropdown_edit_attendance", _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+	local label_edit = DF:CreateLabel (main_frame, "Edit" .. ": ", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local dropdown_edit = DF:CreateDropDown (main_frame, dropdown_edit_fill, _, 160, 20, "dropdown_edit_attendance", _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
 	dropdown_edit:SetPoint ("left", label_edit, "right", 2, 0)
 
-	local button_edit = RA:CreateButton (main_frame, edit_attendance_table, 60, 18, "Edit", _, _, _, _, _, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local button_edit = DF:CreateButton (main_frame, edit_attendance_table, 60, 18, "Edit", _, _, _, _, _, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	button_edit:SetPoint ("left", dropdown_edit, "right", 2, 0)
-	local button_remove = RA:CreateButton (main_frame, remove_attendance_table, 60, 18, "Remove", _, _, _, _, _, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local button_remove = DF:CreateButton (main_frame, remove_attendance_table, 60, 18, "Remove", _, _, _, _, _, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	button_remove:SetPoint ("left", button_edit, "right", 2, 0)
 	button_edit:SetIcon ([[Interface\BUTTONS\UI-OptionsButton]], 12, 12, "overlay", {0, 1, 0, 1}, {1, 1, 1}, 2, 1, 0)
 	button_remove:SetIcon ([[Interface\BUTTONS\UI-StopButton]], 14, 14, "overlay", {0, 1, 0, 1}, {1, 1, 1}, 2, 1, 0)
@@ -527,8 +524,8 @@ function RaidSchedule.BuildOptions (frame)
 		return t
 	end
 	
-	local label_change_database = RA:CreateLabel (main_frame, "Your Core" .. ": ", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-	local dropdown_select_database = RA:CreateDropDown (main_frame, dropdown_select_db, RaidSchedule:GetCharacterRaidScheduleTableIndex(), 160, 20, "dropdown_select_database")
+	local label_change_database = DF:CreateLabel (main_frame, "Your Core" .. ": ", RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local dropdown_select_database = DF:CreateDropDown (main_frame, dropdown_select_db, RaidSchedule:GetCharacterRaidScheduleTableIndex(), 160, 20, "dropdown_select_database")
 	
 	function panel:RefreshYourCoreDropdown()
 		if (RaidSchedule:GetCharacterRaidScheduleTableIndex()) then
@@ -556,7 +553,7 @@ function RaidSchedule.BuildOptions (frame)
 		panel:Reset()
 	end
 	
-	local new_schedule_button = RA:CreateButton (panel, create_new, 180, 20, "Create New Core Schedule", _, _, _, "new_schedule_button", _, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local new_schedule_button = DF:CreateButton (panel, create_new, 180, 20, "Create New Core Schedule", _, _, _, "new_schedule_button", _, _, RaidSchedule:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), RaidSchedule:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	new_schedule_button:SetIcon ("Interface\\AddOns\\" .. RA.InstallDir .. "\\media\\plus", 10, 10, "overlay", {0, 1, 0, 1}, {1, 1, 1}, 4, 1, 0)
 	
 	local x = 470
@@ -860,7 +857,7 @@ function RaidSchedule:GetNextEventTime (index)
 end
 
 
-local install_status = RA:InstallPlugin ("RaidSchedule", "RARaidSchedule", RaidSchedule, default_config)
+RA:InstallPlugin(RaidSchedule.displayName, "RARaidSchedule", RaidSchedule, default_config)
 
 
 --[[

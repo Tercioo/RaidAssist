@@ -1,5 +1,5 @@
 
-local RA = RaidAssist
+local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
 local default_priority = 13
@@ -16,10 +16,7 @@ local icon_texcoord = {l=10/64, r=54/64, t=10/64, b=54/64}
 local text_color_enabled = {r=1, g=1, b=1, a=1}
 local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
 
-if (_G ["RaidAssistBisList"]) then
-	return
-end
-local BisList = {version = "v0.1", pluginname = "BisList"}
+local BisList = {version = "v0.1", pluginname = "BisList", pluginId = "BISL", displayName = "Bis List"}
 _G ["RaidAssistBisList"] = BisList
 
 BisList.IsDisabled = true
@@ -446,7 +443,7 @@ function BisList.BuildOptions (frame)
 end
 
 if (can_install) then
-	local install_status = RA:InstallPlugin ("BisList", "RABisList", BisList, default_config)
+	RA:InstallPlugin (BisList.displayName, "RABisList", BisList, default_config)
 end
 
 

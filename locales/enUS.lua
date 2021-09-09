@@ -1,4 +1,4 @@
-local L = LibStub ("AceLocale-3.0"):NewLocale ("RaidAssistAddon", "enUS", true) 
+local L = LibStub("AceLocale-3.0"):NewLocale("RaidAssistAddon", "enUS", true)
 if not L then return end
 
 L["S_PLUGIN_COOLDOWNS_RAID_CDS"] = "Raid Cooldowns:"

@@ -1,7 +1,7 @@
 ## Interface: 90100
 ## Title: Raid Assist
 ## Notes: Mods and Tools for raiding, type /raa to see.
-## SavedVariables: IskarAssistDB, RADataBase
+## SavedVariables: RADataBase
 
 #@no-lib-strip@
 Libs\libs.xml
@@ -16,7 +16,6 @@ Templates.lua
 OptionsAnchor.lua
 OptionsPanel.lua
 API.lua
-Loot.lua
 
 plugins\raidschedule.lua
 plugins\attendance.lua

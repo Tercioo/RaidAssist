@@ -1,9 +1,9 @@
 
-local RA = RaidAssist
+local RA = _G.RaidAssist
 local L = LibStub("AceLocale-3.0"):GetLocale("RaidAssistAddon")
 local LibGroupInSpecT = LibStub:GetLibrary("LibGroupInSpecT-1.1")
 local default_priority = 9
-local _ 
+local _
 
 local LibWindow = LibStub("LibWindow-1.1")
 local SharedMedia = _G.LibStub:GetLibrary("LibSharedMedia-3.0")
@@ -61,11 +61,7 @@ local text_color_enabled = {r=1, g=1, b=1, a=1}
 local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
 local icon_texture = "Interface\\AddOns\\RaidAssist\\media\\plugin_icons"
 
-if (_G ["RaidAssistCooldowns"]) then
-	return
-end
-
-local Cooldowns = {version = "v0.1", pluginname = "Cooldowns"}
+local Cooldowns = {version = "v0.1", pluginname = "Cooldowns", pluginId = "CDCL", displayName = "Cooldowns"}
 _G ["RaidAssistCooldowns"] = Cooldowns
 Cooldowns.IsDisabled = true
 
@@ -1814,5 +1810,4 @@ function Cooldowns.BuildOptions (frame)
 	main_frame:Show()
 end
 
-
-local install_status = RA:InstallPlugin ("Cooldowns", "RACooldowns", Cooldowns, default_config)
+RA:InstallPlugin (Cooldowns.displayName, "RACooldowns", Cooldowns, default_config)

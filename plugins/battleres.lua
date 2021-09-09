@@ -1,6 +1,5 @@
 
-
-local RA = RaidAssist
+local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _ 
 local default_priority = 10
@@ -26,10 +25,7 @@ local text_color_enabled = {r=1, g=1, b=1, a=1}
 local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
 local rebirth_spellid = 20484
 
-if (_G ["RaidAssistBattleRes"]) then
-	return
-end
-local BattleRes = {version = "v0.1", pluginname = "BattleResMonitor"}
+local BattleRes = {version = "v0.1", pluginname = "BattleRes", pluginId = "BTRS", displayName = L["S_PLUGIN_BRES_NAME"]}
 _G ["RaidAssistBattleRes"] = BattleRes
 
 BattleRes.menu_text = function (plugin)
@@ -414,7 +410,7 @@ end
 
 -- plugin will be installed only after the raid assist core load its saved variables.
 -- install_status may be 'successful' or 'scheduled'.
-local install_status = RA:InstallPlugin (L["S_PLUGIN_BRES_NAME"], "RABattleRes", BattleRes, default_config)
+RA:InstallPlugin(BattleRes.displayName, "RABattleRes", BattleRes, default_config)
 
 
 

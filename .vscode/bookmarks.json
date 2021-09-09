@@ -1,70 +1,25 @@
 {
 	"files": [
 		{
-			"path": "plugins/cooldowns.lua",
-			"bookmarks": [
-				{
-					"line": 244,
-					"column": 21,
-					"label": ""
-				},
-				{
-					"line": 340,
-					"column": 0,
-					"label": ""
-				},
-				{
-					"line": 517,
-					"column": 0,
-					"label": ""
-				},
-				{
-					"line": 636,
-					"column": 18,
-					"label": ""
-				},
-				{
-					"line": 1160,
-					"column": 26,
-					"label": ""
-				},
-				{
-					"line": 1172,
-					"column": 9,
-					"label": ""
-				},
-				{
-					"line": 1222,
-					"column": 2,
-					"label": ""
-				},
-				{
-					"line": 1261,
-					"column": 20,
-					"label": ""
-				}
-			]
-		},
-		{
 			"path": "plugins/playercheck.lua",
 			"bookmarks": [
 				{
-					"line": 126,
+					"line": 123,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 415,
+					"line": 412,
 					"column": 2,
 					"label": ""
 				},
 				{
-					"line": 572,
+					"line": 569,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 663,
+					"line": 660,
 					"column": 2,
 					"label": ""
 				}
@@ -81,55 +36,35 @@
 			]
 		},
 		{
-			"path": "plugins/raidgroups.lua",
-			"bookmarks": [
-				{
-					"line": 281,
-					"column": 3,
-					"label": ""
-				},
-				{
-					"line": 1150,
-					"column": 3,
-					"label": ""
-				},
-				{
-					"line": 1428,
-					"column": 5,
-					"label": ""
-				}
-			]
-		},
-		{
 			"path": "plugins/invite.lua",
 			"bookmarks": [
 				{
-					"line": 166,
+					"line": 164,
 					"column": 32,
 					"label": ""
 				},
 				{
-					"line": 232,
+					"line": 230,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 437,
+					"line": 435,
 					"column": 12,
 					"label": ""
 				},
 				{
-					"line": 506,
+					"line": 504,
 					"column": 38,
 					"label": ""
 				},
 				{
-					"line": 555,
+					"line": 553,
 					"column": 4,
 					"label": ""
 				},
 				{
-					"line": 994,
+					"line": 992,
 					"column": 0,
 					"label": ""
 				}
@@ -184,38 +119,18 @@
 			"path": "plugins/notes.lua",
 			"bookmarks": [
 				{
-					"line": 149,
-					"column": 0,
-					"label": ""
-				},
-				{
-					"line": 305,
+					"line": 1142,
 					"column": 3,
 					"label": ""
 				},
 				{
-					"line": 537,
+					"line": 1221,
+					"column": 5,
+					"label": ""
+				},
+				{
+					"line": 1423,
 					"column": 0,
-					"label": ""
-				},
-				{
-					"line": 981,
-					"column": 3,
-					"label": ""
-				},
-				{
-					"line": 1180,
-					"column": 42,
-					"label": ""
-				},
-				{
-					"line": 1278,
-					"column": 0,
-					"label": ""
-				},
-				{
-					"line": 1508,
-					"column": 15,
 					"label": ""
 				}
 			]
@@ -224,8 +139,13 @@
 			"path": "plugins/addonscheck.lua",
 			"bookmarks": [
 				{
-					"line": 256,
+					"line": 243,
 					"column": 36,
+					"label": ""
+				},
+				{
+					"line": 374,
+					"column": 0,
 					"label": ""
 				}
 			]
@@ -234,33 +154,23 @@
 			"path": "plugins/pastetext.lua",
 			"bookmarks": [
 				{
-					"line": 234,
+					"line": 231,
 					"column": 25,
 					"label": ""
 				},
 				{
-					"line": 276,
+					"line": 273,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 325,
+					"line": 322,
 					"column": 4,
 					"label": ""
 				},
 				{
-					"line": 374,
+					"line": 371,
 					"column": 16,
-					"label": ""
-				}
-			]
-		},
-		{
-			"path": "OptionsPanel.lua",
-			"bookmarks": [
-				{
-					"line": 227,
-					"column": 23,
 					"label": ""
 				}
 			]
@@ -279,23 +189,43 @@
 			"path": "plugins/readycheck.lua",
 			"bookmarks": [
 				{
-					"line": 224,
+					"line": 223,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 423,
+					"line": 422,
 					"column": 2,
 					"label": ""
 				},
 				{
-					"line": 543,
+					"line": 542,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 593,
+					"line": 592,
 					"column": 4,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "OpenRaid.lua",
+			"bookmarks": [
+				{
+					"line": 443,
+					"column": 50,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "plugins/attendance.lua",
+			"bookmarks": [
+				{
+					"line": 342,
+					"column": 41,
 					"label": ""
 				}
 			]

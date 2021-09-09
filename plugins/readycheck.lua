@@ -1,6 +1,7 @@
-local RA = RaidAssist
-local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 
+local RA = _G.RaidAssist
+local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
+local DF = DetailsFramework
 local _
 
 local default_priority = 1
@@ -47,10 +48,8 @@ local raidBuffsClass = {
 	["WARRIOR"] = 3,
 }
 
-if (_G ["RaidAssistReadyCheck"]) then
-	return
-end
-local ReadyCheck = {version = "v0.1", pluginname = "Ready Check"}
+
+local ReadyCheck = {version = "v0.1", pluginname = "ReadyCheck", pluginId = "RECK", displayName = "Ready Check"}
 _G ["RaidAssistReadyCheck"] = ReadyCheck
 
 ReadyCheck.debug = false
@@ -129,7 +128,7 @@ function ReadyCheck.BuildScreenFrames()
 	ScreenPanel.titleBar:SetHeight(14)
 	ScreenPanel.titleBar.CloseButton:SetSize(14, 14)
 
-	ScreenPanel.titleBar.Title = RA:CreateLabel(ScreenPanel.titleBar, "")
+	ScreenPanel.titleBar.Title = DF:CreateLabel(ScreenPanel.titleBar, "")
 	ScreenPanel.titleBar.Title:SetPoint("left", ScreenPanel.titleBar, "left", 2, 0)
 	ScreenPanel.titleBar.Title.text = "Ready Check"
 
@@ -741,4 +740,4 @@ function ReadyCheck.BuildOptions(frame)
 	ReadyCheck:BuildMenu(leftOptionsPanelFrame, options_list, 5, -5, 500, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
 end
 
-RA:InstallPlugin ("Ready Check", "RAReadyCheck", ReadyCheck, default_config)
+RA:InstallPlugin(ReadyCheck.displayName, "RAReadyCheck", ReadyCheck, default_config)

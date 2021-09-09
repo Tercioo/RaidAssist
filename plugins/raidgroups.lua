@@ -1,14 +1,11 @@
 
-
-local RA = RaidAssist
+local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
 local default_priority = 95
+local DF = DetailsFramework
 
-if (_G ["RaidAssistRaidGroups"]) then
-	return
-end
-local RaidGroups = {version = "v0.1", pluginname = "RaidGroups"}
+local RaidGroups = {version = "v0.1", pluginname = "RaidGroups", pluginId = "RAGR", displayName = "Raid Groups"}
 _G ["RaidAssistRaidGroups"] = RaidGroups
 
 RaidGroups.IsDisabled = false
@@ -870,7 +867,7 @@ function RaidGroups.BuildOptions(frame)
 
 --------------------------------------------------------------------------------------------------
 	--saved group
-	local saveGroupsLabel = RA:CreateLabel(optionsFrame, "Pre-Made Groups")
+	local saveGroupsLabel = DF:CreateLabel(optionsFrame, "Pre-Made Groups")
 	saveGroupsLabel:SetPoint("topleft", filter_label, "bottomleft", 0, -35)
 
 	--run when the player click the button to creaste a new pre made group
@@ -1100,7 +1097,7 @@ function RaidGroups.BuildOptions(frame)
 	end
 
 	--dropdown to select a saved group
-	local selectGroupDropdown = RA:CreateDropDown(optionsFrame, buildGroupList, 1, 101, 20, "selectGroupDropdown", _, RA:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+	local selectGroupDropdown = DF:CreateDropDown(optionsFrame, buildGroupList, 1, 101, 20, "selectGroupDropdown", _, DF:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
 	selectGroupDropdown:SetPoint("topleft", saveGroupsLabel, "bottomleft", 0, -3)
 	selectGroupDropdown:Select(0, true)
 
@@ -1124,15 +1121,15 @@ function RaidGroups.BuildOptions(frame)
 	DetailsFramework:ReskinSlider(commentTextEntry.scroll)
 
 	--label comment section
-	local commentLabel = RA:CreateLabel(optionsFrame, "Comments")
+	local commentLabel = DF:CreateLabel(optionsFrame, "Comments")
 	commentLabel:SetPoint("bottomleft", commentTextEntry, "topleft", 0, 0)
 
 	--label telling to save new group
-	local creteNewGroupLabel = RA:CreateLabel(optionsFrame, "Create New Group")
+	local creteNewGroupLabel = DF:CreateLabel(optionsFrame, "Create New Group")
 	creteNewGroupLabel:SetPoint("topleft", commentTextEntry, "bottomleft", 0, -7)
 
 	--textentry asking for the name
-	local newGroupName = RA:CreateTextEntry(optionsFrame, function()end, 160, 20, "newGroupName", _, _, RA:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+	local newGroupName = DF:CreateTextEntry(optionsFrame, function()end, 160, 20, "newGroupName", _, _, DF:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
 	newGroupName:SetPoint("topleft", creteNewGroupLabel, "bottomleft", 0, -2)
 
 	--button to save the new group
@@ -1149,7 +1146,7 @@ function RaidGroups.BuildOptions(frame)
 	syncOptionsFrame:SetBackdropColor(.1, .1, .1, 1)
 
 	--text
-	local syncLockedText = RA:CreateLabel(syncOptionsFrame, "Apply Changes Immediately (no need to use 'Apply Changes' and 'Refresh Roster' buttons)", RA:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
+	local syncLockedText = DF:CreateLabel(syncOptionsFrame, "Apply Changes Immediately (no need to use 'Apply Changes' and 'Refresh Roster' buttons)", DF:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
 	syncLockedText:SetPoint("topleft", syncOptionsFrame, "topleft", 25, -10) --POINT
 	syncLockedText.fontsize = 14
 
@@ -1158,7 +1155,7 @@ function RaidGroups.BuildOptions(frame)
 		RaidGroups.db.auto_refresh_roster = not RaidGroups.db.auto_refresh_roster
 	end
 
-	local syncLockedCheckbox = RA:CreateSwitch(syncOptionsFrame, syncLockedCheckboxFunc, RaidGroups.db.auto_refresh_roster, _, _, _, _, "syncLockedCheckbox", _, _, _, _, _, RA:GetTemplate("switch", "OPTIONS_CHECKBOX_TEMPLATE"))
+	local syncLockedCheckbox = DF:CreateSwitch(syncOptionsFrame, syncLockedCheckboxFunc, RaidGroups.db.auto_refresh_roster, _, _, _, _, "syncLockedCheckbox", _, _, _, _, _, DF:GetTemplate("switch", "OPTIONS_CHECKBOX_TEMPLATE"))
 	syncLockedCheckbox:SetAsCheckBox()
 	syncLockedCheckbox:SetPoint("right", syncLockedText, "left", -2, 0) --POINT
 end
@@ -1435,7 +1432,7 @@ function RaidGroups:GROUP_ROSTER_UPDATE()
 end
 
 if (can_install) then
-	local install_status = RA:InstallPlugin ("Raid Groups", "RARaidGroups", RaidGroups, default_config)
+	RA:InstallPlugin(RaidGroups.displayName, "RARaidGroups", RaidGroups, default_config)
 end
 
 SLASH_RaidGroups1, SLASH_RaidGroups2 = "/raidgroups", "/groups"

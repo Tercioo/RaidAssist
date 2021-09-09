@@ -1,6 +1,4 @@
 
--- raid control
-
 local DF = _G ["DetailsFramework"]
 if (not DF) then
 	print ("|cFFFFAA00Please restart your client to finish update some AddOns.|r")
@@ -11,35 +9,26 @@ local DATABASE = "RADataBase"
 local FOLDERPATH = "RaidAssist"
 local _
 
---the addon already loaded?
-if (_G.RaidAssist) then
-	print ("|cFFFFAA00RaidAssist|r: Another addon is using RaidAssist namespace.")
-	_G.RaidAssistLoadDeny = true
-	return
-else
-	_G.RaidAssistLoadDeny = nil
-end
-
 local SharedMedia = LibStub:GetLibrary ("LibSharedMedia-3.0")
 SharedMedia:Register ("font", "Accidental Presidency", [[Interface\Addons\RaidAssist\fonts\Accidental Presidency.ttf]])
 
 SharedMedia:Register ("statusbar", "Iskar Serenity", [[Interface\Addons\RaidAssist\media\bar_serenity]])
-SharedMedia:Register ("statusbar", "DGround", [[Interface\AddOns\Plater\images\bar_background]])
-SharedMedia:Register ("statusbar", "Details D'ictum", [[Interface\AddOns\Plater\images\bar4]])
-SharedMedia:Register ("statusbar", "Details Vidro", [[Interface\AddOns\Plater\images\bar4_vidro]])
-SharedMedia:Register ("statusbar", "Details D'ictum (reverse)", [[Interface\AddOns\Plater\images\bar4_reverse]])
-SharedMedia:Register ("statusbar", "Details Serenity", [[Interface\AddOns\Plater\images\bar_serenity]])
-SharedMedia:Register ("statusbar", "BantoBar", [[Interface\AddOns\Plater\images\BantoBar]])
-SharedMedia:Register ("statusbar", "Skyline", [[Interface\AddOns\Plater\images\bar_skyline]])
+SharedMedia:Register ("statusbar", "DGround", [[Interface\AddOns\RaidAssist\media\bar_background]])
+SharedMedia:Register ("statusbar", "Details D'ictum", [[Interface\AddOns\RaidAssist\media\bar4]])
+SharedMedia:Register ("statusbar", "Details Vidro", [[Interface\AddOns\RaidAssist\media\bar4_vidro]])
+SharedMedia:Register ("statusbar", "Details D'ictum (reverse)", [[Interface\AddOns\RaidAssist\media\bar4_reverse]])
+SharedMedia:Register ("statusbar", "Details Serenity", [[Interface\AddOns\RaidAssist\media\bar_serenity]])
+SharedMedia:Register ("statusbar", "BantoBar", [[Interface\AddOns\RaidAssist\media\BantoBar]])
+SharedMedia:Register ("statusbar", "Skyline", [[Interface\AddOns\RaidAssist\media\bar_skyline]])
 SharedMedia:Register ("statusbar", "WorldState Score", [[Interface\WorldStateFrame\WORLDSTATEFINALSCORE-HIGHLIGHT]])
-SharedMedia:Register ("statusbar", "Details Flat", [[Interface\AddOns\Plater\images\bar_background]])
-SharedMedia:Register ("statusbar", "PlaterBackground", [[Interface\AddOns\Plater\images\platebackground]])
-SharedMedia:Register ("statusbar", "PlaterTexture", [[Interface\AddOns\Plater\images\platetexture]])
-SharedMedia:Register ("statusbar", "PlaterHighlight", [[Interface\AddOns\Plater\images\plateselected]])
-SharedMedia:Register ("statusbar", "PlaterFocus", [[Interface\AddOns\Plater\images\overlay_indicator_1]])
-SharedMedia:Register ("statusbar", "PlaterHealth", [[Interface\AddOns\Plater\images\nameplate_health_texture]])
-SharedMedia:Register ("statusbar", "You Are Beautiful!", [[Interface\AddOns\Plater\images\regular_white]])
-SharedMedia:Register ("statusbar", "PlaterBackground 2", [[Interface\AddOns\Plater\images\noise_background]])
+SharedMedia:Register ("statusbar", "Details Flat", [[Interface\AddOns\RaidAssist\media\bar_background]])
+SharedMedia:Register ("statusbar", "PlaterBackground", [[Interface\AddOns\RaidAssist\media\platebackground]])
+SharedMedia:Register ("statusbar", "PlaterTexture", [[Interface\AddOns\RaidAssist\media\platetexture]])
+SharedMedia:Register ("statusbar", "PlaterHighlight", [[Interface\AddOns\RaidAssist\media\plateselected]])
+SharedMedia:Register ("statusbar", "PlaterFocus", [[Interface\AddOns\RaidAssist\media\overlay_indicator_1]])
+SharedMedia:Register ("statusbar", "PlaterHealth", [[Interface\AddOns\RaidAssist\media\nameplate_health_texture]])
+SharedMedia:Register ("statusbar", "You Are Beautiful!", [[Interface\AddOns\RaidAssist\media\regular_white]])
+SharedMedia:Register ("statusbar", "PlaterBackground 2", [[Interface\AddOns\RaidAssist\media\noise_background]])
 
 --default configs
 local defaultConfig = {
@@ -59,6 +48,7 @@ local defaultConfig = {
 			--when in horizontal (top or bottom)
 			anchor_x = 0,
 		},
+		mergedFromRA = false,
 		plugins = {},
 	}
 }
@@ -73,9 +63,9 @@ local options_table = {
 			name = "Is Enabled",
 			desc = "Is Enabled",
 			order = 1,
-			get = function() return RaidAssist.db.profile.addon.enabled end,
-			set = function (self, val) 
-				RaidAssist.db.profile.addon.enabled = not RaidAssist.db.profile.addon.enabled; 
+			get = function() return _G.RaidAssist.db.profile.addon.enabled end,
+			set = function (self, val)
+				_G.RaidAssist.db.profile.addon.enabled = not _G.RaidAssist.db.profile.addon.enabled;
 			end,
 		},
 	}
@@ -83,15 +73,12 @@ local options_table = {
 
 
 --create the raid assist addon
-local RA = DF:CreateAddOn ("RaidAssist", DATABASE, defaultConfig, options_table)
-RA.InstallDir = FOLDERPATH
+DF:CreateAddOn("RaidAssist", DATABASE, defaultConfig, options_table)
+local RA = _G.RaidAssist
 
 do
-	local serialize = LibStub ("AceSerializer-3.0")
-	serialize:Embed (RA)
-
-	--what to do with this
-	local LGIST = LibStub:GetLibrary("LibGroupInSpecT-1.1")
+	local serialize = LibStub("AceSerializer-3.0")
+	serialize:Embed(RA)
 end
 
 RA.__index = RA
@@ -99,27 +86,31 @@ RA.version = "v1.0"
 
 --store all plugins isntalled
 RA.plugins = {}
+--store plugin Ids
+RA.pluginIds = {}
 --plugins that have been schedule to install
 RA.schedule_install = {}
 --this is the small frame menu to select an option without using /raa
 RA.default_small_popup_width = 150
 RA.default_small_popup_height = 40
-
+--default backdrop
 RA.BackdropBorderColor = {.3, .3, .3, .3}
 
+RA.InstallDir = FOLDERPATH
+
 --plugin database are stored within the raid assist database
-function RA:LoadPluginDB (name, isInstall)
-	local plugin = RA.plugins [name]
+function RA:LoadPluginDB(name, isInstall)
+	local plugin = RA.plugins[name]
 	if (not plugin) then
 		return
 	end
 
-	local hasConfig = RA.db.profile.plugins [name]
-	
+	local hasConfig = RA.db.profile.plugins[name]
+
 	if (hasConfig) then
-		RA.table.deploy (hasConfig, plugin.db_default)
+		RA.table.deploy(hasConfig, plugin.db_default)
 	else
-		RA.db.profile.plugins [name] = RA.table.copy ({}, plugin.db_default)
+		RA.db.profile.plugins [name] = RA.table.copy({}, plugin.db_default)
 	end
 
 	if (plugin.db.enabled == nil) then
@@ -136,9 +127,7 @@ function RA:LoadPluginDB (name, isInstall)
 			xpcall (plugin.OnProfileChanged, geterrorhandler(), plugin)
 		end
 	end
-
 end
-
 
 --make the reload process all over again in case of a profile change
 function RA:ReloadPluginDB()
@@ -146,7 +135,6 @@ function RA:ReloadPluginDB()
 		RA:LoadPluginDB (name)
 	end
 end
-
 
 --do the profile thing
 function RA:ProfileChanged()
@@ -157,17 +145,18 @@ function RA:ProfileChanged()
 	RA:ReloadPluginDB()
 end
 
-
 --plugin is loaded, do the initialization
-function RA.OnInit (self)
+function RA.OnInit(self)
 
-	--do more of the profile thing
-	RA.db.RegisterCallback (RA, "OnProfileChanged", "ProfileChanged")
-	RA.db.RegisterCallback (RA, "OnProfileCopied", "ProfileChanged")
-	RA.db.RegisterCallback (RA, "OnProfileReset", "ProfileChanged")
-	
-	RA.DATABASE = _G [DATABASE]
-	
+	RA.InitTime = GetTime()
+
+	--register callbacks
+	RA.db.RegisterCallback(RA, "OnProfileChanged", "ProfileChanged")
+	RA.db.RegisterCallback(RA, "OnProfileCopied", "ProfileChanged")
+	RA.db.RegisterCallback(RA, "OnProfileReset", "ProfileChanged")
+
+	RA.DATABASE = _G[DATABASE]
+
 	for _, pluginTable in ipairs (RA.schedule_install) do
 		local name, frameName, pluginObject, defaultConfig = unpack (pluginTable)
 		RA:InstallPlugin (name, frameName, pluginObject, defaultConfig)
@@ -294,8 +283,6 @@ function RA.OnInit (self)
 	end)
 	
 	RA:RefreshMainAnchor()
-	RA:RefreshMacros()
-	
 
 	--I don't remember what patch_71 was
 	C_Timer.After (10, function()
@@ -346,7 +333,7 @@ function RA.OnInit (self)
 			title:SetPoint (221*.4 + 10, -12)
 			subtitle:SetPoint ("topleft", title, "bottomleft", 0, -2)
 			
-			local label_command = DF:CreateLabel (f, "[/raa to open raid assist at any time]", 14, "orange")
+			local label_command = DF:CreateLabel (f, "[/raa to raid Assist Assist at any time]", 14, "orange")
 			label_command:SetPoint ("topright", f, "topright", -10, -12)
 			
 			local label_SetupSchedule = DF:CreateLabel (f, "Setup Raid Time Schedule", 12, "yellow")
@@ -421,33 +408,60 @@ function RA.OnInit (self)
 	
 end
 
-
 --macro to open the /raa panel
 local redoRefreshMacros = function()
 	RA:RefreshMacros()
 end
+
+function RA.GetPluginDB()
+	local pluginKeybinds = RA.DATABASE.PluginKeybinds
+	if (not pluginKeybinds) then
+		pluginKeybinds = {}
+		RA.DATABASE.PluginKeybinds = pluginKeybinds
+	end
+	return pluginKeybinds
+end
+
+function RA.GetKeybindForPlugin(pluginId)
+	local pluginKeybinds = RA.DATABASE.PluginKeybinds
+	return pluginKeybinds[pluginId]
+end
+
+function RA.RegisterPluginKeybind(pluginId, keybind)
+	local pluginKeybinds = RA.GetPluginDB()
+	pluginKeybinds[pluginId] = keybind
+end
+
 function RA:RefreshMacros()
 	--can't run while in combat
 	if (InCombatLockdown()) then
 		return C_Timer.After (1, redoRefreshMacros)
 	end
 
-	if (RA.DATABASE.OptionsKeybind and RA.DATABASE.OptionsKeybind ~= "") then
-		local macro = GetMacroInfo ("RAOpenOptions")
+	local pluginKeybinds = RA.GetPluginDB()
+
+	for pluginId, keybind in pairs(pluginKeybinds) do
+		local macro = GetMacroInfo(pluginId)
 		if (not macro) then
-			local n = CreateMacro ("RAOpenOptions", "WoW_Store", "/raa") --what? dunno what i did 7 years ago
+			CreateMacro(pluginId, "WoW_Store", "/raa " .. pluginId) --WoW_Store = icon
 		end
-		SetBinding (RA.DATABASE.OptionsKeybind, "MACRO RAOpenOptions")
+		SetBinding(keybind, "MACRO " .. pluginId)
 	end
 end
 
+function RA.PLAYER_LOGIN()
+	if (not RA.RegisteredMacrosOnInit) then
+		C_Timer.After(1, RA.RefreshMacros)
+		RA.RegisteredMacrosOnInit = true
+	end
+end
 
 --config the anchor for the floating frame in the UIParent
 function RA:RefreshMainAnchor()
 	RA.mainAnchor:ClearAllPoints()
 
 	local anchorSide = RA.db.profile.addon.anchor_side
-	
+
 	if (anchorSide == "left" or anchorSide == "right") then
 		RA.mainAnchor:SetPoint (anchorSide, UIParent, anchorSide, 0, RA.db.profile.addon.anchor_y)
 		RA.mainAnchor:SetSize (2, RA.db.profile.addon.anchor_size)
@@ -456,11 +470,11 @@ function RA:RefreshMainAnchor()
 		RA.mainAnchor:SetPoint (anchorSide, UIParent, anchorSide, RA.db.profile.addon.anchor_x, 0)
 		RA.mainAnchor:SetSize (RA.db.profile.addon.anchor_size, 2)
 	end
-	
+
 	RA.mainAnchor:SetBackdrop ({bgFile = "Interface\\Tooltips\\UI-Tooltip-Background", tile = true, tileSize = 64})
 	local color = RA.db.profile.addon.anchor_color
 	RA.mainAnchor:SetBackdropColor (color.r, color.g, color.b, color.a)
-	
+
 	if (RA.db.profile.addon.show_only_in_raid) then
 		if (IsInRaid()) then
 			RA.mainAnchor:Show()
@@ -470,7 +484,7 @@ function RA:RefreshMainAnchor()
 	else
 		RA.mainAnchor:Show()
 	end
-	
+
 	--won't show in alpha versions
 	RA.mainAnchor:Hide()
 end
@@ -499,12 +513,12 @@ groupHandleFrame:SetScript("OnEvent", function()
 		RA.playerIsInRaid = true
 		RA.RaidStateChanged()
 	end
-	
+
 	--check if player entered or left a party
 	if (RA.playerIsInParty and not IsInGroup()) then
 		RA.playerIsInParty = false
 		RA.PartyStateChanged()
-		
+
 	elseif (not RA.playerIsInParty and IsInGroup()) then
 		RA.playerIsInParty = true
 		RA.PartyStateChanged()
@@ -518,7 +532,7 @@ function RA.RaidStateChanged()
 	if (RA.db.profile.addon.show_only_in_raid) then
 		RA:RefreshMainAnchor()
 	end
-	
+
 	if (RA.playerIsInRaid) then
 		for _, func in ipairs (RA.playerEnteredInRaidGroup) do
 			local okey, errortext = pcall (func, true)
@@ -566,7 +580,7 @@ function RA:CommReceived(commPrefix, data, channel, sourceName)
 	local prefix =  select(2, RA:Deserialize(data))
 	local func = RA.comm[prefix]
 	if (func) then
-		local values = {RA:Deserialize (data)}
+		local values = {RA:Deserialize(data)}
 		if (values[1]) then
 			tremove(values, 1) --remove the Deserialize state
 
@@ -601,9 +615,30 @@ CLEU_Frame:SetScript ("OnEvent", function()
 	end
 end)
 
+--events frame
+local eventsFrame = CreateFrame("frame")
+eventsFrame:RegisterEvent("PLAYER_LOGIN")
+
+eventsFrame:SetScript("OnEvent", function(self, event, ...)
+	if (RA[event]) then
+		RA[event](...)
+	end
+end)
 
 --register chat command
 SLASH_RaidAssist1 = "/raa"
+SLASH_RaidAssist2 = "/raa"
+SLASH_RaidAssist3 = "/raidassist"
 function SlashCmdList.RaidAssist (msg, editbox)
-	RA.OpenMainOptions()
+	RA.HandleSlashCommand(msg)
+end
+
+function RA.HandleSlashCommand(text)
+	local cmd, value = text:match("(%W)%s(%W)")
+	if (cmd and value) then
+		RA.OpenMainOptions(cmd, value)
+	else
+		local command = text
+		RA.OpenMainOptions(command)
+	end
 end

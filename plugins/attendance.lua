@@ -1,17 +1,10 @@
 
-
-
-local RA = RaidAssist
+local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
 local default_priority = 17
-
 local GetUnitName = GetUnitName
 local GetGuildInfo = GetGuildInfo
-
-local week1, week2, week3, week4, week5, week6, week7 = "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"
-
-local empty_func = function()end
 
 local default_config = {
 	raidschedules = {},
@@ -20,21 +13,20 @@ local default_config = {
 	sorting_by = 1,
 }
 
-if (_G ["RaidAssistAttendance"]) then
-	return
-end
-local Attendance = {version = "v0.1", pluginname = "Attendance"}
+local Attendance = {version = "v0.1", pluginname = "Attendance", pluginId = "ATTE", displayName = L["S_PLUGIN_ATTENDANCE_NAME"]}
 _G ["RaidAssistAttendance"] = Attendance
+local RaidSchedule
 
 Attendance.debug = false
 --Attendance.debug = true
 
-local RaidSchedule
-
+--const settings
 local icon_texcoord = {l=50/512, r=86/512, t=362/512, b=406/512}
 local icon_texture = [[Interface\Scenarios\ScenariosParts]]
 local text_color_enabled = {r=1, g=1, b=1, a=1}
 local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
+local week1, week2, week3, week4, week5, week6, week7 = "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"
+local empty_func = function()end
 
 Attendance.menu_text = function (plugin)
 	if (Attendance.db.enabled) then
@@ -348,7 +340,7 @@ function Attendance.BuildOptions (frame)
 	
 end
 
-local install_status = RA:InstallPlugin (L["S_PLUGIN_ATTENDANCE_NAME"], "RAAttendance", Attendance, default_config)
+RA:InstallPlugin(Attendance.displayName, "RAAttendance", Attendance, default_config)
 
 
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------

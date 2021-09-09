@@ -1,10 +1,6 @@
 
-local RA = RaidAssist
+local RA = _G.RaidAssist
 local _
-
-if (_G.RaidAssistLoadDeny) then
-	return
-end
 
 --[=[
 	RA:GetPopupAttachAnchors()
@@ -59,6 +55,7 @@ function RA:InstallPlugin (name, frameName, pluginObject, defaultConfig)
 	end
 	
 	RA.plugins [name] = pluginObject
+	RA.pluginIds[pluginObject.pluginId] = pluginObject
 	pluginObject.db_default = defaultConfig or {}
 	pluginObject._eventsCallback = {}
 	setmetatable (pluginObject, RA)
@@ -522,74 +519,6 @@ end
 
 function RA:GetPlayerNameWithRealm()
 	return UnitName ("player") .. "-" .. GetRealmName()
-end
-
---[=[
-	GetEncounterName (encounter_id)
-	return the encounter name from a encounter id.
---]=]
-function RA:GetEncounterName (encounterId)
-	for _, instanceId in ipairs (RA.LootList.InstanceIds) do
-		EJ_SelectInstance (instanceId)
-		local name, description, encounterID, rootSectionID, link = EJ_GetEncounterInfo (encounterId)
-		if (name) then
-			return name
-		end
-	end
-	return ""
-end
-
---[=[
-	GetCurrentRaidEncounterList()
-	return a table with encounter names from the current raid.
---]=]
-
-local raid_list = {
-	-- [mapid from GetInstanceInfo()] = {ejid, {cleu ids}}
-	[1861] = {1031, {2144, 2141, 2128, 2136, 2134, 2145, 2135, 2122}}, --uldir
-	[2070] = {1176, {2265, 2263, 2266, 2271, 2268, 2272, 2276, 2280, 2281}}, --battle for dazar'alor
-	
-	--the eternal palace
-	
-	--{MapID} = { instanceIJID , {Cleu IDs}},
-	--2298 Abyssal Commander Sivara
-	--2305 radiance of azshara
-	--2289 blackwater behemoth
-	--2304 lady sahvane
-	--2303 orgozoa
-	--2311 the queen's court
-	--2293 za'qul
-	--2299 queen azshara
-	--
-	
-	--instance info maop id | ejid | cleu boss combat log ids
-	[2164] = {1179, {2298, 2305, 2289, 2304, 2303, 2311, 2293, 2299}},
-	
-}
-
-
-local empty_table = {}
-function RA:GetCurrentRaidEncounterList (mapid)
-	local zoneName, zoneType, _, _, _, _, _, zoneMapID = GetInstanceInfo()
-	if (mapid) then
-		zoneMapID = mapid
-	end
-	local EJ_id, true_encounter_ids = unpack (raid_list [zoneMapID] or empty_table)
-	if (EJ_id) then
-		EJ_SelectInstance (EJ_id)
-		local bosses = {}
-		for i = 1, 99 do
-			local boss_name = EJ_GetEncounterInfoByIndex (i, EJ_id)
-			if (boss_name) then
-				tinsert (bosses, {boss_name, true_encounter_ids [i]})
-			else
-				break
-			end
-		end
-		return bosses
-	else
-		return {}
-	end
 end
 
 --[=[

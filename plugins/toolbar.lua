@@ -1,7 +1,7 @@
 
-local RA = RaidAssist
-local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
-local _ 
+local RA = _G.RaidAssist
+local L = LibStub ("AceLocale-3.0"):GetLocale("RaidAssistAddon")
+local _
 local default_priority = 15
 
 local default_config = {
@@ -22,10 +22,7 @@ local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
 local toolbar_icon = [[Interface\CastingBar\UI-CastingBar-Border]]
 local icon_texcoord = {l=25/256, r=80/256, t=14/64, b=49/64}
 
-if (_G ["RaidAssistLeaderToolbar"]) then
-	return
-end
-local LeaderToolbar = {version = "v0.1", pluginname = "Leader Toolbar"}
+local LeaderToolbar = {version = "v0.1", pluginname = "LeaderToolbar", pluginId = "TOBR", displayName = "Leader Toolbar"}
 _G ["RaidAssistLeaderToolbar"] = LeaderToolbar
 
 LeaderToolbar.menu_text = function (plugin)
@@ -476,19 +473,16 @@ function LeaderToolbar.BuildOptions (frame)
 			desc = "How much time the pull time should be.",
 		},
 	}
-	
+
 	local options_text_template = LeaderToolbar:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE")
 	local options_dropdown_template = LeaderToolbar:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE")
 	local options_switch_template = LeaderToolbar:GetTemplate ("switch", "OPTIONS_CHECKBOX_TEMPLATE")
 	local options_slider_template = LeaderToolbar:GetTemplate ("slider", "OPTIONS_SLIDER_TEMPLATE")
 	local options_button_template = LeaderToolbar:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE")
-	
+
 	LeaderToolbar:SetAsOptionsPanel (frame)
 	LeaderToolbar:BuildMenu (frame, options_list, 0, 0, 300, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
 
 end
 
-
-
-
-local install_status = RA:InstallPlugin ("Leader Toolbar", "RALeaderToolbar", LeaderToolbar, default_config)
+RA:InstallPlugin(LeaderToolbar.displayName, "RALeaderToolbar", LeaderToolbar, default_config)

@@ -1,10 +1,6 @@
 
-local RA = RaidAssist
+local RA = _G.RaidAssist
 local _
-
-if (_G.RaidAssistLoadDeny) then
-	return
-end
 
 function RA:OpenAnchorOptionsPanel()
 	if (not RaidAssistAnchorOptionsPanel) then

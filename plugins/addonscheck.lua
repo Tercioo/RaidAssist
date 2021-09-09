@@ -1,9 +1,7 @@
 
-
-
-local RA = RaidAssist
+local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
-local _ 
+local _
 local default_priority = 24
 
 local default_config = {
@@ -16,20 +14,17 @@ local default_config = {
 	},
 }
 
+--create the addon object
+local AddonsCheck = {version = "v0.1", pluginname = "CheckAddons", pluginId = "ADCK", displayName = "Check Addons"}
+_G ["RaidAssistAddonsCheck"] = AddonsCheck
+
+--const settings
 local fillpanel_width = 862
 local fillpanel_height = 624
-
 local text_color_enabled = {r=1, g=1, b=1, a=1}
 local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
-
 local toolbar_icon = [[Interface\CHATFRAME\UI-ChatIcon-Share]]
 local icon_texcoord = {l=0, r=1, t=0, b=1}
-
-if (_G ["RaidAssistAddonsCheck"]) then
-	return
-end
-local AddonsCheck = {version = "v0.1", pluginname = "Check Addons"}
-_G ["RaidAssistAddonsCheck"] = AddonsCheck
 
 local COMM_SYNC_RECEIVED = "ACR" --when someone receives a sync response
 local COMM_SYNC_REQUEST = "ACS" --the raid leader requested the sync from all users
@@ -48,19 +43,11 @@ AddonsCheck.AddonsList = {
 	["BigWigs"] = "Big Wigs",
 	["DBM-Core"] = "Deadly Boss Mods",
 	["WeakAuras"] = "WeakAuras 2",
-	["TellMeWhen"] = "TellMeWhen",
-	["IskarAssist"] = "Iskar Assist",
 	["AngryAssignments"] = "Angry Assignments",
-	["Decursive"] = "Decursive",
-	["epgp_lootmaster"] = "EPGP LootMaster",
 	["RCLootCouncil"] = "RC Loot Council",
-	["ExRT"] = "Exorsus Raid Tools",
 	["GTFO"] = "GTFO",
 	["oRA3"] = "oRA 3",
-	["FlashTaskBar"] = "Flash TaskBar",
 	["Details"] = "Details! Damage Meter",
-	["Recount"] = "Recount",
-	["Omen"] = "Omen Threat Meter",
 }
 
 AddonsCheck.menu_text = function (plugin)
@@ -122,7 +109,7 @@ function AddonsCheck.BuildOptions (frame)
 	end
 	frame.FirstRun = true
 
-	local fillPanel = AddonsCheck:CreateFillPanel(frame, {}, fillpanel_width, fillpanel_height, false, false, false, {rowheight = 16}, _, "RAAddOnsCheckFP")
+	local fillPanel = AddonsCheck:CreateFillPanel(frame, {}, fillpanel_width, fillpanel_height, false, false, false, {rowheight = 16}, _, "OPAddOnsCheckFP")
 	fillPanel:SetPoint ("topleft", frame, "topleft", 0, -30)
 	AddonsCheck.fillPanel = fillPanel
 	
@@ -386,7 +373,7 @@ function AddonsCheck.BuildOptions (frame)
 	end)
 end
 
-local install_status = RA:InstallPlugin ("Check Addons", "RAAddonsCheck", AddonsCheck, default_config)
+RA:InstallPlugin(AddonsCheck.displayName, "RAAddonsCheck", AddonsCheck, default_config)
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 

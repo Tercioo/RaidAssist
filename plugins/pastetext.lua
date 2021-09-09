@@ -1,14 +1,11 @@
 
-
-local RA = RaidAssist
+local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
 local default_priority = 20
+local DF = DetailsFramework
 
-if (_G ["RaidAssistPasteText"]) then
-	return
-end
-local PasteText = {version = "v0.1", pluginname = "PasteText"}
+local PasteText = {version = "v0.1", pluginname = "PasteText", pluginId = "PATX", displayName = "Send Text"}
 _G ["RaidAssistPasteText"] = PasteText
 
 PasteText.LastSelected_Options = 1
@@ -154,19 +151,19 @@ function PasteText.CreateScreenFrame()
 	PasteText.ScreenPanel.titleBar = DetailsFramework:CreateTitleBar(PasteText.ScreenPanel)
 	PasteText.ScreenPanel.statusBar = DetailsFramework:CreateStatusBar(PasteText.ScreenPanel, options)
 	PasteText.ScreenPanel.statusBar:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
-	local closeLabel = RA:CreateLabel(PasteText.ScreenPanel.statusBar, "right click to close", 10, "gray")
+	local closeLabel = DF:CreateLabel(PasteText.ScreenPanel.statusBar, "right click to close", 10, "gray")
 	closeLabel:SetPoint("left", PasteText.ScreenPanel.statusBar, "left", 4, 0)
 
-	local animation = RA:CreateAnimationHub (PasteText.ScreenPanel)
-	RA:CreateAnimation (animation, "scale", 1, .11, .2, .2, 1.1, 1.1, "center")
-	RA:CreateAnimation (animation, "scale", 2, .08, 1.1, 1.1, 1, 1)
+	local animation = DF:CreateAnimationHub (PasteText.ScreenPanel)
+	DF:CreateAnimation (animation, "scale", 1, .11, .2, .2, 1.1, 1.1, "center")
+	DF:CreateAnimation (animation, "scale", 2, .08, 1.1, 1.1, 1, 1)
 
 	PasteText.ScreenPanel:SetScript ("OnShow", function()
 		--animation:Play()
 	end)
 
 	--text title
-	PasteText.ScreenPanel.Title = RA:CreateLabel(PasteText.ScreenPanel.titleBar, "")
+	PasteText.ScreenPanel.Title = DF:CreateLabel(PasteText.ScreenPanel.titleBar, "")
 	PasteText.ScreenPanel.Title:SetPoint("topleft", PasteText.ScreenPanel, "topleft", 6, -7)
 
 	--select all
@@ -213,7 +210,7 @@ function PasteText.BuildOptions (frame)
 		local options_slider_template = PasteText:GetTemplate ("slider", "OPTIONS_SLIDER_TEMPLATE")
 		local options_button_template = PasteText:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE")
 		
-		RA:BuildMenu (frame, options_list, 0, 0, 500, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
+		DF:BuildMenu (frame, options_list, 0, 0, 500, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
 		
 		local scroll_width = 200
 		local scroll_line_amount = 26
@@ -233,9 +230,9 @@ function PasteText.BuildOptions (frame)
 					line.RenameBox.Index = index
 					
 					if (index == PasteText.LastSelected_Options) then
-						RA:SetFontColor (line.name, "orange")
+						DF:SetFontColor (line.name, "orange")
 					else
-						RA:SetFontColor (line.name, "white")
+						DF:SetFontColor (line.name, "white")
 					end
 				end
 			end
@@ -312,7 +309,7 @@ function PasteText.BuildOptions (frame)
 			icon:SetTexture([[Interface\BUTTONS\UI-GuildButton-PublicNote-Up]])
 
 			local name = line:CreateFontString("$parentName", "overlay", "GameFontNormal")
-			RA:SetFontSize(name, 11)
+			DF:SetFontSize(name, 11)
 
 			local editBox = DetailsFramework:CreateTextEntry(line, function()end, scroll_width-40, scroll_line_height-2)
 			editBox:SetPoint("left", icon, "right", 2, 0)
@@ -361,7 +358,7 @@ function PasteText.BuildOptions (frame)
 			return line
 		end
 		
-		local pasteMenu = RA:CreateScrollBox(frame, "$parentMenuScroll", scroll_refresh, PasteText.db.texts, scroll_width, 594, scroll_line_amount, scroll_line_height)
+		local pasteMenu = DF:CreateScrollBox(frame, "$parentMenuScroll", scroll_refresh, PasteText.db.texts, scroll_width, 594, scroll_line_amount, scroll_line_height)
 		pasteMenu:SetPoint ("topleft", frame, "topleft", 0, -50)
 		DetailsFramework:ReskinSlider(pasteMenu)
 		pasteMenu:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
@@ -468,21 +465,21 @@ function PasteText.BuildOptions (frame)
 		flashTexture:SetAllPoints (pasteEditbox.editbox)
 		flashTexture:Hide()
 
-		local flashAnimation = RA:CreateAnimationHub(flashTexture, function() flashTexture:Show() end, function() flashTexture:Hide() end)
-		RA:CreateAnimation(flashAnimation, "alpha", 1, .05, 0, .1)
-		RA:CreateAnimation(flashAnimation, "alpha", 2, .05, .1, 0)
+		local flashAnimation = DF:CreateAnimationHub(flashTexture, function() flashTexture:Show() end, function() flashTexture:Hide() end)
+		DF:CreateAnimation(flashAnimation, "alpha", 1, .05, 0, .1)
+		DF:CreateAnimation(flashAnimation, "alpha", 2, .05, .1, 0)
 
-		local emptyText2 = RA:CreateLabel(pasteEditbox, "there's no text here\nclick anywhere here to start editing it.", 14, {.98, .8, .8, .35})
+		local emptyText2 = DF:CreateLabel(pasteEditbox, "there's no text here\nclick anywhere here to start editing it.", 14, {.98, .8, .8, .35})
 		emptyText2:SetJustifyH("center")
 		emptyText2:SetPoint("center", pasteEditbox, "center", 0, 100)
 		emptyText2:Hide()
 		PasteText.EmptyText2 = emptyText2
 
-		local emptyText = RA:CreateLabel(pasteEditbox, "Click on 'Create New Text'\nThen click here to add the Text\nSend it to Your Raid, They Can Copy/Paste it\n\nyou can send any text you want: a team speak server, youtube video\na strategy, link to a topic on mmo-champion forum.\n\ndouble click to rename the note name.", 14, {.8, .8, .8, .75})
+		local emptyText = DF:CreateLabel(pasteEditbox, "Click on 'Create New Text'\nThen click here to add the Text\nSend it to Your Raid, They Can Copy/Paste it\n\nyou can send any text you want: a team speak server, youtube video\na strategy, link to a topic on mmo-champion forum.\n\ndouble click to rename the note name.", 14, {.8, .8, .8, .75})
 		emptyText:SetJustifyH("left")
 		emptyText:SetPoint("bottomleft", RaidAssistOptionsPanel, "bottomleft", 445, 45)
-		RA:SetFontSize (emptyText, 14)
-		RA:SetFontColor (emptyText, "gray")
+		DF:SetFontSize (emptyText, 14)
+		DF:SetFontColor (emptyText, "gray")
 		emptyText:Hide()
 		PasteText.EmptyText = emptyText
 
@@ -573,4 +570,4 @@ function PasteText.ShareText(data)
 	end
 end
 
-local install_status = RA:InstallPlugin ("Paste Text", "RAPasteText", PasteText, default_config)
+RA:InstallPlugin (PasteText.displayName, "RAPasteText", PasteText, default_config)

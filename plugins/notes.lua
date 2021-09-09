@@ -1,18 +1,12 @@
 
-
 local RA = _G.RaidAssist
 local L = _G.LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
 local default_priority = 120
 local DF = DetailsFramework
 
-if (_G ["RaidAssistNotepad"]) then
-	return
-end
-local Notepad = {version = 1, pluginname = "Notes"}
+local Notepad = {version = 1, pluginname = "Notes", pluginId = "NOTE", displayName = "Raid Assignments"}
 _G ["RaidAssistNotepad"] = Notepad
-_G ["OpenRaidNotepad"] = Notepad
-_G ["ORNotes"] = Notepad
 _G ["RANotes"] = Notepad
 
 local default_config = {
@@ -42,6 +36,11 @@ local default_config = {
 }
 
 local CONST_MACRO_INDEXNAME = 1
+local CONST_MACRO_INDEXVALUE = 2
+local CONST_TEXT_INDEX = 1
+local CONST_PROGRESSBAR_DEFAULT_TIME = 7
+
+local allRoles = {"DAMAGER", "TANK", "HEALER"}
 
 local icon_texture
 local icon_texcoord = {l=4/32, r=28/32, t=4/32, b=28/32}
@@ -61,6 +60,10 @@ local amoutBossLines = floor(scrollBossHeight / bossLinesHeight)
 local scrollbox_line_backdrop_color = {0, 0, 0, 0.5}
 local scrollbox_line_backdrop_color_hightlight = {.4, .4, .4, 0.6}
 local scrollbox_line_backdrop_color_selected = {.7, .7, .7, 0.8}
+
+local unitInGroup = function(unitToken)
+	return UnitInParty(unitToken) or UnitInRaid(unitToken)
+end
 
 local isRaidLeader = function (sourceUnit)
 	if (type (sourceUnit) == "string") then
@@ -235,14 +238,16 @@ Notepad.OnInstall = function (plugin)
 	background:SetPoint("bottomright", f, "bottomright", 0, 0)
 	screenFrame.background = background
 
-	f.virtualScrollPosition = 0
+	f.virtualScrollPosition = 1
 	f.lineHeight = 16
 	f.fontSize = 12
 	f.Lines = {}
 
     function f.CreateNewLine(lineId)
         local line = CreateFrame("frame", "$parentLine" .. lineId, f, "BackdropTemplate")
-        line:SetPoint("topleft", f, "topleft", 2, (lineId-1) * -f.lineHeight)
+		local xPosition = (lineId-1) * (f.lineHeight) * -1
+
+        line:SetPoint("topleft", f, "topleft", 2, xPosition)
         line:SetSize(f:GetWidth(), f.lineHeight)
 
 		local progressBar = DetailsFramework:CreateBar(line, "", line:GetWidth(), line:GetHeight(), 0)
@@ -260,7 +265,7 @@ Notepad.OnInstall = function (plugin)
 
         --create the label 2
         local label2 = DetailsFramework:CreateLabel(line)
-        label2:SetPoint("left", line, "left", 24, 0)
+        label2:SetPoint("left", line, "left", 36, 0)
         label2.fontsize = f.fontSize
         line.text2 = label2
 
@@ -276,10 +281,11 @@ Notepad.OnInstall = function (plugin)
         local amountToUse = ceil(frameHeight / f.lineHeight)
         local amtLinesCreated = #f.Lines
 
+
         if (amtLinesCreated < amountToUse) then
             for i = amtLinesCreated, amountToUse do
                 --create new lines
-                f.CreateNewLine(i)
+                f.CreateNewLine(i+1)
             end
 
         elseif (amtLinesCreated > amountToUse) then
@@ -316,7 +322,7 @@ Notepad.OnInstall = function (plugin)
 	--end of line frame
 
 	local commandLineText = f:CreateFontString(nil, "overlay", "GameFontNormal")
-	commandLineText:SetText("/RAA")
+	commandLineText:SetText("/RA")
 	commandLineText:SetTextColor(.9, .9, .9, 0.1)
 	DetailsFramework:SetFontOutline(commandLineText, true)
 	commandLineText:SetPoint("topright", screenFrame, "topright", -2, -25)
@@ -392,7 +398,7 @@ Notepad.OnInstall = function (plugin)
 	lock:SetAlpha(0.910)
 	lock:SetPoint("bottomright", f, "topright", 0, 0)
 
-	local lockLabel = RA:CreateLabel(lock, "|cFFFFAA00[|cFFFFFF00lock|r]", 12)
+	local lockLabel = DF:CreateLabel(lock, "|cFFFFAA00[|cFFFFFF00lock|r]", 12)
 	lockLabel:SetPoint("bottomright", lock, "bottomright")
 
 	lock:SetScript ("OnClick", function()
@@ -412,7 +418,7 @@ Notepad.OnInstall = function (plugin)
 	settingsButton:SetSize(60, 12)
 	settingsButton:SetAlpha(0.910)
 	settingsButton:SetPoint("bottomleft", f, "topleft", 0, 0)
-	local settingsLabel = RA:CreateLabel(settingsButton, "|cFFFFAA00[|cFFFFFF00settings|r]", 12)
+	local settingsLabel = DF:CreateLabel(settingsButton, "|cFFFFAA00[|cFFFFFF00settings|r]", 12)
 	settingsLabel:SetPoint("bottomleft", settingsButton, "bottomleft")
 
 	settingsButton:SetScript("OnClick", function()
@@ -469,11 +475,6 @@ Notepad.OnInstall = function (plugin)
 	end)
 
 	Notepad.DoFlashAnim = function()
-		f_anim:Show()
-		f_anim:SetParent(f)
-		f_anim:SetPoint("topleft", f, "topleft")
-		f_anim:SetPoint("bottomright", f, "bottomright")
-		animation:Play()
 
 		if (Notepad.PlayerAFKTicker and Notepad.MouseCursorX and Notepad.MouseCursorY) then
 			local x, y = GetCursorPosition()
@@ -481,9 +482,16 @@ Notepad.OnInstall = function (plugin)
 				if (Notepad.PlayerAFKTicker) then
 					Notepad.PlayerAFKTicker:Cancel()
 					Notepad.PlayerAFKTicker = nil
+					return
 				end
 			end
 		end
+
+		f_anim:Show()
+		f_anim:SetParent(f)
+		f_anim:SetPoint("topleft", f, "topleft")
+		f_anim:SetPoint("bottomright", f, "bottomright")
+		animation:Play()
 	end
 
 	Notepad:UpdateScreenFrameSettings()
@@ -860,7 +868,7 @@ function Notepad:CancelNoteEditing()
 	mainFrame.userScreenPanelOptions:Show()
 end
 
-local track_mouse_position = function()
+local trackMousePosForAFKDetection = function()
 	local x, y = GetCursorPosition()
 	if (Notepad.MouseCursorX == x and Notepad.MouseCursorY == y) then
 		--> player afk?
@@ -882,6 +890,7 @@ function Notepad.BuildListOfPlayersInRaid()
 		HEALER = {},
 		TANK = {},
 		DAMAGER = {},
+		MELEE = {},
 	}
 
 	for i = 1, #CLASS_SORT_ORDER do
@@ -889,6 +898,9 @@ function Notepad.BuildListOfPlayersInRaid()
 		playerList.class_healer_index[CLASS_SORT_ORDER[i]] = {}
 		playerList.class_index[CLASS_SORT_ORDER[i]] = {}
 	end
+
+	local raidStatusLib = LibStub:GetLibrary("LibRaidStatus-1.0")
+	local allPlayersInfo = raidStatusLib.playerInfoManager.GetAllPlayersInfo()
 
 	if (IsInRaid()) then
 		local _, _, difficultyID = GetInstanceInfo()
@@ -900,7 +912,7 @@ function Notepad.BuildListOfPlayersInRaid()
 		for i = 1, amountOfPlayers do
 			local name, rank, subgroup, level, class, fileName, zone, online, isDead, role = GetRaidRosterInfo(i)
 			if (name) then
-				name = Ambiguate(name, "short")
+				name = Ambiguate(name, "none")
 				playerList.all_role[name] = role
 				playerList.all_class[name] = fileName
 
@@ -916,16 +928,29 @@ function Notepad.BuildListOfPlayersInRaid()
 
 					if (role == "HEALER") then
 						playerList.class_healer_index[fileName][#playerList.class_healer_index[fileName]+1] = name
+					end
+				end
+
+				if (fileName == "ROGUE") then
+					playerList.MELEE[#playerList.MELEE+1] = name
+				else
+					local playerInfo = allPlayersInfo[name]
+					if (playerInfo) then
+						local specId = playerInfo.specId
+						local meleeSpecs = _G.LIB_RAID_STATUS_MELEE_SPECS
+						if (meleeSpecs[specId]) then
+							playerList.MELEE[#playerList.MELEE+1] = name
+						end
 					end
 				end
 			end
 		end
 
 	elseif (IsInGroup()) then
-		for i = 1, GetNumGroupMembers() - 1 do
+		for i = 1, GetNumGroupMembers() do
 			local name, rank, subgroup, level, class, fileName, zone, online, isDead, role = GetRaidRosterInfo(i)
 			if (name) then
-				name = Ambiguate(name, "short")
+				name = Ambiguate(name, "none")
 				playerList.all_role[name] = role
 				playerList.all_class[name] = fileName
 
@@ -943,14 +968,94 @@ function Notepad.BuildListOfPlayersInRaid()
 						playerList.class_healer_index[fileName][#playerList.class_healer_index[fileName]+1] = name
 					end
 				end
+
+				if (fileName == "ROGUE") then
+					playerList.MELEE[#playerList.MELEE+1] = name
+				else
+					local playerInfo = allPlayersInfo[name]
+					if (playerInfo) then
+						local specId = playerInfo.specId
+						local meleeSpecs = _G.LIB_RAID_STATUS_MELEE_SPECS
+						if (meleeSpecs[specId]) then
+							playerList.MELEE[#playerList.MELEE+1] = name
+						end
+					end
+				end
 			end
 		end
-
-		playerList[UnitName("player")] = DetailsFramework.UnitGroupRolesAssigned("player")
 	end
+
+	--> sort player names
+		local sortFunction = function(p1, p2) return p1 < p2 end
+
+		for i = 1, #CLASS_SORT_ORDER do
+			local className = CLASS_SORT_ORDER[i]
+
+			local healersOfClass = playerList.class_healer_index[className]
+			table.sort(healersOfClass, sortFunction)
+
+			local classTable = playerList.class_index[className]
+			table.sort(classTable, sortFunction)
+		end
+
+		for i = 1, #allRoles do
+			local roleName = allRoles[i]
+			table.sort(playerList[roleName], sortFunction)
+		end
+
+		local meleeTable = playerList.MELEE
+		table.sort(meleeTable, sortFunction)
 
 	Notepad.playersInTheGroup = playerList
 end
+
+
+
+function Notepad.FillVariables(variables)
+	local playerList = Notepad.playersInTheGroup
+
+	--fill with players of the same class
+	for i = 1, #CLASS_SORT_ORDER do
+		local className = CLASS_SORT_ORDER[i]
+		local players = playerList.class_index[className]
+		variables["@" .. className] = players
+
+		for o = 1, #players do
+			variables["@" .. className .. o] = players[o]
+		end
+	end
+
+	--fill with players of the same role
+	for i = 1, #allRoles do
+		local roleName = allRoles[i]
+		local playersOfThisRole = playerList[roleName]
+		variables["@" .. roleName] = playersOfThisRole
+
+		for o = 1, #playersOfThisRole do
+			variables["@" .. roleName .. o] = playersOfThisRole[o]
+		end
+	end
+
+	--fill with players of HEALER role of the same class
+	local healerByClass = playerList.class_healer_index
+	for className, playerTable in pairs(healerByClass) do
+		variables["@" .. "H" .. className] = playerTable
+
+		for i = 1, #playerTable do
+			local playerName = playerTable[i]
+			variables["@" .. "H" .. className .. i] = playerName
+		end
+	end
+
+	--fill with Melee
+	local melee = playerList.MELEE
+	variables["@" .. "MELEE"] = melee
+	for i = 1, #melee do
+		local playerName = melee[i]
+		variables["@" .. "MELEE" .. i] = playerName
+	end
+end
+
 
 function Notepad.GetPlayers(ofClass, ofRole)
 	local playerList = Notepad.playersInTheGroup
@@ -979,64 +1084,193 @@ function Notepad.GetPlayers(ofClass, ofRole)
 	return playerList
 end
 
-function Notepad:ParseTextForMacros(text)
+function Notepad.ParseTimeEntry(value)
+	local minutes, seconds = value:match("(%d+):(%d+)")
+	if (minutes and seconds) then
+		minutes = tonumber(minutes)
+		seconds = tonumber(seconds)
+		if (minutes and seconds) then
+			return minutes*60 + seconds
+		end
+	else
+		local timeInSeconds = tonumber(value)
+		return timeInSeconds
+	end
+end
+
+function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 	--split it into lines
 	local lines = DetailsFramework:SplitTextInLines(text)
 	local macros = {}
+	local variables = {}
+	local playerLists = {}
 
-	--macro example: --[phase(2); timer(352145); playerlist(Ditador, Jvr, Veloso, Miudo)]
+	--macro example: --[phase=2; timer=352145; playerlist=Ditador, Jvr, Veloso, Miudo]
 
 	for lineId, thisLine in ipairs(lines) do
+
+		--store all macros from this line
+		local thisLineMacros = {}
+
+			--> detect time in the begining of the line
+				local lineTime = thisLine:match("^(%d+)%s")
+				if (lineTime) then
+					lineTime = tonumber(lineTime)
+					if (lineTime) then
+						tinsert(thisLineMacros, {"time", lineTime})
+						thisLine = thisLine:gsub("^(%d+)%s", "")
+					end
+				else
+					local minutes, seconds = thisLine:match("^(%d+:%d+)%s")
+					if (minutes and seconds) then
+						minutes = tonumber(minutes)
+						seconds = tonumber(seconds)
+						if (minutes and seconds) then
+							local t = minutes*60 + seconds
+							tinsert(thisLineMacros, {"time", t})
+							thisLine = thisLine:gsub("^(%d+:%d+)%s", "")
+						end
+					end
+				end
+
+		--get the macro from the line
 		local macroText = thisLine:match("%[(.+)%]")
-
-		--[playerlist(Jvr ,Miudo, Ditador,Demodemoroo); phase(2); ]
-		--[loop(); if(@phase, =, 1); spell(334212); playerlist1; timer(30)]
-		--print(thisLine, macroText)
-
 		if (macroText and type(macroText) == "string" and #macroText > 0) then
-
 			--remove the macro text from the text which will be shown to the player
+
 			lines[lineId] = thisLine:gsub("%[(.+)%]", "")
 
 			--remove any scape sequence from the text
 			macroText = macroText:gsub("|c%x%x%x%x%x%x%x%x", "")
 			macroText = macroText:gsub("|r", "")
 
+			--convert variable token
 			macroText = macroText:gsub("%$", "@")
 
-			local thisLineMacros = {}
-
+			--create a list of macros for look ahead feature
+			local variableNameOfThisLine
+			local macrosOnThisLine = {}
 			for macro in macroText:gmatch("([^;]+)") do
+				macrosOnThisLine[#macrosOnThisLine+1] = macro
 
+				local isVariableName = macro:match("name=(.*)")
+				if (isVariableName) then
+					isVariableName = isVariableName:upper()
+					variableNameOfThisLine = isVariableName
+				end
+			end
+
+			for _, macro in ipairs(macrosOnThisLine) do
 				--remove spaces
 				macro = macro:gsub("%s", "")
+
 				--split command and parameters
 				local token, value = macro:match("(%w+)=(.+)")
+				if (not token) then
+					token = macro:match("(%w+)")
+				end
 
 				--check if the token and value are valid
 				if (token) then
 					--parse token
 					token = token:lower()
+					value = value or false
 
 					--phase
 					if (token == "phase" or token == "p") then
 						local phaseId = tonumber(value)
 						if (phaseId) then
-							tinsert(thisLineMacros, {"phase", phaseId})
+							tinsert(thisLineMacros, {"1phase", phaseId})
+
+							if (variableNameOfThisLine) then
+								variables[variableNameOfThisLine] = phaseId
+							end
 						else
-							RA:Msg("Notepad> macro 'phase' expect a number, example: phase(2)")
+							RA:Msg("Notepad> macro 'phase' expect a number, example: phase=2")
+						end
+
+					elseif (token == "time" or token == "t") then
+
+						if (not value) then
+							RA:Msg("Notepad> macro 'time' expect time, example: time=180 or time=3:00")
+						else
+							local seconds = Notepad.ParseTimeEntry(value)
+							if (seconds) then
+								tinsert(thisLineMacros, {"2time", seconds})
+
+								if (variableNameOfThisLine) then
+									variables[variableNameOfThisLine] = seconds
+								end
+							else
+								RA:Msg("Notepad> macro 'time' expect time, example: time=180 or time=3:00")
+							end
+						end
+
+					elseif (token == "timeelapsed" or token == "tt") then
+						local seconds = Notepad.ParseTimeEntry(value)
+						if (seconds) then
+							tinsert(thisLineMacros, {"3timeelapsed", seconds})
+
+							if (variableNameOfThisLine) then
+								variables[variableNameOfThisLine] = seconds
+							end
+						else
+							RA:Msg("Notepad> macro 'timeelapsed' expect time, example: time=180 or time=3:00")
 						end
 
 					--cooldown
 					elseif (token == "cooldown" or token == "cd") then
-						local spellId = tonumber(value)
-						local isSpell = GetSpellTexture(spellId or -1)
+						local lineCooldowns = {}
+						local noEntry = true
+						local entries = {strsplit(",", value)}
 
-						if (spellId and isSpell) then
-							tinsert(thisLineMacros, {"cooldown", spellId})
-						else
-							RA:Msg("Notepad> macro 'cooldown' expect a spellId, example: cooldown(325412)")
+						for i = 1, #entries, 2 do
+							local spellId, playerName = entries[i], entries[i+1]
+
+							spellId = tonumber(spellId)
+							local playerIsSpellId = tonumber(playerName)
+
+							if (spellId and playerIsSpellId) then --two spellIds in sequence
+								local cooldownInfo = LIB_RAID_STATUS_COOLDOWNS_INFO[spellId]
+								if (cooldownInfo) then
+									lineCooldowns[#lineCooldowns+1] = {spellId, "@H" .. cooldownInfo.class}
+									noEntry = false
+								else
+									RA:Msg("Notepad> macro 'cooldown' with an unregistered cooldown:", spellId)
+								end
+
+								local cooldownInfo = LIB_RAID_STATUS_COOLDOWNS_INFO[playerIsSpellId]
+								if (cooldownInfo) then
+									lineCooldowns[#lineCooldowns+1] = {playerIsSpellId, "@H" .. cooldownInfo.class}
+									noEntry = false
+								else
+									RA:Msg("Notepad> macro 'cooldown' with an unregistered cooldown:", playerIsSpellId)
+								end
+
+							elseif (spellId and playerName) then
+								lineCooldowns[#lineCooldowns+1] = {spellId, playerName}
+								noEntry = false
+
+							elseif (spellId) then
+								local cooldownInfo = LIB_RAID_STATUS_COOLDOWNS_INFO[spellId]
+								if (cooldownInfo) then
+									local class = cooldownInfo.class
+									lineCooldowns[#lineCooldowns+1] = {spellId, "@H" .. class}
+									noEntry = false
+								else
+									RA:Msg("Notepad> macro 'cooldown' with an unregistered cooldown:", spellId)
+									break
+								end
+							else
+								break
+							end
 						end
+
+						if (noEntry) then
+							RA:Msg("Notepad> macro 'cooldown' expect a spellId, example: cooldown=325412 or cooldown=325412, playerName")
+						end
+
+						tinsert(thisLineMacros, {"5cooldown", lineCooldowns})
 
 					--enemy spell
 					elseif (token == "enemyspell" or token == "es") then
@@ -1044,32 +1278,45 @@ function Notepad:ParseTextForMacros(text)
 						local isSpell = GetSpellTexture(spellId or -1)
 
 						if (spellId and isSpell) then
-							tinsert(thisLineMacros, {"enemyspell", spellId})
+							tinsert(thisLineMacros, {"4enemyspell", spellId})
+
+							if (variableNameOfThisLine) then
+								variables[variableNameOfThisLine] = spellId
+							end
 						else
-							RA:Msg("Notepad> macro 'enemyspell' expect a spellId, example: cooldown(325412)")
+							RA:Msg("Notepad> macro 'enemyspell' expect a spellId, example: cooldown=325412")
 						end
 
 					--timer
-					elseif (token == "timer" or token == "t") then
-						local minutes, seconds = value:match("(%d+):(%d+)")
-						local added = false
-						if (minutes and seconds) then
-							minutes = tonumber(minutes)
-							seconds = tonumber(seconds)
-							if (minutes and seconds) then
-								tinsert(thisLineMacros, {"timer", minutes*60 + seconds})
-								added = true
+					elseif (token == "countdown") then
+						if (not value) then
+							tinsert(thisLineMacros, {"countdown", CONST_PROGRESSBAR_DEFAULT_TIME})
+
+						else
+							local seconds = Notepad.ParseTimeEntry(value)
+							if (seconds) then
+								tinsert(thisLineMacros, {"countdown", seconds})
+								if (variableNameOfThisLine) then
+									variables[variableNameOfThisLine] = seconds
+								end
 							else
-								RA:Msg("Notepad> macro 'timer' expect time, example: timer(180) or timer(3:00)")
+								RA:Msg("Notepad> macro 'countdown' expect seconds, example: countdown(10)")
 							end
 						end
 
-						if (not added) then
-							local timeInSeconds = tonumber(value)
-							if (timeInSeconds) then
-								tinsert(thisLineMacros, {"timer", timeInSeconds})
+					elseif (token == "timer") then
+						if (not value) then
+							RA:Msg("Notepad> macro 'timer' expect seconds, example: timer(90) or timer(1:30)")
+
+						else
+							local seconds = Notepad.ParseTimeEntry(value)
+							if (seconds) then
+								tinsert(thisLineMacros, {"timer", seconds})
+								if (variableNameOfThisLine) then
+									variables[variableNameOfThisLine] = seconds
+								end
 							else
-								RA:Msg("Notepad> macro 'timer' expect time, example: timer(180) or timer(3:00)")
+								RA:Msg("Notepad> macro 'timer' expect seconds, example: timer(90) or timer(1:30)")
 							end
 						end
 
@@ -1082,7 +1329,16 @@ function Notepad:ParseTextForMacros(text)
 									tinsert(listOfPlayers, playerName)
 								end
 							end
+
+							--adding the list into a table prevent to lose data in case of two player lists being declared in the same macro
+							playerLists[lineId] = playerLists[lineId] or {}
+							tinsert(playerLists[lineId], listOfPlayers)
 							tinsert(thisLineMacros, {"playerlist", listOfPlayers})
+
+							if (variableNameOfThisLine) then
+								--when parsing player lists this value is replaced
+								variables[variableNameOfThisLine] = "PL," .. lineId
+							end
 						else
 							RA:Msg("Notepad> macro 'playerlist' expect a list of players, example: playerlist(playerName1, playerName2)")
 						end
@@ -1091,90 +1347,405 @@ function Notepad:ParseTextForMacros(text)
 					elseif (token == "bosstimer" or token == "bt") then
 						if (value) then
 							tinsert(thisLineMacros, {"bosstimer", value})
+
+							if (variableNameOfThisLine) then
+								variables[variableNameOfThisLine] = value
+							end
 						else
 							RA:Msg("Notepad> macro 'bosstimer' expect a boss timerId, example: bosstimer(335641)")
 						end
 
 					--if condition
-					elseif (token == "if" or token == "ifor" or token == "ifand") then
+					elseif (token == "if" or token == "or" or token == "ifand" or token == "ifor") then
 						if (value) then
 							local value1, operator, value2 = value:match("(%w+),(.+),(%w+)")
 							value1 = tonumber(value1) or value1
 							value2 = tonumber(value2) or value2
 
+							if (type(value1) == "string") then
+								value1 = value1:gsub("%$", "@")
+							end
+							if (type(value2) == "string") then
+								value2 = value2:gsub("%$", "@")
+							end
+
 							if (token == "if") then
 								token = "ifand"
 							end
+							if (token == "or") then
+								token = "ifor"
+							end
 							tinsert(thisLineMacros, {token, value1, operator, value2})
 						else
-							RA:Msg("Notepad> macro 'if' expect any data to compare, example: if(@phase, =, 2)")
+							RA:Msg("Notepad> macro 'if' expect any data to compare, example: if($phase, =, 2)")
 						end
-						
+
 					--loop
 					elseif (token == "loop" or token == "l") then
-						tinsert(thisLineMacros, {"loop"})
+						tinsert(thisLineMacros, {"loop", value})
 
 					--flash
 					elseif (token == "flash" or token == "f") then
-						tinsert(thisLineMacros, {"flash"})
+						local remainingTime = tonumber(value)
+						tinsert(thisLineMacros, {"flash", remainingTime})
 
 					--external
 					elseif (token == "external" or token == "e") then
-						tinsert(thisLineMacros, {"external"})
+						tinsert(thisLineMacros, {"external", value})
 
 					--add to boss mods bars
-					elseif (token == "addbm" or token == "abm") then
-						tinsert(thisLineMacros, {"addbm"})
+					elseif (token == "addbossmods" or token == "abm") then
+						tinsert(thisLineMacros, {"addbm", value})
 
 					--make text
-					elseif (token == "maketext" or token == "mt") then
-						tinsert(thisLineMacros, {"maketext"})
+					elseif (token == "maketext" or token == "mt" or token == "mk") then --do I need make text?
+						tinsert(thisLineMacros, {"0maketext", value})
 					end
 				end
 			end
 
 			tinsert(macros, thisLineMacros)
+
+		else
+			tinsert(macros, thisLineMacros)
 		end
 	end
 
-	return lines, macros
+	return lines, macros, variables, playerLists
 end
 
-function Notepad.CreateMacroPlayback(macroList)
-	local macrosInOrder = {
-		playerList = {},
-		phases = {}
+
+function Notepad.CreateMacroPlayback(textLines, macroList, variables, playersList)
+	local macroPlayback = {
+		playerList = {}, --store the result of [playerlist] in order as they show
+		originalPlayerList = playersList,
+
+		phases = {}, --store when phases start, store the phaseId has the hashkey and the lineId in the value
+		linePhases = {}, --store the lineId and the value is the phaseId
+
+		macroLines = {}, --line index is the hashkey, the value is a table with all macros for the line
+
+		textLines = {},
+		originaTextlLines = textLines,
+
+		bossTimersToWatch = {},
+		conditions = {},
+		times = {},
+		elapsedTimes = {},
+
+		progressBarByPhase = {},
+		progressBarByElapsedTime = {},
+
+		lineProperties = {},
+
+		progressBarPhase = {}, --store which bars has a timer enabled for the current phase
+		progressBarElapsed = {}, --store which bars has a timer enabled for the encounter
 	}
 
-	local phasesLineIndex = macrosInOrder.phases
-	local playersInTheGroup = Notepad.GetPlayers()
+	--[=[
+	for a, b in ipairs(macroList) do
+		for c,d in ipairs(b) do
+			for e, f in ipairs(d) do
+				print(f)
+			end
+		end
+	end
+	--]=]
 
-	for i = 1, #macroList do
-		local thisMacro = macroList[i]
-		local command = thisMacro[CONST_MACRO_INDEXNAME]
+	local parsedTextLines = macroPlayback.textLines
+	local parsedPlayerList = macroPlayback.playerList
+	local phasesLineIndex = macroPlayback.phases
+	local parsedMacroList = macroPlayback.macroLines
 
-		if (command == "playerlist") then --can be changed now
-			--parse the player list
-			local playerList = thisMacro[2]
+	local bossTimersToWatch = macroPlayback.bossTimersToWatch
+	local conditions = macroPlayback.conditions
+	local times = macroPlayback.times
+	local elapsedTimes = macroPlayback.elapsedTimes
+	local lineIdPhase = macroPlayback.linePhases
 
-			local newPlayerList = {}
+	--store the class of each player in the group
+	local playerClasses = {}
 
-			for i, unitToken in ipairs(playerList) do
+	Notepad.BuildListOfPlayersInRaid()
+	Notepad.FillVariables(variables)
+	variables["@PHASE"] = 1
+	macroPlayback.progressBarByPhase[1] = {}
+	macroPlayback.progressBarByElapsedTime[1] = {}
+
+	--parse list of players
+	for lineId, playerTable in pairs(playersList) do --loop among all [playerlist] by line
+		local thisParsedPlayerList = {}
+
+		for i = 1, #playerTable do
+			local playerListTable = playerTable[i]
+
+			for o, unitToken in ipairs(playerListTable) do --loop among player names within the list
 				if (unitToken:match("^@")) then
 					--it's a variable
+					local var = unitToken:gsub("^@", "")
+					local listFromVariable = variables[var]
+					if (listFromVariable) then
+						if (type(listFromVariable) == "table") then
+							for u = 1, #listFromVariable do
+								local unitToken = listFromVariable[u]
+								if (unitInGroup(unitToken)) then
+									tinsert(thisParsedPlayerList, unitToken)
+									playerClasses[unitToken] = select(2, UnitClass(unitToken))
+								end
+							end
 
+						elseif (type(listFromVariable) == "string") then
+							if (unitInGroup(listFromVariable)) then
+								tinsert(thisParsedPlayerList, unitToken)
+								playerClasses[unitToken] = select(2, UnitClass(unitToken))
+							end
+						end
+					end
+				else
+					--player name
+					if (unitInGroup(unitToken)) then
+						tinsert(thisParsedPlayerList, unitToken)
+						playerClasses[unitToken] = select(2, UnitClass(unitToken))
+					end
 				end
 			end
+		end
 
-			--tinsert(macrosInOrder.playerList, playerList)
+		parsedPlayerList[lineId] = thisParsedPlayerList
+	end
 
-		elseif (command == "phase") then
-			local phaseId = thisMacro[2]
-			phasesLineIndex[phaseId] = i
+	--variable wants to pull a player list (value of the variable is PL,1 where 1 is the player list Id )
+	for variableName, value in pairs(variables) do
+		if (type(value) == "string" and value:match("^(PL,)")) then
+			local lineId = value:match("^PL,(%d+)")
+			lineId = lineId and tonumber(lineId)
+			if (lineId) then
+				variables[variableName] = parsedPlayerList[lineId]
+			end
 		end
 	end
 
-	return macrosInOrder
+	local currentPhase = 1
+
+	--initialize lines
+	for lineId = 1, #macroList do
+
+		--create the properties table, which stores attributes of the line
+		local lineProps = {
+			enemySpells = {},
+			passConditions = true,
+			conditions = {},
+		}
+		macroPlayback.lineProperties[lineId] = lineProps
+
+		--get all macros declared on this line
+		local macrosOnThisLine = macroList[lineId]
+
+		--> sort macros within a line
+			table.sort(macrosOnThisLine, function(t1, t2) return t1[1] < t2[1] end)
+
+			for o = 1, #macrosOnThisLine do
+				local thisMacro = macrosOnThisLine[o][CONST_MACRO_INDEXNAME]
+				thisMacro = thisMacro:gsub("^%d", "")
+				macrosOnThisLine[o][CONST_MACRO_INDEXNAME] = thisMacro
+			end
+
+		for o = 1, #macrosOnThisLine do
+			local thisMacro = macrosOnThisLine[o]
+			local token = thisMacro[CONST_MACRO_INDEXNAME]
+
+			if (token == "maketext") then
+				lineProps.maketext = true
+
+			elseif (token == "time") then
+				local time = thisMacro[CONST_MACRO_INDEXVALUE]
+				local timeStamp = DetailsFramework:IntegerToTimer(time)
+				lineProps.time = time
+				lineProps.timeStamp = timeStamp
+				times[lineId] = time
+
+			elseif (token == "timeelapsed") then
+				local time = thisMacro[CONST_MACRO_INDEXVALUE]
+				local timeStamp = DetailsFramework:IntegerToTimer(time)
+				lineProps.timeElapsed = time
+				lineProps.timeElapsedStamp = timeStamp
+				elapsedTimes[lineId] = time
+
+			elseif (token == "phase") then
+				local phaseId = thisMacro[CONST_MACRO_INDEXVALUE]
+				currentPhase = phaseId
+				phasesLineIndex[phaseId] = lineId
+				macroPlayback.progressBarByPhase[phaseId] = {}
+				macroPlayback.progressBarByElapsedTime[phaseId] = {}
+
+			elseif (token == "enemyspell") then
+				local spellId = thisMacro[CONST_MACRO_INDEXVALUE]
+				tinsert(lineProps.enemySpells, spellId)
+
+			end
+		end
+
+		lineProps.phase = currentPhase
+	end
+
+	--each line has its macros, even if it's an empty table
+	for lineId = 1, #macroList do
+		--add a table to hold the text for this line
+		local lineText = textLines[lineId]
+		local textTable = parsedTextLines[lineId]
+
+		parsedMacroList[lineId] = {}
+
+		--get all macros declared on this line
+		local macrosOnThisLine = macroList[lineId]
+
+		--get line properties
+		local lineProps = macroPlayback.lineProperties[lineId]
+
+		--parse each macro on this line
+		for i = 1, #macrosOnThisLine do
+			local thisMacro = macrosOnThisLine[i]
+			local token = thisMacro[CONST_MACRO_INDEXNAME]
+
+			parsedMacroList[lineId][token] = thisMacro[CONST_MACRO_INDEXVALUE]
+
+			if (token == "playerlist") then
+				thisMacro[CONST_MACRO_INDEXVALUE] = parsedPlayerList[lineId]
+
+			elseif (token == "phase") then
+				if (lineProps.maketext) then
+					local phaseId = thisMacro[CONST_MACRO_INDEXVALUE]
+					lineText = lineText:gsub("^", "[|cFFFF9911PHASE: " .. phaseId .. "|r]")
+					lineProps.text = lineText
+				end
+
+			elseif (token == "enemyspell") then
+				if (lineProps.maketext) then
+					local spellId = thisMacro[CONST_MACRO_INDEXVALUE]
+					local spellName, _, spellIcon = GetSpellInfo(spellId)
+					local iconText = "|T" .. spellIcon .. ":12:12:0:0:64:64:5:59:5:59|t"
+					lineText = lineText:gsub("^", iconText .. "|cFFFF5511" .. spellName .. "|r ")
+					lineProps.text = lineText
+				end
+
+			elseif (token == "cooldown") then
+
+				local cooldowns = thisMacro[CONST_MACRO_INDEXVALUE]
+				local generatedText = ""
+				for i = 1, #cooldowns do
+					local thisCooldown = cooldowns[i]
+					local spellId = thisCooldown[1]
+					local caster = thisCooldown[2]
+
+					--check if the player name is a variable
+					local listOfPlayers = variables[caster]
+					local cooldownInfo = LIB_RAID_STATUS_COOLDOWNS_INFO[spellId]
+
+					if (listOfPlayers and cooldownInfo) then
+						for o = 1, #listOfPlayers do
+							local playerName = listOfPlayers[o]
+							local playerClass = Notepad.playersInTheGroup.all_class[playerName] or playerClasses[playerName]
+
+							if (playerClass == cooldownInfo.class) then
+								caster = playerName
+								break
+							end
+						end
+					else
+						if (listOfPlayers) then
+							caster = listOfPlayers[1]
+						end
+					end
+
+					if (lineProps.maketext) then
+						local spellName, _, spellIcon = GetSpellInfo(spellId)
+						local iconText = "|T" .. spellIcon .. ":12:12:0:0:64:64:5:59:5:59|t"
+						generatedText = generatedText .. iconText .. " " .. (caster or "") .. " "
+					end
+				end
+
+				if (#generatedText > 0) then
+					generatedText = generatedText:gsub("%s$", "")
+					lineText = lineText .. "("
+					lineText = lineText:gsub("$", generatedText)
+					lineText = lineText .. ")"
+					lineProps.text = lineText
+				end
+
+			elseif (token == "bosstimer") then
+				local bossTimerId = thisMacro[CONST_MACRO_INDEXVALUE]
+				bossTimersToWatch[bossTimerId] = lineId
+				lineProps.bossTimerId = bossTimerId
+
+			elseif (token == "ifand" or token == "ifor") then
+				conditions[lineId] = conditions[lineId] or {}
+				local value1, opperator, value2 = thisMacro[2], thisMacro[3], thisMacro[4]
+
+				tinsert(lineProps.conditions, {token, value1, opperator, value2})
+				tinsert(conditions[lineId], {token, value1, opperator, value2})
+			end
+		end
+
+		parsedTextLines[lineId] = lineText
+		lineIdPhase[lineId] = currentPhase
+	end
+
+	--each line has its macros, even if it's an empty table
+	for lineId = 1, #macroList do
+		--get all macros declared on this line
+		local macrosOnThisLine = macroList[lineId]
+
+		--get line properties
+		local lineProps = macroPlayback.lineProperties[lineId]
+
+		--parse each macro on this line
+		for i = 1, #macrosOnThisLine do
+			local thisMacro = macrosOnThisLine[i]
+			local token = thisMacro[CONST_MACRO_INDEXNAME]
+
+			if (token == "countdown") then
+				--verify if this line has a 'time' macro and get the time in seconds
+				if (lineProps.time) then
+					local progressBarTime = thisMacro[CONST_MACRO_INDEXVALUE]
+					local startAt = lineProps.time - progressBarTime
+					startAt = max(startAt, 1)
+					local timersByPhase = macroPlayback.progressBarByPhase[lineIdPhase[lineId]]
+					tinsert(timersByPhase, {"countdown", startAt, lineId, progressBarTime}) --type, start at, line, amount of time
+					lineProps.countdown = timersByPhase[#timersByPhase]
+
+				elseif (lineProps.timeElapsed) then
+					local progressBarTime = thisMacro[CONST_MACRO_INDEXVALUE]
+					local startAt = lineProps.timeElapsed - progressBarTime
+					startAt = max(startAt, 1)
+					local timersByElapsedTime = macroPlayback.progressBarByPhase[lineIdPhase[lineId]]
+					tinsert(timersByElapsedTime, {"countdown", startAt, lineId, progressBarTime}) --type, start at, line, amount of time
+					lineProps.countdown = timersByElapsedTime[#timersByElapsedTime]
+				end
+
+			elseif (token == "timer") then
+				if (lineProps.time) then
+					local progressBarTime = thisMacro[CONST_MACRO_INDEXVALUE]
+					local startAt = lineProps.time
+					local timersByPhase = macroPlayback.progressBarByPhase[lineIdPhase[lineId]]
+					tinsert(timersByPhase, {"timer", startAt, lineId, progressBarTime}) --type, start at, line, amount of time
+					lineProps.timer = timersByPhase[#timersByPhase]
+
+				elseif (lineProps.timeElapsed) then
+					local progressBarTime = thisMacro[CONST_MACRO_INDEXVALUE]
+					local startAt = lineProps.timeElapsed
+					local timersByElapsedTime = macroPlayback.progressBarByPhase[lineIdPhase[lineId]]
+					tinsert(timersByElapsedTime, {"timer", startAt, lineId, progressBarTime}) --type, start at, line, amount of time
+					lineProps.timer = timersByElapsedTime[#timersByElapsedTime]
+				end
+			end
+		end
+	end
+
+	--elseif (token == "bosstimer") then --run time, add to bossmods lines
+	--
+	--elseif (token == "flash") then --need to know if line has "time"
+
+	return macroPlayback
 end
 
 function Notepad.UpdateShownText(thisNote)
@@ -1193,41 +1764,40 @@ function Notepad.UpdateShownText(thisNote)
 	if (thisNote) then
 		local noteText = thisNote.note
 
-		--parse macros
-		local textLines, macroList = Notepad:ParseTextForMacros(noteText)
+		--parse macros on the text of the note
+		local textLines, macroList, variables, playersList = Notepad:ParseTextForMacros(noteText)
 
-		local playerName = UnitName("player")
-		local _, class = UnitClass("player")
+		--> organize the macro list to be played when the encounter start
+			local playbackObject = Notepad.CreateMacroPlayback(textLines, macroList, variables, playersList)
+			Notepad.currentPlayback = playbackObject
 
-		for lineId, text in ipairs(textLines) do
-			local formatedText = Notepad:FormatText(text)
+		--> substitute "player" name with all caps name with the yellow color
+			local playerName = UnitName("player")
+			local _, class = UnitClass("player")
 
-			local unitclasscolor = RAID_CLASS_COLORS[class] and RAID_CLASS_COLORS[class].colorStr
-			if (unitclasscolor) then
-				formatedText = formatedText:gsub(playerName, "|cFFFFFF00[|r|c" .. unitclasscolor .. playerName:upper() .. "|r|cFFFFFF00]|r")
-				formatedText = formatedText:gsub(playerName:lower(), "|cFFFFFF00[|r|c" .. unitclasscolor .. playerName:upper() .. "|r|cFFFFFF00]|r")
+			for lineId, text in ipairs(textLines) do
+				local formatedText = Notepad:FormatText(text)
+
+				local unitclasscolor = RAID_CLASS_COLORS[class] and RAID_CLASS_COLORS[class].colorStr
+				if (unitclasscolor) then
+					formatedText = formatedText:gsub(playerName, "|cFFFFFF00[|r|c" .. unitclasscolor .. playerName:upper() .. "|r|cFFFFFF00]|r")
+					formatedText = formatedText:gsub(playerName:lower(), "|cFFFFFF00[|r|c" .. unitclasscolor .. playerName:upper() .. "|r|cFFFFFF00]|r")
+				end
+
+				textLines[lineId] = formatedText
 			end
 
-			textLines[lineId] = formatedText
-		end
-
 		--> set the text into the lines
-			Notepad.UpdateTextOnScreenFrame(textLines)
-		--> organize the macro list to be played when the encounter start
-			local mountedMacros = Notepad.CreateMacroPlayback(macroList)
+			Notepad.UpdateTextOnScreenFrame(playbackObject)
 
-		Notepad.currentText = textLines
-		Notepad.currentMacros = macroList
 	end
 end
 
-function Notepad.UpdateTextOnScreenFrame(textLines)
-	if (not textLines) then
-		local thisNote = Notepad:GetNote(Notepad.db.currently_shown, Notepad.db.currently_shown_noteId)
-		if (thisNote) then
-			textLines = thisNote.note
-		end
-	end
+function Notepad.UpdateTextOnScreenFrame(playbackObject)
+	local textLines = playbackObject.textLines
+	local lineProps = playbackObject.lineProperties
+
+	--Details:Dump(playbackObject.textLines)
 
 	if (not textLines) then
 		return
@@ -1246,11 +1816,28 @@ function Notepad.UpdateTextOnScreenFrame(textLines)
 	end
 
 	--set the current text
-	for i = lineFrame.virtualScrollPosition, amountOfText do
-		lineId = lineId + 1
-		if (lineId <= amountOfLines) then
-			local line = lineFrame.Lines[lineId]
-			line.text1.text = textLines[i] or ""
+	local lineCounter = 1
+	for lineId = lineFrame.virtualScrollPosition, amountOfText do
+
+		if (lineCounter <= amountOfLines) then
+			local phaseTime = lineProps[lineId].timeStamp
+			local elapsedTime = lineProps[lineId].timeElapsedStamp
+			local text = textLines[lineId]
+
+			local lineFrame = lineFrame.Lines[lineId]
+			if (phaseTime) then
+				lineFrame.text1.text = phaseTime or ""
+				lineFrame.text2.text = text or ""
+
+			elseif (elapsedTime) then
+				lineFrame.text1.text = elapsedTime or ""
+				lineFrame.text2.text = text or ""
+
+			else
+				lineFrame.text1.text = text or ""
+			end
+
+			lineCounter = lineCounter + 1
 		end
 	end
 end
@@ -1269,12 +1856,19 @@ end
 
 local macroParserTick = function()
 	local encounterInfo = Notepad.currentEncounter
+	local playback = Notepad.currentPlayback
 
 	--> update elapsed time
 		local currentTime = GetTime()
 		encounterInfo.elapsedTime = encounterInfo.elapsedTime + (currentTime - encounterInfo.latestTickTime)
 		encounterInfo.phaseElapsedTime = encounterInfo.phaseElapsedTime + (currentTime - encounterInfo.latestTickTime)
 		encounterInfo.latestTickTime = currentTime
+
+	--> data
+		local elapsedTime = floor(encounterInfo.elapsedTime)
+		local phaseTime = floor(encounterInfo.phaseElapsedTime)
+		local progressBarPhase = playback.progressBarPhase
+		local progressBarElapsed = playback.progressBarElapsed
 
 	--> check for new phase
 		local currentPhase, oldPhase, phaseHasChanged = encounterInfo.currentPhase, encounterInfo.currentPhase, false
@@ -1301,16 +1895,17 @@ local macroParserTick = function()
 end
 
 
-function RANotes.GetNoteLines() --external
-	--check if there's some note shown
-	local bossId, _, noteId = Notepad:GetCurrentlyShownBoss()
-	if (bossId) then
-		return Notepad.currentText
-	end
-end
 
---TODO: need to get the player list from the source which already parsed the player list
 function RANotes.GetPlayerList(playerListId) --external
+
+	local macroPlayback = Notepad.currentPlayback
+	if (macroPlayback) then
+		local playerList = macroPlayback.playerList[playerListId]
+		if (playerList) then
+			return playerList
+		end
+	end
+
 	playerListId = playerListId or 1
 	local allPlayerLists = {}
 
@@ -1318,10 +1913,10 @@ function RANotes.GetPlayerList(playerListId) --external
 	local bossId, _, noteId = Notepad:GetCurrentlyShownBoss()
 	if (bossId) then
 		--build a list of players list
-		local macros = Notepad.currentMacros --numeric table with tables inside
+		local macros = Notepad.currentPlayback.macroLines --numeric table with tables inside
 
-		for i = 1, #macros do
-			local macroTable = macros[i]
+		for lineId = 1, #macros do
+			local macroTable = macros[lineId]
 			for macroIndex = 1, #macroTable do
 				local thisMacro = macroTable[macroIndex]
 				if (thisMacro[CONST_MACRO_INDEXNAME] == "playerlist") then
@@ -1336,6 +1931,9 @@ end
 
 function Notepad.OnEncounterStart()
 	local encounterInfo = Notepad.currentEncounter
+
+	--reset the virtual scroll position to line 1
+	Notepad.screenFrame.lineFrame.virtualScrollPosition = 1
 
 	--check if the note shown is a note for the encounter
 	local bossId, _, noteId = Notepad:GetCurrentlyShownBoss()
@@ -1400,7 +1998,7 @@ function Notepad:ShowNoteOnScreen(bossId, noteId) --~showscreen ~shownote
 
 		--track mouse position to detect player afk
 		Notepad.MouseCursorX, Notepad.MouseCursorY = GetCursorPosition()
-		C_Timer.After(3, track_mouse_position)
+		C_Timer.After(3, trackMousePosForAFKDetection)
 
 		Notepad:UpdateScreenFrameBackground()
 
@@ -1429,6 +2027,14 @@ function Notepad.UnshowNoteOnScreen(from_close_button)
 				RA:ShowPromptPanel("Close it on All Raid Members as Well?", function() Notepad:SendHideShownNote() end, function() end)
 			end
 		end
+	end
+end
+
+function RANotes.GetNoteLines() --external
+	--check if there's some note shown
+	local bossId, _, noteId = Notepad:GetCurrentlyShownBoss()
+	if (bossId) then
+		return Notepad.currentPlayback.textLines
 	end
 end
 
@@ -1544,7 +2150,8 @@ function Notepad.ShowPickFrame(whatToShow)
 		Notepad.mainFrame.pickFrame.selectPlayerFrame:Hide()
 		Notepad.mainFrame.pickFrame.selectMacroFrame:Show()
 
-
+		--update the macro list
+		Notepad.mainFrame.pickFrame.selectMacroFrame.macroSelectionScroll:Refresh()
 	end
 end
 
@@ -1555,8 +2162,34 @@ local createPickFrame = function(mainFrame)
 	pFrame:SetPoint("bottomleft", RaidAssistOptionsPanel, "bottomright", 0, 0)
 	mainFrame.pickFrame = pFrame
 
-	local playerSelectionAmoutLines = 20
+	--> player list and macro list buttons
+		local showPlayerList = function()
+			Notepad.ShowPickFrame("playerlist")
+			pFrame.listOfPlayersButton:SetTemplate("RAIDASSIST_BUTTON_SELECTED")
+			pFrame.listOfMacrosButton:SetTemplate("RAIDASSIST_BUTTON_DISABLED")
+
+		end
+		local showMacroList = function()
+			Notepad.ShowPickFrame("macros")
+			pFrame.listOfPlayersButton:SetTemplate("RAIDASSIST_BUTTON_DISABLED")
+			pFrame.listOfMacrosButton:SetTemplate("RAIDASSIST_BUTTON_SELECTED")
+		end
+
+		local playerListButton = Notepad:CreateButton(pFrame, showPlayerList, (pFrame:GetWidth()/2) - 4, 20, "Players", _, _, _, "listOfPlayersButton", _, _, Notepad:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+		playerListButton:SetPoint("topleft", pFrame, "topleft", 2, -2)
+		playerListButton:SetIcon([[Interface\FriendsFrame\Battlenet-Portrait]])
+		pFrame.listOfPlayersButton:SetTemplate("RAIDASSIST_BUTTON_SELECTED")
+		
+		local macroListButton = Notepad:CreateButton(pFrame, showMacroList, (pFrame:GetWidth()/2) - 4, 20, "Macros", _, _, _, "listOfMacrosButton", _, _, Notepad:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+		macroListButton:SetPoint("left", playerListButton, "right", 2, 0)
+		macroListButton:SetIcon([[Interface\MacroFrame\MacroFrame-Icon]])
+		pFrame.listOfMacrosButton:SetTemplate("RAIDASSIST_BUTTON_DISABLED")
+
+	local playerSelectionAmoutLines = 18
 	local playerSelectionLinesHeight = 20
+
+	local macroSelectionAmoutLines = 9
+	local macroSelectionLinesHeight = 40
 
 	DetailsFramework:ApplyStandardBackdrop(pFrame)
 
@@ -1574,7 +2207,7 @@ local createPickFrame = function(mainFrame)
 				if (playerName) then
 
 					local line = self:GetLine(i)
-					if (line) then --create new note button
+					if (line) then
 						local _, className = UnitClass(playerName)
 						local cleanName = playerName --text without class color
 						playerName = DetailsFramework:AddClassColorToText(playerName, className)
@@ -1598,7 +2231,7 @@ local createPickFrame = function(mainFrame)
 		selectPlayerFrame.playerSelectionScroll = playerSelectionScroll
 		DetailsFramework:ReskinSlider(playerSelectionScroll)
 		playerSelectionScroll:SetAllPoints()
-		playerSelectionScroll:SetPoint("topleft", selectPlayerFrame, "topleft", 0, 0)
+		playerSelectionScroll:SetPoint("topleft", selectPlayerFrame, "topleft", 0, -40)
 		playerSelectionScroll:SetPoint("bottomright", selectPlayerFrame, "bottomright", -22, 0)
 
 		function playerSelectionScroll.UpdatePlayerList()
@@ -1691,8 +2324,107 @@ local createPickFrame = function(mainFrame)
 		pFrame.selectMacroFrame = selectMacroFrame
 
 		local listOfMacros = {
-			["playerlist"] = {example = "", desc = "", alias = ""},
+			{command = "playerlist", name = "Player List", example = "[playerlist = playerName3, playerName35, playerName11]", desc = "create a list of players, auto ignore players which isn't in the raid group.", alias = "pl", addtext = "[playerlist = ]"},
 		}
+
+		local refreshMacroList = function(self, data, offset, totalLines)
+			--update boss scroll
+			for i = 1, totalLines do
+				local index = i + offset
+				local macroData = data[index]
+
+				if (macroData) then
+					local line = self:GetLine(i)
+					if (line) then
+						local macroName = macroData.name
+						local macroExample = macroData.example
+						local macroDesc = macroData.desc
+						local macroAlias = macroData.alias
+						local macroText = macroData.addtext
+
+						line.macroName:SetText(macroData.command)
+						line.macroText:SetText(macroText)
+						line.macroData = macroData
+					end
+				end
+			end
+		end
+
+
+		--scroll frame
+		local macroSelectionScroll = DF:CreateScrollBox(selectMacroFrame, "$parentScroll", refreshMacroList, listOfMacros, pFrame:GetWidth()-2, pFrame:GetHeight(), macroSelectionAmoutLines, macroSelectionLinesHeight)
+		selectMacroFrame.macroSelectionScroll = macroSelectionScroll
+		DetailsFramework:ReskinSlider(macroSelectionScroll)
+		macroSelectionScroll:SetAllPoints()
+		macroSelectionScroll:SetPoint("topleft", selectMacroFrame, "topleft", 0, -40)
+		macroSelectionScroll:SetPoint("bottomright", selectMacroFrame, "bottomright", -22, 0)
+
+		local onEnterLine = function(self)
+			self:SetBackdropColor(unpack(scrollbox_line_backdrop_color_hightlight))
+		end
+
+		local onLeaveLine = function(self)
+			self:SetBackdropColor(unpack(scrollbox_line_backdrop_color))
+		end
+
+		local onClickMacroLine = function(self)
+			local macroData = self.macroData
+			if (macroData) then
+				Notepad.mainFrame.editboxNotes.editbox:SetFocus(true)
+				local cursorPos = Notepad.mainFrame.editboxNotes.editbox:GetCursorPosition()
+
+				Notepad.ignore_text_changed = true
+
+				Notepad.mainFrame.editboxNotes.editbox:Insert(macroData.addtext)
+				Notepad.mainFrame.editboxNotes.editbox:SetCursorPosition(cursorPos + #macroData.addtext - 1)
+
+				Notepad.ignore_text_changed = false
+			end
+		end
+
+		--create scroll lines
+		local createMacroLine = function(self, index)
+			local line = CreateFrame("button", "$parentLine" .. index, self, "BackdropTemplate")
+			line:SetPoint("topleft", self, "topleft", 0, -((index-1) * (macroSelectionLinesHeight+1)) - 1)
+			line:SetSize(self:GetWidth(), macroSelectionLinesHeight)
+			line:RegisterForClicks("LeftButtonDown", "RightButtonDown")
+			DetailsFramework:ApplyStandardBackdrop(line)
+
+			line:SetScript("OnEnter", onEnterLine)
+			line:SetScript("OnLeave", onLeaveLine)
+			line:SetScript("OnClick", onClickMacroLine)
+
+			line.index = index
+
+			--icon
+			local icon = line:CreateTexture("$parentIcon", "overlay")
+			icon:SetSize(macroSelectionLinesHeight-4, macroSelectionLinesHeight-4)
+			icon:SetTexture([[Interface\MacroFrame\MacroFrame-Icon]])
+			icon:SetPoint("left", line, "left", 2, 0)
+			icon:SetAlpha(.7)
+			line.icon = icon
+
+			local macroName = line:CreateFontString(nil, "overlay", "GameFontNormal")
+			macroName:SetPoint("left", icon, "right", 4, 7)
+
+			local macroText = line:CreateFontString(nil, "overlay", "GameFontNormal")
+			macroText:SetPoint("left", icon, "right", 4, -7)
+
+			DetailsFramework:SetFontSize(macroName, 11)
+			DetailsFramework:SetFontSize(macroText, 11)
+			DetailsFramework:SetFontColor(macroText, "silver")
+
+			line.icon = icon
+			line.macroName = macroName
+			line.macroText = macroText
+
+			return line
+		end
+
+		--create the scrollbox lines
+		for i = 1, macroSelectionAmoutLines do
+			macroSelectionScroll:CreateLine(createMacroLine, i)
+		end
 
 end
 
@@ -1720,7 +2452,7 @@ function Notepad.BuildOptions(frame)
 
 	createPickFrame(mainFrame)
 
-	mainFrame:SetScript ("OnShow", function()
+	mainFrame:SetScript("OnShow", function()
 		if (Notepad:GetCurrentlyShownBoss()) then
 			Notepad:UpdateFrameShownOnOptions()
 			if (Notepad.screenFrame.on_combat) then
@@ -1729,6 +2461,8 @@ function Notepad.BuildOptions(frame)
 		else
 			mainFrame.frameNoteShown:Hide()
 		end
+
+		Notepad.BuildListOfPlayersInRaid()
 	end)
 
 	mainFrame:SetScript ("OnHide", function()
@@ -2759,11 +3493,12 @@ function Notepad.BuildOptions(frame)
 	local labelIconcooldowns = Notepad:CreateLabel (colors_panel, "Cooldowns" .. ":", Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	labelIconcooldowns:SetPoint("topleft", editboxNotes, "topright", cooldownAbilitiesX, -147)
 
-	local cooldown_icon_path = [[|TICONPATH:0|t]]
+	local cooldown_icon_path = [[|TICONPATH:12:12:0:0:64:64:5:59:5:59|t]]
 	local onSpellcooldownSelection = function (self, button, spellid)
 		local cursorPos = mainFrame.editboxNotes.editbox:GetCursorPosition()
 		local spellname, _, iconpath = GetSpellInfo (spellid)
-		local  textToInsert = cooldown_icon_path:gsub([[ICONPATH]], iconpath) .. " " .. spellname .. " (  ) "
+		--local  textToInsert = cooldown_icon_path:gsub([[ICONPATH]], iconpath) .. " " .. spellname .. " (  ) " --showing the spellname
+		local  textToInsert = cooldown_icon_path:gsub([[ICONPATH]], iconpath) .. " " .. " (  ) " --not showing the spellname
 		mainFrame.editboxNotes.editbox:Insert(textToInsert)
 		mainFrame.editboxNotes.editbox:SetFocus(true)
 		mainFrame.editboxNotes.editbox:SetCursorPosition(cursorPos + #textToInsert - 3)
@@ -2994,16 +3729,18 @@ function Notepad.BuildOptions(frame)
 	end
 	
 	editboxNotes.editbox:SetScript ("OnTextChanged", function (self)
-		local chars_now = mainFrame.editboxNotes.editbox:GetText():len()
-		--> backspace
-		if (chars_now == characters_count -1) then
-			Notepad.currentWord = Notepad.currentWord:sub (1, Notepad.currentWord:len()-1)
-		--> delete lots of text
-		elseif (chars_now < characters_count) then
-			mainFrame.editboxNotes.editbox.end_selection = nil
-			get_last_word()
+		if (not Notepad.ignore_text_changed) then
+			local chars_now = mainFrame.editboxNotes.editbox:GetText():len()
+			--> backspace
+			if (chars_now == characters_count -1) then
+				Notepad.currentWord = Notepad.currentWord:sub (1, Notepad.currentWord:len()-1)
+			--> delete lots of text
+			elseif (chars_now < characters_count) then
+				mainFrame.editboxNotes.editbox.end_selection = nil
+				get_last_word()
+			end
+			characters_count = chars_now
 		end
-		characters_count = chars_now
 	end)
 	
 	editboxNotes.editbox:SetScript ("OnSpacePressed", function (self)
@@ -3066,28 +3803,34 @@ function Notepad.BuildOptions(frame)
 		Notepad.currentWord = ""
 	end)
 
-	editboxNotes.editbox:SetScript("OnEditFocusGained", function (self) 
+	editboxNotes.editbox:SetScript("OnEditFocusGained", function (self)
 		get_last_word()
 		mainFrame.editboxNotes.editbox.end_selection = nil
 		characters_count = mainFrame.editboxNotes.editbox:GetText():len()
 	end)
 
 	local playersCache = {
-		["Cooldowns"] = "PRIEST",
-		["Phase"] = "PRIEST",
+		["cooldown"] = "PRIEST",
+		["phase"] = "PRIEST",
 		["Dispell"] = "PRIEST",
 		["Interrupt"] = "PRIEST",
 		["Adds"] = "PRIEST",
-		["Tanks"] = "PRIEST",
-		["Damagers"] = "PRIEST",
-		["Healers"] = "PRIEST",
+		["TANKS"] = "PRIEST",
+		["DAMAGERS"] = "PRIEST",
+		["HEALERS"] = "PRIEST",
 		["Transition"] = "PRIEST",
+		
 	}
 
 	local interval, guildInterval, updateGuildPlayers = -1, -1, false
 	Notepad.playersCache = playersCache
 
 	editboxNotes.editbox:SetScript("OnChar", function (self, char) 
+
+		if (Notepad.ignore_text_changed) then
+			return
+		end
+
 		mainFrame.editboxNotes.editbox.end_selection = nil
 
 		if (mainFrame.editboxNotes.editbox.ignore_input) then
@@ -3178,6 +3921,10 @@ function Notepad.BuildOptions(frame)
 			guildInterval = 11
 			interval = 1
 			updateGuildPlayers = true
+
+			--update raid status
+			local raidStatusLib = LibStub:GetLibrary("LibRaidStatus-1.0")
+			raidStatusLib.RequestAllPlayersInfo()
 			return
 		end
 
@@ -3266,7 +4013,7 @@ function Notepad:FormatText(mytext)
 	end
 end
 
-local install_status = RA:InstallPlugin ("Raid Assignments", "RANotepad", Notepad, default_config)
+RA:InstallPlugin(Notepad.displayName, "OPNotepad", Notepad, default_config)
 
 --> when the user enters in the raid instance or after /reload or logon
 local doAskForEnbaledNote = function()
