@@ -21,7 +21,7 @@ local right_panel_x = 546
 local filter_start_y = -205
 local helpbox_start_y = -274
 local slot_backdrop = {edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true}
-local slot_backdropcolor = {0, 0, 0, .55}
+local slot_backdropcolor = {0, 0, 0, .35}
 local slot_backdropcolor_filled = {.13, .13, .13, 1}
 local slot_bordercolor = {0, 0, 0, 0}
 local slot_bordercolor_filled = {1, 1, 0, 0.1}
@@ -30,7 +30,7 @@ local slot_bordercolor_onenter = {1, 1, 0, 0.30}
 
 local default_config = {
 	enabled = true,
-	text_size = 10,
+	text_size = 11,
 	text_face = "Friz Quadrata TT",
 	text_shadow = false,
 	filter = false,

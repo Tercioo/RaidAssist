@@ -293,6 +293,7 @@ function AuraCheck.BuildOptions (frame)
 						button:Show()
 					end
 				else
+					local button = self:GetLine(i)
 					button.Label:SetText("")
 					button:Hide()
 				end
@@ -980,7 +981,8 @@ function AuraCheck.InstallAura(auraName, playerName, auraString, time)
 		local alreayHaveAura = WeakAuras.GetData(auraName)
 		if (alreayHaveAura) then
 			--check for children first
-			if (#childrenTable >= 1) then
+			--[=
+			if (childrenTable and #childrenTable >= 1) then
 				for i = 1, #childrenTable do
 					local child = childrenTable[i]
 					local childId = child.id
@@ -995,6 +997,7 @@ function AuraCheck.InstallAura(auraName, playerName, auraString, time)
 			local copy = DetailsFramework.table.copytocompress({}, mainAura)
 			copy.controlledChildren = nil
 			WeakAuras.Delete(copy)
+			--]=]
 		end
 
 		local auraObject = {
@@ -1002,6 +1005,7 @@ function AuraCheck.InstallAura(auraName, playerName, auraString, time)
 			c = childrenTable, --c = children
 			i = mainAura.displayIcon, --i = icon
 			a = icons, --a = icons
+			v = mainAura.internalVersion, --v = version
 		}
 
 		WeakAuras.Import(auraObject)
