@@ -157,12 +157,14 @@ function Notepad.InstallBossModsHandlers()
 		if (_G.DBM) then
 			local DBMCallbackTimer = function(bar_type, id, msg, timer, icon, bartype, spellId, colorId, modid)
 				local spell = tostring(spellId)
-				local encounterIdCL = Notepad.GetCurrentEncounterData().encounterIdCL
-				local encounterIdEJ = Notepad.GetCurrentEncounterData().encounterIdEJ
-				--store the timer in the database
-				Notepad.db.dbm_boss_timers[spell] = {encounterIdCL, encounterIdEJ, spell, id, msg, timer, icon, bartype, spellId, colorId, modid}
-				--send the new timer to the bar manager
-
+				local encounterData = Notepad.GetCurrentEncounterData()
+				if (encounterData) then
+					local encounterIdCL = encounterData.encounterIdCL
+					local encounterIdEJ = encounterData.encounterIdEJ
+					--store the timer in the database
+					Notepad.db.dbm_boss_timers[spell] = {encounterIdCL, encounterIdEJ, spell, id, msg, timer, icon, bartype, spellId, colorId, modid}
+					--send the new timer to the bar manager
+				end
 			end
 			DBM:RegisterCallback("DBM_TimerStart", DBMCallbackTimer)
 		end
