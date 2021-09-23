@@ -34,12 +34,17 @@ local default_config = {
 	dbm_boss_timers = {},
 	bw_boss_timers = {},
 	bar_texture = "You Are Beautiful!",
+	editor_alpha = 0.5,
 }
 
 local CONST_MACRO_INDEXNAME = 1
 local CONST_MACRO_INDEXVALUE = 2
-local CONST_TEXT_INDEX = 1
 local CONST_PROGRESSBAR_DEFAULT_TIME = 7
+local CONST_EDITBOX_WIDTH = 446
+local CONST_EDITBOX_HEIGHT = 615
+local CONST_EDITBOX_WIDTH_MAX = 610
+local CONST_EDITBOX_HEIGHT_MAX = 615
+local CONST_EDITBOX_COLOR = {.6, .6, .6, .5}
 
 local allRoles = {"DAMAGER", "TANK", "HEALER"}
 
@@ -451,7 +456,7 @@ Notepad.OnInstall = function (plugin)
 	lock:SetAlpha(0.910)
 	lock:SetPoint("bottomright", f, "topright", 0, 0)
 
-	local lockLabel = DF:CreateLabel(lock, "|cFFFFAA00[|cFFFFFF00lock|r]", 12)
+	local lockLabel = DF:CreateLabel(lock, "|cFFFFAA00[|cFFFFFF00" .. L["S_LOCK"] .. "|r]", 12)
 	lockLabel:SetPoint("bottomright", lock, "bottomright")
 
 	lock:SetScript ("OnClick", function()
@@ -471,7 +476,7 @@ Notepad.OnInstall = function (plugin)
 	settingsButton:SetSize(60, 12)
 	settingsButton:SetAlpha(0.910)
 	settingsButton:SetPoint("bottomleft", f, "topleft", 0, 0)
-	local settingsLabel = DF:CreateLabel(settingsButton, "|cFFFFAA00[|cFFFFFF00settings|r]", 12)
+	local settingsLabel = DF:CreateLabel(settingsButton, "|cFFFFAA00[|cFFFFFF00"  .. L["S_SETTINGS"] .. "|r]", 12)
 	settingsLabel:SetPoint("bottomleft", settingsButton, "bottomleft")
 
 	settingsButton:SetScript("OnClick", function()
@@ -802,7 +807,7 @@ function Notepad:GetNoteList()
 	return Notepad.db.boss_notes2
 end
 
-function Notepad:BuildBossList()
+function Notepad:BuildBossList() --~bosslist
 	local bossTable = {}
 	Notepad.bossListHashTable = {} --carry a list of bosses of the current expansion where the boss index is key
 	Notepad.bossListTable = bossTable --carry a indexed list of bosses
@@ -810,7 +815,7 @@ function Notepad:BuildBossList()
 	bossTable[#bossTable+1] = {
 		bossName = "General Notes",
 		bossId = 0,
-		bossRaidName = "any note in general",
+		bossRaidName = L["S_PLUGIN_NOTE_GENERALNOTE_DESC"],
 		bossIcon = [[Interface\AddOns\RaidAssist\Media\note_icon]],
 		bossIconCoords = {0, 1, 0, 1},
 		bossIconSize = {bossLinesHeight+30, bossLinesHeight-4},
@@ -1282,9 +1287,10 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 								variables[variableNameOfThisLine] = phaseId
 							end
 						else
-							RA:Msg("Notepad> macro 'phase' expect a number, example: phase=2")
+							RA:Msg(L["S_PLUGIN_NOTE_MACRO_PHASE_ERROR1"])
 						end
 
+					--time
 					elseif (token == "time" or token == "t" or token == "elapsedtime") then
 						local seconds = Notepad.ParseTimeEntry(value)
 						if (seconds) then
@@ -1294,8 +1300,12 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 								variables[variableNameOfThisLine] = seconds
 							end
 						else
-							RA:Msg("Notepad> macro 'time' expect time, example: time=180 or time=3:00")
+							RA:Msg(L["S_PLUGIN_NOTE_MACRO_TIME_ERROR1"])
 						end
+
+					--hidden
+					elseif (token == "hidden" or token == "hide" or token == "nop") then
+						tinsert(thisLineMacros, {"hidden", true})
 
 					--cooldown
 					elseif (token == "cooldown" or token == "cd") then
@@ -1315,7 +1325,7 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 									lineCooldowns[#lineCooldowns+1] = {spellId, "@H" .. cooldownInfo.class}
 									noEntry = false
 								else
-									RA:Msg("Notepad> macro 'cooldown' with an unregistered cooldown:", spellId)
+									RA:Msg(L["S_PLUGIN_NOTE_MACRO_COOLDOWN_ERROR2"] .. ":", spellId)
 								end
 
 								local cooldownInfo = LIB_RAID_STATUS_COOLDOWNS_INFO[playerIsSpellId]
@@ -1323,7 +1333,7 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 									lineCooldowns[#lineCooldowns+1] = {playerIsSpellId, "@H" .. cooldownInfo.class}
 									noEntry = false
 								else
-									RA:Msg("Notepad> macro 'cooldown' with an unregistered cooldown:", playerIsSpellId)
+									RA:Msg(L["S_PLUGIN_NOTE_MACRO_COOLDOWN_ERROR2"] .. ":", spellId)
 								end
 
 							elseif (spellId and playerName) then
@@ -1337,7 +1347,7 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 									lineCooldowns[#lineCooldowns+1] = {spellId, "@H" .. class}
 									noEntry = false
 								else
-									RA:Msg("Notepad> macro 'cooldown' with an unregistered cooldown:", spellId)
+									RA:Msg(L["S_PLUGIN_NOTE_MACRO_COOLDOWN_ERROR2"] .. ":", spellId)
 									break
 								end
 							else
@@ -1346,7 +1356,7 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 						end
 
 						if (noEntry) then
-							RA:Msg("Notepad> macro 'cooldown' expect a spellId, example: cooldown=325412 or cooldown=325412, playerName")
+							RA:Msg(L["S_PLUGIN_NOTE_MACRO_COOLDOWN_ERROR1"])
 						end
 
 						tinsert(thisLineMacros, {"8cooldown", lineCooldowns})
@@ -1363,7 +1373,7 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 								variables[variableNameOfThisLine] = spellId
 							end
 						else
-							RA:Msg("Notepad> macro 'enemyspell' expect a spellId, example: enemyspell=325412")
+							RA:Msg(L["S_PLUGIN_NOTE_MACRO_ENEMYSPELL_ERROR1"])
 						end
 
 					--timer
@@ -1379,13 +1389,13 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 									variables[variableNameOfThisLine] = seconds
 								end
 							else
-								RA:Msg("Notepad> macro 'countdown' expect seconds, example: countdown(10)")
+								RA:Msg(L["S_PLUGIN_NOTE_MACRO_COUNTDOWN_ERROR1"])
 							end
 						end
 
 					elseif (token == "timer") then
 						if (not value) then
-							RA:Msg("Notepad> macro 'timer' expect seconds, example: timer(90) or timer(1:30)")
+							RA:Msg(L["S_PLUGIN_NOTE_MACRO_TIMER_ERROR1"])
 
 						else
 							local seconds = Notepad.ParseTimeEntry(value)
@@ -1395,7 +1405,7 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 									variables[variableNameOfThisLine] = seconds
 								end
 							else
-								RA:Msg("Notepad> macro 'timer' expect seconds, example: timer(90) or timer(1:30)")
+								RA:Msg(L["S_PLUGIN_NOTE_MACRO_TIMER_ERROR1"])
 							end
 						end
 
@@ -1422,10 +1432,10 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 
 								gotPlayerListOnThisLine = true
 							else
-								RA:Msg("Notepad> only one player list per line is allowed")
+								RA:Msg(L["S_PLUGIN_NOTE_MACRO_PLAYERLIST_ERROR1"])
 							end
 						else
-							RA:Msg("Notepad> macro 'playerlist' expect a list of players, example: playerlist(playerName1, playerName2)")
+							RA:Msg(L["S_PLUGIN_NOTE_MACRO_PLAYERLIST_ERROR2"])
 						end
 
 					--boss timer
@@ -1630,6 +1640,9 @@ function Notepad.CreateMacroPlayback(textLines, macroList, variables, playersLis
 
 			elseif (token == "notext") then
 				lineProps.notext = true
+
+			elseif (token == "hidden") then
+				lineProps.hidden = true
 
 			elseif (token == "time") then
 				local time = thisMacro[CONST_MACRO_INDEXVALUE]
@@ -2015,6 +2028,9 @@ function Notepad.UpdateTextOnScreenFrame(playbackObject, phase)
 		--> check for player role, ignore if the unit has assist
 		if (not hasAssist and lineProps.role and lineProps.role ~= playerRole) then
 			ignoreThisLine = true
+
+		elseif (lineProps.hidden) then
+			ignoreThisLine = true
 		end
 
 		if (not ignoreThisLine) then
@@ -2346,7 +2362,7 @@ function Notepad.UnshowNoteOnScreen(from_close_button)
 
 		if (from_close_button) then
 			if (isRaidLeader("player")) then
-				RA:ShowPromptPanel("Close it on All Raid Members as Well?", function() Notepad:SendHideShownNote() end, function() end)
+				RA:ShowPromptPanel(L["S_PLUGIN_NOTE_CLOSE_ONALLPEERS"], function() Notepad:SendHideShownNote() end, function() end)
 			end
 		end
 	end
@@ -2715,7 +2731,7 @@ local createPickFrame = function(mainFrame)
 		pFrame.selectMacroFrame = selectMacroFrame
 
 		local listOfMacros = {
-			{command = "playerlist", name = "Player List", example = "[playerlist = playerName3, playerName35, playerName11]", desc = "create a list of players, auto ignore players which isn't in the raid group.", alias = "pl", addtext = "[playerlist = ]"},
+			{command = "playerlist", name = "Player List", example = "[playerlist = playerName3, playerName35, playerName11]", desc = L["S_PLUGIN_NOTE_MACRO_PLAYERLIST_DESC"], alias = "pl", addtext = "[playerlist = ]"},
 		}
 
 		local refreshMacroList = function(self, data, offset, totalLines)
@@ -2824,7 +2840,7 @@ function Notepad.OnShowOnOptionsPanel()
 	Notepad.BuildOptions (OptionsPanel)
 end
 
-function Notepad.BuildOptions(frame) --~options
+function Notepad.BuildOptions(frame) --~options õptions
 	if (frame.FirstRun) then
 		Notepad.ShowPickFrame("playerlist")
 		return
@@ -2894,7 +2910,7 @@ function Notepad.BuildOptions(frame) --~options
 	
 	local options_list = {
 	
-		{type = "label", get = function() return "Frame:" end, text_template = Notepad:GetTemplate ("font", "ORANGE_FONT_TEMPLATE")},
+		{type = "label", get = function() return L["S_FRAME"] .. ":" end, text_template = Notepad:GetTemplate ("font", "ORANGE_FONT_TEMPLATE")},
 		--
 		{
 			type = "toggle",
@@ -2916,7 +2932,7 @@ function Notepad.BuildOptions(frame) --~options
 				Notepad:UpdateScreenFrameSettings()
 			end,
 			desc = "",
-			name = "Frame Background",
+			name = L["S_FRAME_BACKGROUND"],
 		},
 
 		{
@@ -2929,14 +2945,14 @@ function Notepad.BuildOptions(frame) --~options
 				color.r, color.g, color.b, color.a = r, g, b, a
 				Notepad:UpdateScreenFrameSettings()
 			end,
-			name = "Background Color",
+			name = L["S_FRAME_BACKGROUND_COLOR"],
 		},
 
 		{
 			type = "select",
 			get = function() return Notepad.db.framestrata end,
 			values = function() return strataTable end,
-			name = "Frame Strata"
+			name = L["S_FRAME_STRATA"]
 		},
 
 		{type = "blank"},
@@ -2948,7 +2964,7 @@ function Notepad.BuildOptions(frame) --~options
 				Notepad:UpdateScreenFrameSettings()
 			end,
 			desc = "",
-			name = "Hide in Combat",
+			name = L["S_HIDE_IN_COMBAT"],
 		},
 
 		--
@@ -2957,7 +2973,7 @@ function Notepad.BuildOptions(frame) --~options
 		},
 		--
 
-		{type = "label", get = function() return "Text:" end, text_template = Notepad:GetTemplate ("font", "ORANGE_FONT_TEMPLATE")},
+		{type = "label", get = function() return L["S_TEXT"] .. ":" end, text_template = Notepad:GetTemplate ("font", "ORANGE_FONT_TEMPLATE")},
 		{
 			type = "range",
 			get = function() return Notepad.db.text_size end,
@@ -2992,6 +3008,7 @@ function Notepad.BuildOptions(frame) --~options
 			name = L["S_PLUGIN_TEXT_SHADOW"],
 		},
 
+		--[=[
 		{type = "breakline"},
 		{
 			type = "toggle",
@@ -3001,6 +3018,7 @@ function Notepad.BuildOptions(frame) --~options
 			end,
 			name = "Auto Scroll to Phase",
 		},
+		--]=]
 	}
 
 	local options_text_template = Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE")
@@ -3031,7 +3049,7 @@ function Notepad.BuildOptions(frame) --~options
 
 					--update the line
 					line.noteIndicator:Show()
-					line.bossName:SetText("Create New Note")
+					line.bossName:SetText(L["S_PLUGIN_NOTE_NEWNOTE"])
 					line.bossName:SetPoint("left", line.bossIcon, "right", 5, 0)
 					DF:TruncateText(line.bossName, 130)
 					line.bossRaidName:SetText("")
@@ -3047,6 +3065,11 @@ function Notepad.BuildOptions(frame) --~options
 
 					line.deleteButton:Hide()
 					line.renameButton:Hide()
+
+					if (self.isMaximized) then
+						line.bossName:Show()
+						line.bossRaidName:Show()
+					end
 
 					line.bossId = bossId
 					line.noteId = 1
@@ -3079,11 +3102,18 @@ function Notepad.BuildOptions(frame) --~options
 					end
 
 					if (thisData.amountNotes >= 1) then
-						line.deleteButton:Show()
-						line.renameButton:Show()
+						if (self.isMaximized) then
+							line.deleteButton:Show()
+							line.renameButton:Show()
+						end
 					else
 						line.deleteButton:Hide()
 						line.renameButton:Hide()
+					end
+
+					if (self.isMaximized) then
+						line.bossName:Show()
+						line.bossRaidName:Show()
 					end
 
 					line.bossId = bossId
@@ -3109,7 +3139,13 @@ function Notepad.BuildOptions(frame) --~options
 					line.bossIcon:SetTexCoord(unpack(thisData.bossIconCoords))
 					line.bossIcon:SetSize(thisData.bossIconSize[1], thisData.bossIconSize[2])
 
-					line.bossIcon:SetPoint("left", line, "left", 2, 0)
+					if (self.isMaximized) then
+						line.bossIcon:SetPoint("left", line, "left", 2, 0)
+						line.bossName:Show()
+						line.bossRaidName:Show()
+					else
+						line.bossIcon:SetPoint("left", line, "left", -2, 0)
+					end
 
 					if (bossId == lastBossSelected) then
 						line:SetBackdropColor(unpack(scrollbox_line_backdrop_color_selected))
@@ -3391,9 +3427,14 @@ function Notepad.BuildOptions(frame) --~options
 	--create the boss data table
 	local bossData = Notepad:GetBossList()
 
-	--create the left scroll to select which boss to edit
+	--create the left scroll to select which boss to edit ~bossframe
 	local bossScrollFrame = DF:CreateScrollBox(mainFrame, "$parentBossScrollBox", refreshBossList, bossData, scrollBossWidth, scrollBossHeight, amoutBossLines, bossLinesHeight)
 	mainFrame.bossScrollFrame = bossScrollFrame
+	bossScrollFrame.isMaximized = true
+
+	function Notepad.GetBossScrollFrame()
+		return bossScrollFrame
+	end
 
 	--create the scrollbox lines
 	for i = 1, amoutBossLines do
@@ -3401,6 +3442,7 @@ function Notepad.BuildOptions(frame) --~options
 	end
 
 	DF:ReskinSlider(bossScrollFrame)
+
 	DF:ApplyStandardBackdrop(bossScrollFrame)
 	mainFrame.BossSelectionBox = bossScrollFrame
 	bossScrollFrame:SetPoint("topleft", mainFrame, "topleft", 0, 5)
@@ -3456,22 +3498,77 @@ function Notepad.BuildOptions(frame) --~options
 
 	bossScrollFrame:RefreshMe()
 	bossScrollFrame:Show()
-
 	bossScrollFrame:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
 
-	--block showing the current boss in the screen
+	function bossScrollFrame.Minimize()
+		local newSize = scrollBossWidth / 3.5
+		bossScrollFrame:SetWidth(newSize)
+
+		--restore line size
+		local allScrollLines = bossScrollFrame:GetLines()
+		for i = 1, #allScrollLines do
+			local line = bossScrollFrame:GetLine(i)
+			line:SetWidth(newSize)
+			line.bossName:Hide()
+			line.bossRaidName:Hide()
+			line.renameEntry:Hide()
+			line.deleteButton:Hide()
+			line.renameButton:Hide()
+		end
+
+		bossScrollFrame.isMaximized = false
+
+		--hide the scrollbar
+		local scrollBar = _G[bossScrollFrame:GetName() .. "ScrollBar"]
+		scrollBar:Hide()
+
+		--> get the text editor and increase its size
+			local editBox = Notepad.GetEditBox()
+			--set the new point
+			editBox:SetPoint("topleft", mainFrame, "topleft", 62, -14)
+			--increase the size
+			editBox:SetSize(CONST_EDITBOX_WIDTH_MAX, CONST_EDITBOX_HEIGHT_MAX)
+	end
+
+	function bossScrollFrame.Maximize()
+		bossScrollFrame:SetWidth(scrollBossWidth)
+
+		--restore line size
+		local allScrollLines = bossScrollFrame:GetLines()
+		for i = 1, #allScrollLines do
+			local line = bossScrollFrame:GetLine(i)
+			line:SetWidth(scrollBossWidth)
+		end
+
+		--show the scrollbar
+		local scrollBar = _G[bossScrollFrame:GetName() .. "ScrollBar"]
+		scrollBar:Show()
+
+		--> get the text editor and return its values to default
+			local editBox = Notepad.GetEditBox()
+			--restore its point
+			editBox:SetPoint("topleft", mainFrame, "topleft", 225, -14)
+			--restore the size
+			editBox:SetSize(CONST_EDITBOX_WIDTH, CONST_EDITBOX_HEIGHT)
+
+		bossScrollFrame.isMaximized = true
+		bossScrollFrame:RefreshMe()
+	end
+
+	--block showing the current boss in the screen ~showing
 	local frameNoteShown = CreateFrame("frame", nil, mainFrame, "BackdropTemplate")
-	frameNoteShown:SetPoint("bottomright", mainFrame, "bottomright", 26, 45)
+	frameNoteShown:SetPoint("bottomright", mainFrame, "bottomright", 26, 26)
 	frameNoteShown:SetSize(190, 43)
 	frameNoteShown:SetBackdrop({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true})
 	frameNoteShown:SetBackdropColor(1, 1, 1, .5)
-	frameNoteShown:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
+	frameNoteShown:SetBackdropBorderColor(0, 0, 0, 1)
+	--frameNoteShown:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
 	frameNoteShown:Hide()
 
 	mainFrame.frameNoteShown = frameNoteShown
 
 	--> currently showing note
-	local labelNoteShown1 = Notepad:CreateLabel (frameNoteShown, "Showing on screen" .. ":", Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"), _, _, "label_note_show1")
+	local labelNoteShown1 = Notepad:CreateLabel (frameNoteShown, L["S_PLUGIN_SHOWING_ONSCREEN"] .. ":", Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"), _, _, "label_note_show1")
 	local labelNoteShown2 = Notepad:CreateLabel (frameNoteShown, "", Notepad:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"), _, _, "label_note_show2")
 	labelNoteShown1:SetPoint (5, -5)
 	labelNoteShown2:SetPoint (5, -25)
@@ -3494,21 +3591,42 @@ function Notepad.BuildOptions(frame) --~options
 		end
 	end
 
-	--> multi line editbox for edit the note
-	local editboxNotes = Notepad:NewSpecialLuaEditorEntry (mainFrame, 446, 585, "editboxNotes", "RaidAssignmentsNoteEditbox", true)
+	--> multi line editbox for edit the note ~lua ~editbox ~editor
+	local editboxNotes = Notepad:NewSpecialLuaEditorEntry (mainFrame, CONST_EDITBOX_WIDTH, CONST_EDITBOX_HEIGHT, "editboxNotes", "RaidAssignmentsNoteEditbox", true)
 	editboxNotes:SetPoint("topleft", mainFrame, "topleft", 225, -14)
-	editboxNotes:SetTemplate(Notepad:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
+	editboxNotes:SetBackdrop(nil)
 
-	editboxNotes:SetBackdrop({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, tileSize = 64, tile = true, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]]})
-	editboxNotes:SetBackdropBorderColor(0, 0, 0, 0)
 	DetailsFramework:ReskinSlider(editboxNotes.scroll)
 
-	editboxNotes.editbox:SetTextInsets(3, 3, 3, 3)
 	editboxNotes.scroll:ClearAllPoints()
 	editboxNotes.scroll:SetPoint("topleft", editboxNotes, "topleft", 1, -1)
 	editboxNotes.scroll:SetPoint("bottomright", editboxNotes, "bottomright", -1, 0)
+
 	local f, h, fl = editboxNotes.editbox:GetFont()
 	editboxNotes.editbox:SetFont(f, 12, fl)
+	editboxNotes.editbox:SetAllPoints()
+	editboxNotes.editbox:SetBackdrop(nil)
+	editboxNotes.editbox:SetTextInsets(4, 4, 4, 4)
+
+	local rr, gg, bb = unpack(CONST_EDITBOX_COLOR)
+	local backgroundTexture1 = editboxNotes.scroll:CreateTexture(nil, "background", nil, -6)
+	backgroundTexture1:SetAllPoints()
+	backgroundTexture1:SetColorTexture(rr, gg, bb, Notepad.db.editor_alpha)
+
+	local backgroundTexture2 = editboxNotes.editbox:CreateTexture(nil, "background", nil, -6)
+	backgroundTexture2:SetAllPoints()
+	backgroundTexture2:SetColorTexture(rr, gg, bb, Notepad.db.editor_alpha)
+
+	local backgroundTexture3 = editboxNotes:CreateTexture(nil, "background", nil, -6)
+	backgroundTexture3:SetAllPoints()
+	backgroundTexture3:SetColorTexture(0, 0, 0, 1)
+
+	editboxNotes.backgroundTexture1 = backgroundTexture1
+	editboxNotes.backgroundTexture2 = backgroundTexture2
+
+	function Notepad.GetEditBox()
+		return editboxNotes
+	end
 
 	RaidAssignmentsNoteEditboxScrollBar:SetPoint("topleft", editboxNotes, "topright", -20, -16)
 	RaidAssignmentsNoteEditboxScrollBar:SetPoint("bottomleft", editboxNotes, "bottomright", -20, 16)
@@ -3566,12 +3684,14 @@ function Notepad.BuildOptions(frame) --~options
 	local saveChangesAndClose = function()
 		saveChanges()
 		Notepad:CancelNoteEditing()
+
+		Notepad.GetBossScrollFrame():Maximize()
 	end
 
 	local buttonWidth = 100
 
 	--clear "Clear"
-	local clearButton =  Notepad:CreateButton (mainFrame, clearEditbox, buttonWidth, 20, "Clear Text", _, _, _, "buttonClear", _, _, Notepad:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local clearButton =  Notepad:CreateButton (mainFrame, clearEditbox, buttonWidth, 20, L["S_PLUGIN_NOTE_CLEARTEXT"], _, _, _, "buttonClear", _, _, Notepad:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	clearButton:SetIcon ([[Interface\Glues\LOGIN\Glues-CheckBox-Check]])
 	clearButton.widget.texture_disabled:SetTexture ([[Interface\Tooltips\UI-Tooltip-Background]])
 	clearButton.widget.texture_disabled:SetVertexColor (0, 0, 0)
@@ -3579,7 +3699,7 @@ function Notepad.BuildOptions(frame) --~options
 	mainFrame.buttonClear = clearButton
 
 	--save "Save"
-	local saveButton =  Notepad:CreateButton (mainFrame, saveChanges, buttonWidth, 20, "Save", _, _, _, "buttonSave", _, _, Notepad:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local saveButton =  Notepad:CreateButton (mainFrame, saveChanges, buttonWidth, 20, L["S_SAVE"], _, _, _, "buttonSave", _, _, Notepad:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	saveButton:SetIcon ([[Interface\BUTTONS\UI-CheckBox-Check]], 16, 16, "overlay", {0, 1, 0, 28/32}, {1, 1, 1}, 2, 1, 0)
 	saveButton.widget.texture_disabled:SetTexture ([[Interface\Tooltips\UI-Tooltip-Background]])
 	saveButton.widget.texture_disabled:SetVertexColor (0, 0, 0)
@@ -3587,7 +3707,7 @@ function Notepad.BuildOptions(frame) --~options
 	mainFrame.buttonSave = saveButton
 
 	--save and send "Send"
-	local save2Button =  Notepad:CreateButton (mainFrame, saveChangesAndSend, buttonWidth, 20, "Send", _, _, _, "buttonSave2", _, _, Notepad:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local save2Button =  Notepad:CreateButton (mainFrame, saveChangesAndSend, buttonWidth, 20, L["S_SEND"], _, _, _, "buttonSave2", _, _, Notepad:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	save2Button:SetIcon ([[Interface\BUTTONS\JumpUpArrow]], 14, 12, "overlay", {0, 1, 0, 32/32}, {1, 1, 1}, 2, 1, 0)
 	save2Button.widget.texture_disabled:SetTexture ([[Interface\Tooltips\UI-Tooltip-Background]])
 	save2Button.widget.texture_disabled:SetVertexColor (0, 0, 0)
@@ -3595,7 +3715,7 @@ function Notepad.BuildOptions(frame) --~options
 	mainFrame.buttonSave2 = save2Button
 
 	--cancel edition "Done"
-	local cancelButton = Notepad:CreateButton (mainFrame, saveChangesAndClose, buttonWidth, 20, "Done", _, _, _, "buttonCancel", _, _, Notepad:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local cancelButton = Notepad:CreateButton (mainFrame, saveChangesAndClose, buttonWidth, 20, L["S_CLOSE_EDITOR"], _, _, _, "buttonCancel", _, _, Notepad:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	mainFrame.doneButton = cancelButton
 	cancelButton:SetIcon ([[Interface\BUTTONS\UI-CheckBox-Check]], 16, 16, "overlay", {0, 1, 0, 28/32}, {1, 0.8, 0}, 2, 1, 0)
 	cancelButton.widget.texture_disabled:SetTexture ([[Interface\Tooltips\UI-Tooltip-Background]])
@@ -3604,20 +3724,25 @@ function Notepad.BuildOptions(frame) --~options
 	mainFrame.buttonCancel = cancelButton
 
 	--create the shift + enter text
-	local shiftEnterLabel = Notepad:CreateLabel(mainFrame, "Shift+Enter to Send")
-	shiftEnterLabel:SetPoint("topleft", mainFrame, "bottomright", -140, 61)
+	local shiftEnterLabel = Notepad:CreateLabel(mainFrame, L["S_PLUGIN_SEND_SHORTCUT"])
+	shiftEnterLabel:SetPoint("left", clearButton, "right", 20, -1)
 	shiftEnterLabel.color = "orange"
 	shiftEnterLabel.fontsize = 13
 	mainFrame.shiftEnterLabel = shiftEnterLabel
 
 	--set points
 	do
-		local buttons_y = -615
-		cancelButton:SetPoint ("topleft", mainFrame, "topleft", 573 , buttons_y)
+		local buttons_y = -635
+		cancelButton:SetPoint ("topleft", mainFrame, "topleft", 572 , buttons_y)
 		save2Button:SetPoint ("right", cancelButton, "left", -16 , 0)
 		saveButton:SetPoint ("right", save2Button, "left", -16 , 0)
-		clearButton:SetPoint ("right", saveButton, "left", -16 , 0)
+		clearButton:SetPoint ("topleft", mainFrame, "topleft", 62 , buttons_y)
 	end
+
+	mainFrame.buttonCancel:Hide()
+	mainFrame.buttonClear:Hide()
+	mainFrame.buttonSave:Hide()
+	mainFrame.buttonSave2:Hide()
 
 	mainFrame.buttonCancel:Disable()
 	mainFrame.buttonClear:Disable()
@@ -3746,7 +3871,7 @@ function Notepad.BuildOptions(frame) --~options
 
 	local startX = 6
 
-	local label_colors = Notepad:CreateLabel (colors_panel, "Color" .. ":", Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local label_colors = Notepad:CreateLabel (colors_panel, L["S_COLOR"] .. ":", Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	local on_color_selection = function (self, fixed_value, color_name)
 		local DF = _G ["DetailsFramework"]
 		local color_table = DF.alias_text_colors [color_name]
@@ -3849,7 +3974,7 @@ function Notepad.BuildOptions(frame) --~options
 		end
 
 	--> raid targets
-		local labelRaidTargets = Notepad:CreateLabel (colors_panel, "Targets" .. ":", Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+		local labelRaidTargets = Notepad:CreateLabel (colors_panel, L["S_TARGETS"] .. ":", Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 		labelRaidTargets:SetPoint ("topleft", editboxNotes, "topright", startX, -70)
 		local icon_path = [[|TInterface\TargetingFrame\UI-RaidTargetingIcon_ICONINDEX:0|t]]
 
@@ -3880,7 +4005,7 @@ function Notepad.BuildOptions(frame) --~options
 		local cooldownAbilitiesY = -108
 		local iconWidth = 24
 
-		local labelIconcooldowns = Notepad:CreateLabel (colors_panel, "Cooldowns" .. ":", Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+		local labelIconcooldowns = Notepad:CreateLabel (colors_panel, L["S_COOLDOWNS"] .. ":", Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 		labelIconcooldowns:SetPoint("topleft", editboxNotes, "topright", cooldownAbilitiesX, -117)
 
 		local cooldown_icon_path = [[|TICONPATH:12:12:0:0:64:64:5:59:5:59|t]]
@@ -3922,7 +4047,10 @@ function Notepad.BuildOptions(frame) --~options
 		end
 
 		table.sort(cooldownList, function(t1, t2) return t1[3] > t2[3] end)
-		table.sort(cooldownList, function(t1, t2) return t1[2] > t2[2] end)
+		--table.sort(cooldownList, function(t1, t2) return t1[2] > t2[2] end)
+
+		tinsert(cooldownList, {6262, 3, "PRIEST", {type = 3}})
+		tinsert(cooldownList, {307192, 3, "PRIEST", {type = 3}})
 
 		for index, sortedCooldownTable in pairs(cooldownList) do
 			local cooldownTable = sortedCooldownTable[4]
@@ -3959,7 +4087,7 @@ function Notepad.BuildOptions(frame) --~options
 		local bossAbilitiesX = 6
 		local iconWidth = 26
 
-		local label_iconbossspells = Notepad:CreateLabel(colors_panel, "Boss Abilities" .. ":", Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+		local label_iconbossspells = Notepad:CreateLabel(colors_panel, L["S_BOSS_ABILITIES"] .. ":", Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 		label_iconbossspells:SetPoint("topleft", editboxNotes, "topright", bossAbilitiesX, bossAbilitiesY - 12)
 
 		local bossspell_icon_path = [[|TICONPATH:0|t]]
@@ -4084,11 +4212,11 @@ function Notepad.BuildOptions(frame) --~options
 
 	local checkbox = Notepad:CreateSwitch (colors_panel, formatTextCheckboxFunc, Notepad.db.auto_format, _, _, _, _, _, "NotepadFormatCheckBox", _, _, _, _, Notepad:GetTemplate ("switch", "OPTIONS_CHECKBOX_TEMPLATE"), Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	checkbox:SetAsCheckBox()
-	checkbox.tooltip = "auto format text"
+	--checkbox.tooltip = L["S_PLUGIN_NOTE_AUTOFORMAT"]
 	checkbox:SetPoint ("bottomleft", editboxNotes, "topleft", 0, 2)
 	checkbox:SetValue (Notepad.db.auto_format)
 
-	local labelAutoformat = Notepad:CreateLabel (colors_panel, "Auto Format Text (|cFFC0C0C0can't copy/paste icons|r)", Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local labelAutoformat = Notepad:CreateLabel (colors_panel, L["S_PLUGIN_NOTE_AUTOFORMAT"], Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	labelAutoformat:SetPoint ("left", checkbox, "right", 2, 0)
 
 	local autoCompleteCheckBoxFunc = function(self, fixedparam, value)
@@ -4097,12 +4225,28 @@ function Notepad.BuildOptions(frame) --~options
 
 	local checkbox2 = Notepad:CreateSwitch (colors_panel, autoCompleteCheckBoxFunc, Notepad.db.auto_complete, _, _, _, _, _, "NotepadAutoCompleteCheckBox", _, _, _, _, Notepad:GetTemplate ("switch", "OPTIONS_CHECKBOX_TEMPLATE"), Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	checkbox2:SetAsCheckBox()
-	checkbox2.tooltip = "auto format text"
+	checkbox2.tooltip = L["S_PLUGIN_NOTE_AUTONAMES"]
 	checkbox2:SetPoint ("bottomleft", editboxNotes, "topleft", 250, 2)
 	checkbox2:SetValue (Notepad.db.auto_complete)
 
-	local labelAutocomplete = Notepad:CreateLabel (colors_panel, "Auto Complete Player Names", Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	local labelAutocomplete = Notepad:CreateLabel (colors_panel, L["S_PLUGIN_NOTE_AUTONAMES_DESC"], Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	labelAutocomplete:SetPoint ("left", checkbox2, "right", 2, 0)
+
+	local brightnessSlider, brightnessText = Notepad:CreateSlider(colors_panel, 120, 18, 0, 1, 0.05, Notepad.db.editor_alpha, true, _, "NotepadBrightnessAdjustment", L["S_BRIGHTNESS"], Notepad:GetTemplate ("slider", "OPTIONS_SLIDER_TEMPLATE"), Notepad:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+	brightnessSlider:ClearAllPoints()
+	brightnessSlider:SetPoint("bottomright", editboxNotes, "topright", 0, 2)
+	brightnessText:SetPoint("right", brightnessSlider, "left", -2, 0)
+
+	brightnessSlider.OnValueChanged = function (_, _, value)
+		--adjust the editor brightness
+		Notepad.db.editor_alpha = value
+		local r, g, b = unpack(CONST_EDITBOX_COLOR)
+		local editBox = Notepad.GetEditBox()
+		editBox.backgroundTexture1:SetColorTexture(r, g, b, value)
+		editBox.backgroundTexture2:SetColorTexture(r, g, b, value)
+	end
+
+	brightnessSlider.thumb:SetWidth(24)
 
 ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
@@ -4110,10 +4254,18 @@ function Notepad.BuildOptions(frame) --~options
 		colors_panel:SetScript("OnUpdate", do_text_format)
 		editboxNotes:SetScript("OnUpdate", Notepad.OnUpdate)
 		Notepad:UpdateBossAbilities()
+		mainFrame.buttonClear:Show()
+		mainFrame.buttonSave:Show()
+		mainFrame.buttonSave2:Show()
+		mainFrame.buttonCancel:Show()
 	end)
 	editboxNotes:SetScript("OnHide", function()
 		colors_panel:SetScript("OnUpdate", nil)
 		editboxNotes:SetScript("OnUpdate", nil)
+		mainFrame.buttonClear:Hide()
+		mainFrame.buttonSave:Hide()
+		mainFrame.buttonSave2:Hide()
+		mainFrame.buttonCancel:Hide()
 	end)
 	
 	Notepad.currentWord = ""
@@ -4225,6 +4377,7 @@ function Notepad.BuildOptions(frame) --~options
 	end)
 
 	editboxNotes.editbox:SetScript("OnEditFocusGained", function (self)
+		Notepad.GetBossScrollFrame():Minimize()
 		get_last_word()
 		mainFrame.editboxNotes.editbox.end_selection = nil
 		characters_count = mainFrame.editboxNotes.editbox:GetText():len()

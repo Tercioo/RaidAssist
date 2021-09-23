@@ -5,7 +5,7 @@ local _
 local default_priority = 20
 local DF = DetailsFramework
 
-local PasteText = {version = "v0.1", pluginname = "PasteText", pluginId = "PATX", displayName = "Send Text"}
+local PasteText = {version = "v0.1", pluginname = "PasteText", pluginId = "PATX", displayName = "Share Text"}
 _G ["RaidAssistPasteText"] = PasteText
 
 PasteText.LastSelected_Options = 1
@@ -27,9 +27,9 @@ local COMM_RECEIVED_TEXT = "PTRE"
 
 PasteText.menu_text = function (plugin)
 	if (PasteText.db.enabled) then
-		return icon_texture, icon_texcoord, "Paste Text", text_color_enabled
+		return icon_texture, icon_texcoord, "Share Text", text_color_enabled
 	else
-		return icon_texture, icon_texcoord, "Paste Text", text_color_disabled
+		return icon_texture, icon_texcoord, "Share Text", text_color_disabled
 	end
 end
 
