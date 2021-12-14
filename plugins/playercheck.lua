@@ -118,32 +118,30 @@ function PlayerCheck.OnShowOnOptionsPanel()
 end
 
 function PlayerCheck.BuildOptions(frame)
-
-	--libRaidStatus
-	local raidStatusLib = LibStub:GetLibrary("LibRaidStatus-1.0")
+	local openRaidLib = LibStub:GetLibrary("LibOpenRaid-1.0")
 
 	if (frame.FirstRun) then
 		if (IsInGroup()) then
-			raidStatusLib.RequestAllPlayersInfo()
+			openRaidLib.RequestAllPlayersInfo()
 		end
 		return
 	end
 
 	frame.FirstRun = true
-	raidStatusLib.RequestAllPlayersInfo()
+	openRaidLib.RequestAllPlayersInfo()
 
-	--> register callback on libRaidStatus
+	--> register callback on lib Open Raid
 		function PlayerCheck.RefreshScrollData()
 			if (frame.playerInfoScroll:IsShown()) then
 				frame.playerInfoScroll.RefreshData()
 			end
 		end
-		raidStatusLib.RegisterCallback(PlayerCheck, "PlayerUpdate", "RefreshScrollData")
-		raidStatusLib.RegisterCallback(PlayerCheck, "TalentUpdate", "RefreshScrollData")
-		raidStatusLib.RegisterCallback(PlayerCheck, "OnPlayerRess", "RefreshScrollData")
-		raidStatusLib.RegisterCallback(PlayerCheck, "GearListWiped", "RefreshScrollData")
-		raidStatusLib.RegisterCallback(PlayerCheck, "GearUpdate", "RefreshScrollData")
-		raidStatusLib.RegisterCallback(PlayerCheck, "GearDurabilityUpdate", "RefreshScrollData")
+		openRaidLib.RegisterCallback(PlayerCheck, "PlayerUpdate", "RefreshScrollData")
+		openRaidLib.RegisterCallback(PlayerCheck, "TalentUpdate", "RefreshScrollData")
+		openRaidLib.RegisterCallback(PlayerCheck, "OnPlayerRess", "RefreshScrollData")
+		openRaidLib.RegisterCallback(PlayerCheck, "GearListWiped", "RefreshScrollData")
+		openRaidLib.RegisterCallback(PlayerCheck, "GearUpdate", "RefreshScrollData")
+		openRaidLib.RegisterCallback(PlayerCheck, "GearDurabilityUpdate", "RefreshScrollData")
 
 
 	--spell scroll options
@@ -413,7 +411,7 @@ function PlayerCheck.BuildOptions(frame)
 
 				local covenantId = dataTable[11]
 				if (covenantId > 0) then
-					line.covenantIcon:SetTexture(LIB_RAID_STATUS_COVENANT_ICONS[covenantId])
+					line.covenantIcon:SetTexture(LIB_OPEN_RAID_COVENANT_ICONS[covenantId])
 				else
 					line.covenantIcon:SetTexture("")
 				end
@@ -542,9 +540,9 @@ function PlayerCheck.BuildOptions(frame)
 
 	function playerInfoScroll.RefreshData()
 		--get the information needed
-		local raidStatusLib = LibStub:GetLibrary("LibRaidStatus-1.0")
-		local allPlayersGear = raidStatusLib.gearManager.GetAllPlayersGear()
-		local allPlayersInfo = raidStatusLib.playerInfoManager.GetAllPlayersInfo()
+		local openRaidLib = LibStub:GetLibrary("LibOpenRaid-1.0")
+		local allPlayersGear = openRaidLib.gearManager.GetAllPlayersGear()
+		local allPlayersInfo = openRaidLib.playerInfoManager.GetAllPlayersInfo()
 
 		--get which column is currently selected and the sort order
 		local columnIndex, order = RaidAssistPlayerCheckHeader:GetSelectedColumn()

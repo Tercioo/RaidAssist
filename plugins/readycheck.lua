@@ -25,6 +25,8 @@ local default_config = {
 	buff_indicator_food = true,
 }
 
+local UnitAura = UnitAura
+
 local icon_texcoord = {l=0.078125, r=0.921875, t=0.078125, b=0.921875}
 local text_color_enabled = {r=1, g=1, b=1, a=1}
 local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
@@ -301,7 +303,7 @@ end
 
 local playerHasAura = function(unitId, spellId)
 	for buffIndex = 1, 40 do
-		local name, texture, count, debuffType, duration, expirationTime, caster, canStealOrPurge, nameplateShowPersonal, buffSpellId = UnitBuff(unitId, buffIndex)
+		local name, texture, count, debuffType, duration, expirationTime, caster, canStealOrPurge, nameplateShowPersonal, buffSpellId = UnitAura(unitId, buffIndex, "HELPFUL")
 		if (name) then
 			if (spellId == buffSpellId) then
 				return true
@@ -314,20 +316,14 @@ end
 
 local timeToScamBuffs = 0
 local playerTotal = 0
-local intervalToCheckBuffs = 0.2
+local intervalToCheckBuffs = 0.8
 
-local onUpdate = function(self, deltaTime)
-	for _, Player in ipairs (ReadyCheck.PlayerList) do
-		Player:Hide()
-		Player.Label:Hide()
-	end
-
+local onUpdate = function(self, deltaTime) --~update ~onupdate õnupdate
 	if (not ReadyCheck.db.enabled) then
 		return
 	end
 
 	ReadyCheck.timeout = ReadyCheck.timeout - deltaTime
-	ReadyCheck.ScreenPanel.titleBar.Title.text = ReadyCheck.ScreenPanel.titleBar.Title.originalText .. " | " .. max(floor(ReadyCheck.timeout), 0)
 
 	-- true = answered
 	-- false = did answered 'not ready'
@@ -335,43 +331,70 @@ local onUpdate = function(self, deltaTime)
 	-- "offline" = offline at the start of the check
 
 	local index = 1
-
-	--get weapon enchants data
-	local raidStatusLib = LibStub:GetLibrary("LibRaidStatus-1.0")
-	local allPlayersGear = raidStatusLib.gearManager.GetAllPlayersGear()
-
-	timeToScamBuffs = timeToScamBuffs - deltaTime
 	local updatedAuras = false
 
+	timeToScamBuffs = timeToScamBuffs - deltaTime
+
 	if (timeToScamBuffs < 0) then
+		timeToScamBuffs = intervalToCheckBuffs
 		playerTotal = 0
-	end
+		ReadyCheck.ScreenPanel.titleBar.Title.text = ReadyCheck.ScreenPanel.titleBar.Title.originalText .. " | " .. max(floor(ReadyCheck.timeout), 0)
 
-	for player, answer in pairs(ReadyCheck.AnswerTable) do
-		local _, class = UnitClass(player)
+		for _, Player in ipairs(ReadyCheck.PlayerList) do
+			Player:Hide()
+			Player.Label:Hide()
+		end
 
-		if (timeToScamBuffs < 0) then
+		--get weapon enchants data
+		local raidStatusLib = LibStub:GetLibrary("LibOpenRaid-1.0")
+		local allPlayersGear = raidStatusLib.gearManager.GetAllPlayersGear()
+		--local debugTime = {stage1 = 0, stage2 = 0, stage3 = 0, stage4 = 0}
+		local Ambiguate = Ambiguate
+
+		local playerBuffsSpellIds = {}
+		--build a buff table with all buffs of all players
+		for player, answer in pairs(ReadyCheck.AnswerTable) do
+			playerBuffsSpellIds[player] = {}
+			local playerBuffTable = playerBuffsSpellIds[player]
+
+			for buffIndex = 1, 40 do
+				local name, texture, count, debuffType, duration, expirationTime, caster, canStealOrPurge, nameplateShowPersonal, buffSpellId = UnitAura(player, buffIndex, "HELPFUL")
+				if (name) then
+					playerBuffTable[buffSpellId] = true
+				else
+					break
+				end
+			end
+		end
+
+		for player, answer in pairs(ReadyCheck.AnswerTable) do
+			local _, class = UnitClass(player)
 			playerTotal = playerTotal + 1
 
-			--check raid buffs on this player
-			for index, playerNames in pairs(ReadyCheck.BuffsAvailable) do
-				if (not playerNames[player]) then
-					local raidBuff = raidBuffs[index]
+			--local s = debugprofilestop() --performance debug
+			local playerBuffTable = playerBuffsSpellIds[player]
+
+			--check raid buffs on this player (e.g. fortitude)
+			for buffIndex, buffTable in pairs(ReadyCheck.BuffsAvailable) do
+				if (not buffTable[player]) then
+					local raidBuff = raidBuffs[buffIndex]
 					local spellIds = raidBuff.spellId
 
 					for spellId in pairs(spellIds) do
-						if (playerHasAura(player, spellId)) then
-							playerNames[player] = true
-							ReadyCheck.BuffCounter[index] = (ReadyCheck.BuffCounter[index] or 0) + 1
+						if (playerBuffTable[spellId]) then
+							buffTable[player] = true
+							ReadyCheck.BuffCounter[buffIndex] = (ReadyCheck.BuffCounter[buffIndex] or 0) + 1
 						end
 					end
 				end
 			end
 
-			--check individual buffs on this player
-			for index, playerNames in pairs(ReadyCheck.IndividualBuffs) do
-				if (not playerNames[player]) then
-					local raidBuff = raidBuffs[index]
+			--debugTime.stage1 = debugTime.stage1 + (debugprofilestop() - s)
+
+			--check individual buffs on this player (e.g. food buff)
+			for buffIndex, buffTable in pairs(ReadyCheck.IndividualBuffs) do --4 5 6 7 iguais a tabelas vazias
+				if (not buffTable[player]) then
+					local raidBuff = raidBuffs[buffIndex]
 					local spellIds = raidBuff.spellId --table with many spellIds
 					local isWeaponEnchant  = raidBuff.weaponEnchant
 
@@ -381,15 +404,16 @@ local onUpdate = function(self, deltaTime)
 						if (playerGear) then
 							local weaponEnchant = playerGear.weaponEnchant
 							if (weaponEnchant == 1) then
-								playerNames[player] = true
-								ReadyCheck.BuffCounter[index] = (ReadyCheck.BuffCounter[index] or 0) + 1
+								buffTable[player] = true
+								ReadyCheck.BuffCounter[buffIndex] = (ReadyCheck.BuffCounter[buffIndex] or 0) + 1
 							end
 						end
 					else
+						local playerBuffTable = playerBuffsSpellIds[player]
 						for spellId in pairs(spellIds) do
-							if (playerHasAura(player, spellId)) then
-								playerNames[player] = true
-								ReadyCheck.BuffCounter[index] = (ReadyCheck.BuffCounter[index] or 0) + 1
+							if (playerBuffTable[spellId]) then
+								buffTable[player] = true
+								ReadyCheck.BuffCounter[buffIndex] = (ReadyCheck.BuffCounter[buffIndex] or 0) + 1
 								break
 							end
 						end
@@ -397,57 +421,59 @@ local onUpdate = function(self, deltaTime)
 				end
 			end
 
-			updatedAuras = true
-		end
+			--debugTime.stage2 = debugTime.stage2 + (debugprofilestop() - s)
 
-		if (answer == "offline") then
-			ReadyCheck.PlayerList[index]:Show()
-			ReadyCheck.PlayerList[index].Label:Show()
+			if (answer == "offline") then
+				ReadyCheck.PlayerList[index]:Show()
+				ReadyCheck.PlayerList[index].Label:Show()
 
-			ReadyCheck.PlayerList[index]:SetTexture ([[Interface\CHARACTERFRAME\Disconnect-Icon]])
-			ReadyCheck.PlayerList[index]:SetTexCoord (18/64, (64-18)/64, 14/64, (64-14)/64)
+				ReadyCheck.PlayerList[index]:SetTexture([[Interface\CHARACTERFRAME\Disconnect-Icon]])
+				ReadyCheck.PlayerList[index]:SetTexCoord(18/64, (64-18)/64, 14/64, (64-14)/64)
 
-			local color = class and RAID_CLASS_COLORS [class] and RAID_CLASS_COLORS [class].colorStr or "ffffffff"
-			ReadyCheck.PlayerList[index].Label:SetText ("|c" .. color .. ReadyCheck:RemoveRealName (player) .. "|r" .. " (|cFFFF3300offline|r)")
-			index = index + 1
+				local color = class and RAID_CLASS_COLORS[class] and RAID_CLASS_COLORS[class].colorStr or "ffffffff"
+				ReadyCheck.PlayerList[index].Label:SetText("|c" .. color .. ReadyCheck:RemoveRealName (player) .. "|r" .. " (|cFFFF3300offline|r)")
+				index = index + 1
 
-		elseif (answer == "afk") then
-			if (GetTime() > ReadyCheck.ScreenPanel.EndAt - ReadyCheck.ScreenPanel.ShowAFKPlayersAt) then
-				ReadyCheck.PlayerList [index]:Show()
-				ReadyCheck.PlayerList [index].Label:Show()
+			elseif (answer == "afk") then
+				if (GetTime() > ReadyCheck.ScreenPanel.EndAt - ReadyCheck.ScreenPanel.ShowAFKPlayersAt) then
+					ReadyCheck.PlayerList[index]:Show()
+					ReadyCheck.PlayerList[index].Label:Show()
 
-				ReadyCheck.PlayerList [index]:SetTexture ([[Interface\FriendsFrame\StatusIcon-Away]])
-				ReadyCheck.PlayerList [index]:SetTexCoord (0, 1, 0, 1)
+					ReadyCheck.PlayerList[index]:SetTexture([[Interface\FriendsFrame\StatusIcon-Away]])
+					ReadyCheck.PlayerList[index]:SetTexCoord(0, 1, 0, 1)
 
-				local color = class and RAID_CLASS_COLORS [class] and RAID_CLASS_COLORS [class].colorStr or "ffffffff"
-				ReadyCheck.PlayerList [index].Label:SetText ("|c" .. color .. ReadyCheck:RemoveRealName (player) .. "|r" .. " (|cFFFF3300afk|r)")
+					local color = class and RAID_CLASS_COLORS[class] and RAID_CLASS_COLORS[class].colorStr or "ffffffff"
+					ReadyCheck.PlayerList[index].Label:SetText("|c" .. color .. ReadyCheck:RemoveRealName (player) .. "|r" .. " (|cFFFF3300afk|r)")
 
+					index = index + 1
+				end
+
+			elseif (answer == false) then
+				ReadyCheck.PlayerList[index]:Show()
+				ReadyCheck.PlayerList[index].Label:Show()
+
+				ReadyCheck.PlayerList[index]:SetTexture("Interface\\Glues\\LOGIN\\Glues-CheckBox-Check")
+				ReadyCheck.PlayerList[index]:SetTexCoord(0, 1, 0, 1)
+
+				local color = class and RAID_CLASS_COLORS[class] and RAID_CLASS_COLORS[class].colorStr or "ffffffff"
+				ReadyCheck.PlayerList[index].Label:SetText("|c" .. color .. ReadyCheck:RemoveRealName (player) .. "|r" .. " (|cFFFFAA00not ready|r)")
 				index = index + 1
 			end
 
-		elseif (answer == false) then
-			ReadyCheck.PlayerList [index]:Show()
-			ReadyCheck.PlayerList [index].Label:Show()
-
-			ReadyCheck.PlayerList [index]:SetTexture ("Interface\\Glues\\LOGIN\\Glues-CheckBox-Check")
-			ReadyCheck.PlayerList [index]:SetTexCoord (0, 1, 0, 1)
-
-			local color = class and RAID_CLASS_COLORS [class] and RAID_CLASS_COLORS [class].colorStr or "ffffffff"
-			ReadyCheck.PlayerList [index].Label:SetText ("|c" .. color .. ReadyCheck:RemoveRealName (player) .. "|r" .. " (|cFFFFAA00not ready|r)")
-			index = index + 1
+			--debugTime.stage3 = debugTime.stage3 + (debugprofilestop() - s)
 		end
-	end
 
-	--raid buffs
-	--get the table with indicator frames
-	if (updatedAuras) then
+		--raid buffs
+		--get the table with indicator frames
 		local indicatorFrames = ReadyCheck.ScreenPanel.indicators
 
-		for index, raidBuff in ipairs(raidBuffs) do
-			local indicator = indicatorFrames[index]
+		--local s = debugprofilestop()
 
-			--print("amountWithBuffs", index, ReadyCheck.BuffCounter[index])
-			local amountWithBuffs = ReadyCheck.BuffCounter[index] or 0
+		for indicatorIndex = 1, #raidBuffs do
+			local indicator = indicatorFrames[indicatorIndex]
+
+			--print("amountWithBuffs", indicatorIndex, ReadyCheck.BuffCounter[indicatorIndex])
+			local amountWithBuffs = ReadyCheck.BuffCounter[indicatorIndex] or 0
 
 			if (amountWithBuffs < playerTotal) then
 				--somebody is missing this buff, need to show the icon
@@ -465,14 +491,19 @@ local onUpdate = function(self, deltaTime)
 			end
 
 			--make a list of people without the buff for tooltips
-			indicator.playersWithByBuff = ReadyCheck.BuffsAvailable[index] or ReadyCheck.IndividualBuffs[index]
+			indicator.playersWithByBuff = ReadyCheck.BuffsAvailable[indicatorIndex] or ReadyCheck.IndividualBuffs[indicatorIndex]
 		end
 
-		timeToScamBuffs = intervalToCheckBuffs
-	end
+		--debugTime.stage4 = debugTime.stage4 + (debugprofilestop() - s)
 
-	index = index - 1
-	ReadyCheck.ScreenPanel:SetHeight(90 + (math.ceil(index / 2) * 17))
+		index = index - 1
+		ReadyCheck.ScreenPanel:SetHeight(90 + (math.ceil(index / 2) * 17))
+
+		--print("Performance Results:")
+		--for stageName, seconds in pairs(debugTime) do
+		--	print(stageName, seconds)
+		--end
+	end
 end
 
 --a ready check has started
@@ -482,8 +513,7 @@ function ReadyCheck:READY_CHECK(event, player, timeout)
 		ReadyCheck.AnswerTable = ReadyCheck.AnswerTable or {}
 		wipe(ReadyCheck.AnswerTable)
 
-		--libRaidStatus
-		local raidStatusLib = LibStub:GetLibrary("LibRaidStatus-1.0")
+		local raidStatusLib = LibStub:GetLibrary("LibOpenRaid-1.0")
 		raidStatusLib.RequestAllPlayersInfo()
 
 		local instanceName, instanceType, difficultyID, difficultyName, maxPlayers, dynamicDifficulty, isDynamic, instanceID, instanceGroupSize, LfgDungeonID = GetInstanceInfo()
@@ -509,6 +539,8 @@ function ReadyCheck:READY_CHECK(event, player, timeout)
 		end
 
 		local amt = 0
+		local GetRaidRosterInfo = GetRaidRosterInfo
+
 		for i = 1, GetNumGroupMembers() do
 			local name, rank, subgroup, level, class, fileName, zone, online, isDead, role, isML, combatRole = GetRaidRosterInfo(i)
 			name = Ambiguate(name, "none")

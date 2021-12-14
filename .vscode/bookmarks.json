@@ -4,22 +4,22 @@
 			"path": "plugins/playercheck.lua",
 			"bookmarks": [
 				{
-					"line": 123,
+					"line": 121,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 412,
+					"line": 410,
 					"column": 2,
 					"label": ""
 				},
 				{
-					"line": 569,
+					"line": 567,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 660,
+					"line": 658,
 					"column": 2,
 					"label": ""
 				}
@@ -129,33 +129,28 @@
 			"path": "plugins/notes.lua",
 			"bookmarks": [
 				{
-					"line": 1681,
+					"line": 307,
+					"column": 35,
+					"label": ""
+				},
+				{
+					"line": 1881,
+					"column": 25,
+					"label": ""
+				},
+				{
+					"line": 1994,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 2026,
+					"line": 2152,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 2156,
+					"line": 2378,
 					"column": 0,
-					"label": ""
-				},
-				{
-					"line": 3525,
-					"column": 2,
-					"label": ""
-				},
-				{
-					"line": 3614,
-					"column": 0,
-					"label": ""
-				},
-				{
-					"line": 4245,
-					"column": 2,
 					"label": ""
 				}
 			]
@@ -214,22 +209,22 @@
 			"path": "plugins/readycheck.lua",
 			"bookmarks": [
 				{
-					"line": 223,
+					"line": 225,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 422,
+					"line": 445,
 					"column": 2,
 					"label": ""
 				},
 				{
-					"line": 542,
+					"line": 574,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 592,
+					"line": 624,
 					"column": 4,
 					"label": ""
 				}
@@ -251,6 +246,26 @@
 				{
 					"line": 342,
 					"column": 41,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "../RuntimeEditor/RuntimeEditor.lua",
+			"bookmarks": [
+				{
+					"line": 599,
+					"column": 7,
+					"label": ""
+				}
+			]
+		},
+		{
+			"path": "../auction.lua",
+			"bookmarks": [
+				{
+					"line": 99,
+					"column": 0,
 					"label": ""
 				}
 			]

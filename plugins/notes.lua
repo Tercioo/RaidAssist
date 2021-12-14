@@ -299,12 +299,24 @@ Notepad.OnInstall = function (plugin)
 		progressBar.rightText:SetText("")
 		progressBar.spark:Hide()
 		progressBar:Hide()
+
+		local lineBar = progressBar:GetParent()
+		local lineProps = lineBar.lineProps
+
+		if (lineProps.cleuEventCanReset and lineProps.cleuEventTriggered) then
+			lineProps.progressBarResetTime = GetTime()
+			lineProps.cleuEventTriggered = false
+			lineProps.timerStarted =  false
+			print("combatlog OnTimerEndHook barLine:", lineBar.barLineId, "line:", lineBar.lineId, lineProps.progressBarResetTime)
+		end
+
 		return true
 	end
 
     function f.CreateNewLine(lineId) --~bar ~progressbar ~createbar
         local line = CreateFrame("frame", "$parentLine" .. lineId, f, "BackdropTemplate")
 		local xPosition = (lineId-1) * (f.lineHeight) * -1
+		line.barLineId = lineId
 
         line:SetPoint("topleft", f, "topleft", 2, xPosition)
         line:SetSize(f:GetWidth(), f.lineHeight)
@@ -960,8 +972,8 @@ function Notepad.BuildListOfPlayersInRaid()
 		playerList.class_index[CLASS_SORT_ORDER[i]] = {}
 	end
 
-	local raidStatusLib = LibStub:GetLibrary("LibRaidStatus-1.0")
-	local allPlayersInfo = raidStatusLib.playerInfoManager.GetAllPlayersInfo()
+	local openRaidLib = LibStub:GetLibrary("LibOpenRaid-1.0")
+	local allPlayersInfo = openRaidLib.playerInfoManager.GetAllPlayersInfo()
 
 	if (IsInRaid()) then
 		local _, _, difficultyID = GetInstanceInfo()
@@ -998,7 +1010,7 @@ function Notepad.BuildListOfPlayersInRaid()
 					local playerInfo = allPlayersInfo[name]
 					if (playerInfo) then
 						local specId = playerInfo.specId
-						local meleeSpecs = _G.LIB_RAID_STATUS_MELEE_SPECS
+						local meleeSpecs = _G.LIB_OPEN_RAID_MELEE_SPECS
 						if (meleeSpecs[specId]) then
 							playerList.MELEE[#playerList.MELEE+1] = name
 						end
@@ -1036,7 +1048,7 @@ function Notepad.BuildListOfPlayersInRaid()
 					local playerInfo = allPlayersInfo[name]
 					if (playerInfo) then
 						local specId = playerInfo.specId
-						local meleeSpecs = _G.LIB_RAID_STATUS_MELEE_SPECS
+						local meleeSpecs = _G.LIB_OPEN_RAID_MELEE_SPECS
 						if (meleeSpecs[specId]) then
 							playerList.MELEE[#playerList.MELEE+1] = name
 						end
@@ -1114,6 +1126,32 @@ function Notepad.FillVariables(variables)
 	end
 end
 
+local convertEventToCleuEvent = function(event)
+	event = event:lower()
+
+	if (event == "caststart" or event == "cs"  or event == "spell_cast_start") then
+		return "SPELL_CAST_START"
+
+	elseif (event == "castdone" or event == "castfinished" or event == "castend" or event == "castsuccess" or event == "ss" or event == "spell_cast_success") then
+		return "SPELL_CAST_SUCCESS"
+
+	elseif (event == "interrupt" or event == "i" or event == "spell_interrupt") then
+		return "SPELL_INTERRUPT"
+
+	elseif (event == "dispel" or event == "d" or event == "spell_dispel") then
+		return "SPELL_DISPEL"
+
+	elseif (event == "auraremoved" or event == "spell_aura_removed" or event == "ar") then
+		return "SPELL_AURA_REMOVED"
+
+	elseif (event == "auraapplied" or event == "spell_aura_applied" or event == "aa") then
+		return "SPELL_AURA_APPLIED"
+
+	else
+		return event:upper()
+	end
+end
+
 
 function Notepad.GetPlayers(ofClass, ofRole)
 	local playerList = Notepad.playersInTheGroup
@@ -1171,6 +1209,11 @@ function Notepad.IsInsideMacro(cursorPos, text)
 		end
 	end
 end
+
+function Notepad.GetPlayback()
+	return Notepad.currentPlayback
+end
+RANotes.GetPlayback = Notepad.GetPlayback
 
 function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 	--split it into lines
@@ -1320,7 +1363,7 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 							local playerIsSpellId = tonumber(playerName)
 
 							if (spellId and playerIsSpellId) then --two spellIds in sequence
-								local cooldownInfo = LIB_RAID_STATUS_COOLDOWNS_INFO[spellId]
+								local cooldownInfo = LIB_OPEN_RAID_COOLDOWNS_INFO[spellId]
 								if (cooldownInfo) then
 									lineCooldowns[#lineCooldowns+1] = {spellId, "@H" .. cooldownInfo.class}
 									noEntry = false
@@ -1328,7 +1371,7 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 									RA:Msg(L["S_PLUGIN_NOTE_MACRO_COOLDOWN_ERROR2"] .. ":", spellId)
 								end
 
-								local cooldownInfo = LIB_RAID_STATUS_COOLDOWNS_INFO[playerIsSpellId]
+								local cooldownInfo = LIB_OPEN_RAID_COOLDOWNS_INFO[playerIsSpellId]
 								if (cooldownInfo) then
 									lineCooldowns[#lineCooldowns+1] = {playerIsSpellId, "@H" .. cooldownInfo.class}
 									noEntry = false
@@ -1341,7 +1384,7 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 								noEntry = false
 
 							elseif (spellId) then
-								local cooldownInfo = LIB_RAID_STATUS_COOLDOWNS_INFO[spellId]
+								local cooldownInfo = LIB_OPEN_RAID_COOLDOWNS_INFO[spellId]
 								if (cooldownInfo) then
 									local class = cooldownInfo.class
 									lineCooldowns[#lineCooldowns+1] = {spellId, "@H" .. class}
@@ -1475,6 +1518,32 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 							RA:Msg("Notepad> macro 'if' expect any data to compare, example: if($phase, =, 2)")
 						end
 
+					--combat log
+					elseif (token == "combatlog" or token == "cl" or token == "cleu") then
+						if (value) then
+							
+							local cleuData = {}
+
+							for data in value:gmatch("([^,]+)") do
+								if (data) then
+									tinsert(cleuData, data)
+								end
+							end
+
+							local event, spellId, counter, reset = unpack(cleuData)
+							spellId = tonumber(spellId)
+							counter = tonumber(counter) or false
+							reset = reset and true or false
+
+							if (spellId and event) then
+								tinsert(thisLineMacros, {"combatlog", event, spellId, counter, reset})
+							else
+								RA:Msg("Notepad> macro 'combatlog' argument #1 and #2 are required, combatlog = caststart, spellId, counter, reset")
+							end
+						else
+							RA:Msg("Notepad> macro 'combatlog' argument #1 and #2 are required, combatlog = caststart, spellId, counter, reset")
+						end
+
 					--loop
 					elseif (token == "loop" or token == "l") then
 						tinsert(thisLineMacros, {"loop", value})
@@ -1514,7 +1583,7 @@ end
 
 
 function Notepad.CreateMacroPlayback(textLines, macroList, variables, playersList)
-	
+
 	local macroPlayback = {
 		playerList = {}, --store the result of [playerlist] in order as they show
 		originalPlayerList = playersList,
@@ -1659,7 +1728,6 @@ function Notepad.CreateMacroPlayback(textLines, macroList, variables, playersLis
 			elseif (token == "enemyspell") then
 				local spellId = thisMacro[CONST_MACRO_INDEXVALUE]
 				tinsert(lineProps.enemySpells, spellId)
-
 			end
 		end
 
@@ -1738,7 +1806,7 @@ function Notepad.CreateMacroPlayback(textLines, macroList, variables, playersLis
 
 					--check if the player name is a variable
 					local listOfPlayers = variables[caster]
-					local cooldownInfo = LIB_RAID_STATUS_COOLDOWNS_INFO[spellId]
+					local cooldownInfo = LIB_OPEN_RAID_COOLDOWNS_INFO[spellId]
 
 					if (listOfPlayers and type(listOfPlayers) == "table" and cooldownInfo) then
 						for o = 1, #listOfPlayers do
@@ -1789,6 +1857,24 @@ function Notepad.CreateMacroPlayback(textLines, macroList, variables, playersLis
 				conditions[lineId] = conditions[lineId] or {}
 				local value1, opperator, value2 = thisMacro[2], thisMacro[3], thisMacro[4]
 				tinsert(lineProps.conditions, {token, value1, opperator, value2})
+
+			elseif (token == "combatlog") then
+				local event = thisMacro[2]
+				local spellId = thisMacro[3]
+				local counter = thisMacro[4]
+				local reset = thisMacro[5]
+
+				event = convertEventToCleuEvent(event)
+
+				lineProps.cleuEvent = event
+				lineProps.cleuSpellId = spellId
+				if (counter) then
+					lineProps.cleuCounter = counter
+				end
+
+				lineProps.cleuEventTriggered = false
+				lineProps.cleuEventCanReset = reset
+				lineProps.progressBarResetTime = 0
 			end
 		end
 
@@ -1835,6 +1921,10 @@ function Notepad.CreateMacroPlayback(textLines, macroList, variables, playersLis
 					local startAt = lineProps.timeElapsed
 					local progressTime = thisMacro[CONST_MACRO_INDEXVALUE]
 					lineProps.timer = {startAt, progressTime}
+
+				elseif (lineProps.cleuEvent) then
+					--print("timer without phaseTime or timeElapsed but has cleu event.") --debug
+					lineProps.timer = {0, thisMacro[CONST_MACRO_INDEXVALUE] or 0}
 				end
 			end
 		end
@@ -1878,25 +1968,28 @@ end
 local CombatLogGetCurrentEventInfo = _G.CombatLogGetCurrentEventInfo
 local CLEU_Frame = CreateFrame("frame")
 
-local triggerCleuEvent = function(token, whoSerial, whoName, targetSerial, targetName, spellId)
-
-end
-
-local cleuTokens = {
-	["SPELL_CAST_SUCCESS"] = triggerCleuEvent,
-	["SPELL_CAST_START"] = triggerCleuEvent,
-	["SPELL_INTERRUPT"] = triggerCleuEvent,
-	["UNIT_DIED"] = triggerCleuEvent,
-	["SPELL_DISPEL"] = triggerCleuEvent,
-	["SPELL_AURA_APPLIED"] = triggerCleuEvent,
-	["SPELL_AURA_REMOVED"] = triggerCleuEvent,
-}
-
 local onCleuEvent = function()
 	local time, token, hidding, whoSerial, whoName, whoFlags, whoFlags2, targetSerial, targetName, targetFlags, targetFlags2, spellId, spellName, spellType, amount, A5, A6, A7, A8, A9, A10, A11, A12 = CombatLogGetCurrentEventInfo()
-	local func = cleuTokens[token]
-	if (func) then
-		func(token, whoSerial, whoName, targetSerial, targetName, spellId)
+	local playbackObject = Notepad.GetPlayback()
+
+	--check if this event is important for the playback
+	if (playbackObject.cleuEventFilter[token]) then
+		local event = playbackObject.spellIdToEvent[spellId]
+		if (event == token) then
+			local cleuTriggered = playbackObject.cleuTriggered[spellId]
+			if (not cleuTriggered) then
+				cleuTriggered = {}
+				playbackObject.cleuTriggered[spellId] = cleuTriggered
+			end
+			cleuTriggered[event] = GetTime()
+
+			local triggerCounter = playbackObject.cleuTriggerCounter[spellId]
+			if (not triggerCounter) then
+				triggerCounter = {}
+				playbackObject.cleuTriggerCounter[spellId] = triggerCounter
+			end
+			triggerCounter[event] = (triggerCounter[event] or 0) + 1
+		end
 	end
 end
 
@@ -1939,11 +2032,6 @@ function Notepad.HighlightPlayerName(playbackObject)
 	end
 end
 
-function Notepad.UpdateLineText(lineId)
-	local playerbackObject = Notepad.currentPlayback
-
-end
-
 
 local simpleBarLineClean = function(barLine)
 	barLine.text1.text = ""
@@ -1979,8 +2067,27 @@ function Notepad.UpdateTextOnScreenFrame(playbackObject, phase)
 			local lineProps = lineProperties[lineId]
 			lineProps.ignored = nil
 		end
-	else
+
+		--which events need to be listen to
+		playbackObject.cleuEventFilter = {}
+		--spellids per event
+		--playbackObject.spellIdToEvent[spellId] = event
+		playbackObject.spellIdToEvent = {}
+		--store the events which got triggered during the combat
+		--cleuTriggered[spellId][event] = GetTime()
+		playbackObject.cleuTriggered = {}
+		--store the amount of times the trigger got executed
+		--cleuTriggerCounter[spellId][event] = 0
+		playbackObject.cleuTriggerCounter = {}
+
+		--print("-> showing full note") --debug
+
+	elseif (isShowingSinglePhase) then
 		offset = phasesStartPoint[phase]
+		--check if the phase wasn't declared
+		if (not offset) then
+			offset = 1
+		end
 	end
 
 	if (isShowingFullNote) then
@@ -1999,11 +2106,21 @@ function Notepad.UpdateTextOnScreenFrame(playbackObject, phase)
 	local reservedLines = 0
 	local barLineId = 1
 
-	if (not isShowingFullNote) then
+	if (isShowingSinglePhase) then
 		--phase lines start after the permanent lines
 		if (Notepad.screenPanelReservedLines) then
 			if (Notepad.screenPanelReservedLines > 0) then
 				barLineId = Notepad.screenPanelReservedLines + 1
+
+				--iterate among reserved lines to get their cleu events (when the phase changes)
+				for barLineId = 1, Notepad.screenPanelReservedLines do
+					local barLine = Notepad.GetBarLine(barLineId)
+					local lineProps = barLine.lineProps
+					if (lineProps.cleuEvent) then
+						playbackObject.cleuEventFilter[lineProps.cleuEvent] = true
+						playbackObject.spellIdToEvent[lineProps.cleuSpellId] = lineProps.cleuEvent
+					end
+				end
 			end
 		end
 
@@ -2022,6 +2139,8 @@ function Notepad.UpdateTextOnScreenFrame(playbackObject, phase)
 				break
 			end
 		end
+
+--UpdateTextOnScreenFrame
 
 		local ignoreThisLine = false
 
@@ -2051,6 +2170,23 @@ function Notepad.UpdateTextOnScreenFrame(playbackObject, phase)
 					lineProps.phaseTime = lineProps.phaseTimeConst
 					lineProps.countdownStarted = nil
 					lineProps.timerStarted = nil
+				end
+
+				if (lineProps.cleuEvent) then
+					playbackObject.cleuEventFilter[lineProps.cleuEvent] = true
+					playbackObject.spellIdToEvent[lineProps.cleuSpellId] = lineProps.cleuEvent
+
+					lineProps.cleuEventTriggered = false
+					lineProps.progressBarResetTime = 0
+
+					--entered on new phase, reset spellId counter on the global trigger counter
+					for spellId, eventTable in pairs(playbackObject.cleuTriggerCounter) do
+						if (spellId == lineProps.cleuSpellId) then
+							for eventName in pairs(eventTable) do
+								eventTable[eventName] = 0
+							end
+						end
+					end
 				end
 
 				local text = lineProps.text2
@@ -2118,7 +2254,7 @@ local macroParserTick = function()
 	--data stored when the encounter started
 	local encounterInfo = Notepad.GetCurrentEncounterData()
 		--data stored when the text notes got parsed
-	local playbackObject = Notepad.currentPlayback
+	local playbackObject = Notepad.GetPlayback()
 
 	--[=[
 		bugs:
@@ -2154,7 +2290,7 @@ local macroParserTick = function()
 			Notepad.UpdateTextOnScreenFrame(playbackObject, currentPhase)
 		end
 
-	--update lines
+	--update lines (macro tick)
 	for barLineId = 1, #barLines do
 		local barLine = Notepad.GetBarLine(barLineId)
 		local lineId = barLine.lineId
@@ -2174,6 +2310,7 @@ local macroParserTick = function()
 					timeLeft = lineProps.timeElapsed - encounterElapsedTime
 					elapsed = encounterElapsedTime
 				end
+
 				--> update the timer in the left side of the line
 					if (timeLeft) then
 						if (timeLeft >= 1) then
@@ -2186,22 +2323,92 @@ local macroParserTick = function()
 							barLine.text2:SetAlpha(0.5)
 						end
 					end
+--macro tick
+				--> check if the cleu got a trigger
+					local needCleuTrigger, cleuTriggered = false, false
+					local cleuSpellName = "" --debug only
+					if (lineProps.cleuEvent) then
+						needCleuTrigger = true
+					end
 
-				--> start a progressbar
-					if (lineProps.countdown and not lineProps.countdownStarted) then
-						local startAt, progressTime = lineProps.countdown[1], lineProps.countdown[2]
-						if (startAt <= elapsed) then
-							local currentTime, startTime, endTime = GetTime(), GetTime(), GetTime() + progressTime
-							barLine.progressBar:SetTimer(currentTime, startTime, endTime)
-							lineProps.countdownStarted = true
+					if (needCleuTrigger) then
+						local cleuSpellId = lineProps.cleuSpellId
+						local cleuEvent = lineProps.cleuEvent
+						--triggerTime = time of the last time cleu triggered the event with the spellId
+						local triggerTime = playbackObject.cleuTriggered[cleuSpellId] and playbackObject.cleuTriggered[cleuSpellId][cleuEvent]
+
+						if (triggerTime) then
+							if (not lineProps.cleuEventTriggered) then
+								--print("macro tick(1): has trigger time and can execute", triggerTime)
+							end
 						end
 
-					elseif (lineProps.timer and not lineProps.timerStarted) then
-						local startAt, progressTime = lineProps.timer[1], lineProps.timer[2]
-						if (startAt <= elapsed) then
-							local currentTime, startTime, endTime = GetTime(), GetTime(), GetTime() + progressTime
-							barLine.progressBar:SetTimer(currentTime, startTime, endTime)
-							lineProps.timerStarted = true
+						--print("combatlog onTick barLine:", barLineId, "line:", lineId, "need cleu", cleuEvent, "trigger time:", triggerTime)
+
+						--na barra que deveria resetar a cada execução:
+						--[15:00:47] macro tick(1): has trigger time and can execute 17847.423
+						--[15:00:47] macro tick(2): has trigger time for spell: Fragments of Destiny 17847.423 17868.382 false
+						--parou a execução em: if (triggerTime > lineProps.progressBarResetTime) then
+
+						if (triggerTime) then
+							if (not lineProps.cleuEventTriggered) then
+								local spellName = GetSpellInfo(cleuSpellId) --debug only
+								--print("macro tick(2): has trigger time for spell:", spellName, triggerTime, lineProps.progressBarResetTime, triggerTime > lineProps.progressBarResetTime)
+								if (triggerTime > lineProps.progressBarResetTime) then
+									--print("macro tick(3): trigger time is bigger than progressBar reset time")
+									--check if there's a cleu counter
+									local cleuCounterMatch = true
+									local cleuCounter = lineProps.cleuCounter
+									if (cleuCounter) then
+										cleuCounterMatch = false
+										local totalTriggers = playbackObject.cleuTriggerCounter[cleuSpellId] and playbackObject.cleuTriggerCounter[cleuSpellId][cleuEvent] or 0
+										if (totalTriggers == cleuCounter) then
+											cleuCounterMatch = true
+										end
+									end
+
+									if (cleuCounterMatch) then
+										lineProps.cleuEventTriggered = true
+										cleuTriggered = true
+										print("macro tick(4): all good, the combatlog trigger passes!") --a execução parou aqui
+										cleuSpellName = spellName
+									end
+								end
+							end
+						end
+					end
+
+				--> start a progressbar
+					--if (needCleuTrigger) then print("cleuTriggered:", cleuTriggered, "for", cleuSpellName, "debug:", not needCleuTrigger or (needCleuTrigger and cleuTriggered)) end --debug
+
+					if (not needCleuTrigger or (needCleuTrigger and cleuTriggered)) then
+						if (needCleuTrigger) then
+							print("macro tick(5): allowed start timer", lineProps.timer, lineProps.timerStarted, "needCleuTrigger:", needCleuTrigger)
+						end
+
+						if (lineProps.countdown and not lineProps.countdownStarted) then
+							local startAt, progressTime = lineProps.countdown[1], lineProps.countdown[2]
+							if (startAt <= elapsed) then
+								local currentTime, startTime, endTime = GetTime(), GetTime(), GetTime() + progressTime
+								barLine.progressBar:SetTimer(currentTime, startTime, endTime)
+								lineProps.countdownStarted = true
+							end
+
+						elseif (lineProps.timer and not lineProps.timerStarted) then
+							print("macro tick(6): lineProps.timer and not lineProps.timerStarted!") --nao esta executando para "repetir" após a barra de tempo ter terminado
+							if (cleuTriggered) then
+								local currentTime, startTime, endTime = GetTime(), GetTime(), GetTime() + lineProps.timer[2]
+								barLine.progressBar:SetTimer(currentTime, startTime, endTime)
+								lineProps.timerStarted = true
+								print("macro tick(7): timer started!")
+							else
+								local startAt, progressTime = lineProps.timer[1], lineProps.timer[2]
+								if (startAt <= elapsed) then
+									local currentTime, startTime, endTime = GetTime(), GetTime(), GetTime() + progressTime
+									barLine.progressBar:SetTimer(currentTime, startTime, endTime)
+									lineProps.timerStarted = true
+								end
+							end
 						end
 					end
 			end
@@ -2210,14 +2417,14 @@ local macroParserTick = function()
 end
 
 function RANotes.GetVariable(variableName) --external
-	local playbackObject = Notepad.currentPlayback
+	local playbackObject = Notepad.GetPlayback()
 	if (playbackObject) then
 		return playbackObject.variables[variableName]
 	end
 end
 
 function RANotes.GetPlayerList(playerListId) --external
-	local playbackObject = Notepad.currentPlayback
+	local playbackObject = Notepad.GetPlayback()
 	if (playbackObject) then
 		local playerList = playbackObject.playerList[playerListId]
 		if (playerList) then
@@ -2232,7 +2439,7 @@ function RANotes.GetPlayerList(playerListId) --external
 	local bossId, _, noteId = Notepad:GetCurrentlyShownBoss()
 	if (bossId) then
 		--build a list of players list
-		local macros = Notepad.currentPlayback.macroLines --numeric table with tables inside
+		local macros = playbackObject.macroLines --numeric table with tables inside
 
 		for lineId = 1, #macros do
 			local macroTable = macros[lineId]
@@ -2303,7 +2510,7 @@ function Notepad.OnEncounterEnd(encounterID, encounterName, difficultyID, raidSi
 		end
 	end
 
-	local playbackObject = Notepad.currentPlayback
+	local playbackObject = Notepad.GetPlayback()
 	if (not bossKilled and playbackObject) then
 		Notepad.UpdateTextOnScreenFrame(playbackObject)
 	end
@@ -2372,7 +2579,7 @@ function RANotes.GetNoteLines() --external
 	--check if there's some note shown
 	local bossId, _, noteId = Notepad:GetCurrentlyShownBoss()
 	if (bossId) then
-		return Notepad.currentPlayback.textLines
+		return Notepad.GetPlayback().textLines
 	end
 end
 
@@ -4042,7 +4249,7 @@ function Notepad.BuildOptions(frame) --~options õptions
 		end
 
 		local cooldownList = {}
-		for spellId, cooldownTable in pairs(LIB_RAID_STATUS_COOLDOWNS_INFO) do
+		for spellId, cooldownTable in pairs(LIB_OPEN_RAID_COOLDOWNS_INFO) do
 			cooldownList[#cooldownList+1] = {spellId, cooldownTable.type, cooldownTable.class, cooldownTable}
 		end
 
@@ -4497,8 +4704,8 @@ function Notepad.BuildOptions(frame) --~options õptions
 			updateGuildPlayers = true
 
 			--update raid status
-			local raidStatusLib = LibStub:GetLibrary("LibRaidStatus-1.0")
-			raidStatusLib.RequestAllPlayersInfo()
+			local openRaidLib = LibStub:GetLibrary("LibOpenRaid-1.0")
+			openRaidLib.RequestAllPlayersInfo()
 			return
 		end
 

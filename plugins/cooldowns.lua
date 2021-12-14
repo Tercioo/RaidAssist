@@ -48,7 +48,7 @@ local default_config = {
 }
 
 --> check for new cooldowns
-for spellId, cooldownTable in pairs(LIB_RAID_STATUS_COOLDOWNS_INFO) do
+for spellId, cooldownTable in pairs(LIB_OPEN_RAID_COOLDOWNS_INFO) do
 	if (default_config.cooldowns_enabled[spellId] == nil) then
 		if (cooldownTable.type == 3 or cooldownTable.type == 4) then
 			default_config.cooldowns_enabled[spellId] = true
@@ -112,11 +112,11 @@ end
 --> build the spell list from the framework
 local spellList = {}
 
-for specId, cooldowns in pairs (LIB_RAID_STATUS_COOLDOWNS_BY_SPEC) do
+for specId, cooldowns in pairs (LIB_OPEN_RAID_COOLDOWNS_BY_SPEC) do
 	for spellId, cooldownType in pairs(cooldowns) do
 		if (cooldownType == 3 or cooldownType == 4) then
 
-			local cooldownInfo = LIB_RAID_STATUS_COOLDOWNS_INFO[spellId]
+			local cooldownInfo = LIB_OPEN_RAID_COOLDOWNS_INFO[spellId]
 			if (cooldownInfo) then
 				local classTable = spellList[cooldownInfo.class] or {}
 				spellList[cooldownInfo.class] = classTable
