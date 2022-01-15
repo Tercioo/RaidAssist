@@ -79,7 +79,11 @@ L["S_PLUGIN_NOTE_MACRO_COOLDOWN_ERROR2"] = "macro 'cooldown' couldn't find infor
 L["S_PLUGIN_NOTE_MACRO_COUNTDOWN_ERROR1"] = "macro 'countdown' expect seconds, example: countdown(10)"
 L["S_PLUGIN_NOTE_MACRO_ENEMYSPELL_ERROR1"] = "macro 'enemyspell' expect a spellId, example: enemyspell=325412"
 L["S_PLUGIN_NOTE_MACRO_PHASE_ERROR1"] = "macro 'phase' expect a number, example: phase=2"
-L["S_PLUGIN_NOTE_MACRO_PLAYERLIST_DESC"] = "create a list of players, auto ignore players which isn't in the raid group."
+L["S_PLUGIN_NOTE_MACRO_PLAYERLIST_DESC"] = "Create a list of players, auto ignore players which isn't in the raid group."
+L["S_PLUGIN_NOTE_MACRO_PHASE_DESC"] = "Text after this line will only show when the phase is on."
+L["S_PLUGIN_NOTE_MACRO_TIME_DESC"] = "Set the time when this line is become relevant, a timer is shown in the left side of the line."
+
+
 L["S_PLUGIN_NOTE_MACRO_PLAYERLIST_ERROR1"] = "Notepad> only one player list per line is allowed"
 L["S_PLUGIN_NOTE_MACRO_PLAYERLIST_ERROR2"] = "macro 'playerlist' expect a list of players, example: playerlist = playerName1, playerName2"
 L["S_PLUGIN_NOTE_MACRO_TIME_ERROR1"] = "macro 'time' expect time, example: time=180 or time=3:00"

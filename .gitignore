@@ -1,3 +1,4 @@
 
 wowapi.lua
 *.json
+.vscode/bookmarks.json

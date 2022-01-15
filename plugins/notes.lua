@@ -1129,7 +1129,7 @@ end
 local convertEventToCleuEvent = function(event)
 	event = event:lower()
 
-	if (event == "caststart" or event == "cs"  or event == "spell_cast_start") then
+	if (event == "caststart" or event == "cs" or event == "spell_cast_start") then
 		return "SPELL_CAST_START"
 
 	elseif (event == "castdone" or event == "castfinished" or event == "castend" or event == "castsuccess" or event == "ss" or event == "spell_cast_success") then
@@ -1204,7 +1204,7 @@ function Notepad.IsInsideMacro(cursorPos, text)
 		end
 
 		local findBreakLine = text:find("\n", i-1)
-		if (findBreakLine < cursorPos) then
+		if (findBreakLine and findBreakLine < cursorPos) then
 			return
 		end
 	end
@@ -1314,7 +1314,6 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 					token = macro:match("(%w+)")
 				end
 
-				--check if the token and value are valid
 				if (token) then
 					--parse token
 					token = token:lower()
@@ -1334,7 +1333,7 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 						end
 
 					--time
-					elseif (token == "time" or token == "t" or token == "elapsedtime") then
+					elseif (token == "time" or token == "elapsedtime") then
 						local seconds = Notepad.ParseTimeEntry(value)
 						if (seconds) then
 							tinsert(thisLineMacros, {"3time", seconds})
@@ -1521,7 +1520,7 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 					--combat log
 					elseif (token == "combatlog" or token == "cl" or token == "cleu") then
 						if (value) then
-							
+
 							local cleuData = {}
 
 							for data in value:gmatch("([^,]+)") do
@@ -1567,6 +1566,10 @@ function Notepad:ParseTextForMacros(text) --~parsermacro ~macroparser
 
 					elseif (token == "role") then
 						tinsert(thisLineMacros, {"3role", value})
+
+					elseif (token == "stop" or token == "end") then
+						tinsert(thisLineMacros, {"stop", true})
+
 					end
 				end
 			end
@@ -1704,6 +1707,9 @@ function Notepad.CreateMacroPlayback(textLines, macroList, variables, playersLis
 				currentPhase = phaseId
 				phasesLineIndex[phaseId] = lineId
 
+			elseif (token == "stop") then
+				lineProps.stopHere = true
+
 			elseif (token == "role") then
 				lineProps.role = thisMacro[CONST_MACRO_INDEXVALUE]
 
@@ -1803,6 +1809,7 @@ function Notepad.CreateMacroPlayback(textLines, macroList, variables, playersLis
 					local thisCooldown = cooldowns[i]
 					local spellId = thisCooldown[1]
 					local caster = thisCooldown[2]
+					local showText = true
 
 					--check if the player name is a variable
 					local listOfPlayers = variables[caster]
@@ -1827,10 +1834,14 @@ function Notepad.CreateMacroPlayback(textLines, macroList, variables, playersLis
 					else
 						if (listOfPlayers) then
 							caster = type(listOfPlayers) == "table" and listOfPlayers[1] or listOfPlayers
+							if (type(caster) == "table") then
+								showText = false
+							end
 						end
 					end
 
-					if (not lineProps.notext) then
+					if (not lineProps.notext and showText) then
+						--cast é uma tabela?
 						if (not caster:match("^@")) then
 							caster = caster:gsub("%-.*$", "")
 							local spellName, _, spellIcon = GetSpellInfo(spellId)
@@ -1923,7 +1934,6 @@ function Notepad.CreateMacroPlayback(textLines, macroList, variables, playersLis
 					lineProps.timer = {startAt, progressTime}
 
 				elseif (lineProps.cleuEvent) then
-					--print("timer without phaseTime or timeElapsed but has cleu event.") --debug
 					lineProps.timer = {0, thisMacro[CONST_MACRO_INDEXVALUE] or 0}
 				end
 			end
@@ -2049,6 +2059,7 @@ end
 
 --called from "ParseNoteTextAndCreatePlayback" and only update the text shown, uses the possition of the virtual scrollbar
 --if phase is passed, only the text for the selected phase is shown
+--~update
 function Notepad.UpdateTextOnScreenFrame(playbackObject, phase)
 
 	local lineProperties = playbackObject.lineProperties
@@ -2079,8 +2090,6 @@ function Notepad.UpdateTextOnScreenFrame(playbackObject, phase)
 		--store the amount of times the trigger got executed
 		--cleuTriggerCounter[spellId][event] = 0
 		playbackObject.cleuTriggerCounter = {}
-
-		--print("-> showing full note") --debug
 
 	elseif (isShowingSinglePhase) then
 		offset = phasesStartPoint[phase]
@@ -2140,7 +2149,9 @@ function Notepad.UpdateTextOnScreenFrame(playbackObject, phase)
 			end
 		end
 
---UpdateTextOnScreenFrame
+		if (lineProps.stopHere) then
+			break
+		end
 
 		local ignoreThisLine = false
 
@@ -2755,7 +2766,7 @@ local createPickFrame = function(mainFrame)
 	local playerSelectionAmoutLines = 18 --~player ~list
 	local playerSelectionLinesHeight = 20
 
-	local macroSelectionAmoutLines = 9
+	local macroSelectionAmoutLines = 15
 	local macroSelectionLinesHeight = 40
 
 	DetailsFramework:ApplyStandardBackdrop(pFrame)
@@ -2930,15 +2941,32 @@ local createPickFrame = function(mainFrame)
 			playerSelectionScroll:CreateLine(createPlayerLine, i)
 		end
 
-
-
 	--> select macro frame
 		local selectMacroFrame = CreateFrame("frame", "$parentSelectMacro", pFrame, "BackdropTemplate")
 		selectMacroFrame:SetAllPoints()
 		pFrame.selectMacroFrame = selectMacroFrame
 
 		local listOfMacros = {
-			{command = "playerlist", name = "Player List", example = "[playerlist = playerName3, playerName35, playerName11]", desc = L["S_PLUGIN_NOTE_MACRO_PLAYERLIST_DESC"], alias = "pl", addtext = "[playerlist = ]"},
+			{command = "time", name = "Time", example = "[time = 120], [time = 2:00]", desc = L["S_PLUGIN_NOTE_MACRO_TIME_DESC"], addtext = "[time = ]"},
+			{command = "phase", name = "Phase", example = "[phase = 1], [phase = 2]", desc = L["S_PLUGIN_NOTE_MACRO_PHASE_DESC"], alias = {"p"}, addtext = "[phase = ]"},
+			{command = "cooldown", name = "Cooldown", example = "[cooldown = 62618, playername]", desc = "Accept a spellId and a player name.", alias = {"cd"}, addtext = "[cooldown = ]"},
+			{command = "combatlog", name = "Combat Log", example = "a simple cast start:\n[combatlog = caststart, 355540, false, false]\n\nspell interrupted with a loop of 3 interrupts:\n[combatlog = interrupt, 355540, 1, 3]\n\nusing a regular combat log event:\n[combatlog = SPELL_HEAL, 355540]\n\nstart a 10 seconds time bar after cast started:\n[combatlog = caststart, 355540; timer = 15]\n\nshow the spell name and icon:\n[cleu = caststart, 355540; enemyspell=355540]", desc = "Trigger the line upon combat log event.", args = {{"Event", "combat log token."}, {"SpellId", "spell ID."}, {"Counter", "times casted"}, {"Reset", "set counter to 1 after X amount of casts."}}, alias = {"cl", "cleu"}, addtext = "[combatlog = ]"},
+			{command = "playerlist", name = "Player List", example = "[playerlist = playerName3, playerName35, playerName11]", desc = L["S_PLUGIN_NOTE_MACRO_PLAYERLIST_DESC"], alias = {"pl"}, addtext = "[playerlist = ]"},
+			{command = "enemyspell", name = "Enemy Spell", example = "[enemyspell = 355540]", desc = "Show the spell icon and the spell name.", alias = {"es"}, addtext = "[enemyspell = ]"},
+			{command = "hide", name = "Hide Line", example = "[hide]", desc = "Don't show this line.", alias = {"hidden", "nop"}, addtext = "[hide]"},
+			{command = "countdown", name = "Countdown", example = "[countdown = 20]", desc = "Start a time bar for the line X seconds before the time in the line is reached.", addtext = "[countdown = ]"},
+			{command = "timer", name = "Timer", example = "[timer = 120]", desc = "Start a time bar for the line when it reaches its time for X seconds.", addtext = "[timer = ]"},
+			{command = "role", name = "Role", example = "[role = HEALER]", desc = "Show the line only for players with the role.", addtext = "[role = ]"},
+			{command = "notext", name = "No Text", example = "[notext]", desc = "Don't show any text on the line", addtext = "[notext]"},
+			{command = "stop", name = "Stop", example = "[stop]", desc = "Won't show text placed after the stop macro.", alias = {"end"}, addtext = "[stop]"},
+			{command = "name", name = "Name", example = "[phase = 1; name = phaseone]\n[$phaseone] < shows value 1", desc = "Give a name to a macro value, the value can be accessed by using '$' and the name.", addtext = "name ="},
+
+--			{command = "", name = "", example = "[]", desc = "", alias = "", addtext = "[]"},
+--			{command = "", name = "", example = "[]", desc = "", alias = "", addtext = "[]"},
+--			{command = "", name = "", example = "[]", desc = "", alias = "", addtext = "[]"},
+
+			--"bosstimer"
+			--"if"
 		}
 
 		local refreshMacroList = function(self, data, offset, totalLines)
@@ -2959,11 +2987,12 @@ local createPickFrame = function(mainFrame)
 						line.macroName:SetText(macroData.command)
 						line.macroText:SetText(macroText)
 						line.macroData = macroData
+
+						line.index = index
 					end
 				end
 			end
 		end
-
 
 		--scroll frame
 		local macroSelectionScroll = DF:CreateScrollBox(selectMacroFrame, "$parentScroll", refreshMacroList, listOfMacros, pFrame:GetWidth()-2, pFrame:GetHeight(), macroSelectionAmoutLines, macroSelectionLinesHeight)
@@ -2973,12 +3002,136 @@ local createPickFrame = function(mainFrame)
 		macroSelectionScroll:SetPoint("topleft", selectMacroFrame, "topleft", 0, -40)
 		macroSelectionScroll:SetPoint("bottomright", selectMacroFrame, "bottomright", -22, 0)
 
+		--> macro tooltip
+			local macroSelectionTooltip = CreateFrame("frame", "$parentTooltip", selectMacroFrame, "BackdropTemplate")
+			macroSelectionTooltip:SetSize(300, 400)
+			macroSelectionTooltip:SetPoint("topright", selectMacroFrame, "topleft", -2, 0)
+			DetailsFramework:ApplyStandardBackdrop(macroSelectionTooltip)
+			macroSelectionTooltip:SetFrameLevel(selectMacroFrame:GetFrameLevel()+50)
+
+			--parent, text, size, color, font, member, name, layer
+			local macroName = DetailsFramework:CreateLabel(macroSelectionTooltip, "", 12, "orange")
+			local macroNameText = DetailsFramework:CreateLabel(macroSelectionTooltip, "", 11)
+
+			local macroCommand = DetailsFramework:CreateLabel(macroSelectionTooltip, "", 12, "orange")
+			local macroCommandText = DetailsFramework:CreateLabel(macroSelectionTooltip, "", 11)
+			local textToAdd = DetailsFramework:CreateLabel(macroSelectionTooltip, "", 11)
+
+			local desc = DetailsFramework:CreateLabel(macroSelectionTooltip, "", 12, "orange")
+			local descText = DetailsFramework:CreateLabel(macroSelectionTooltip, "", 11)
+			descText:SetSize(macroSelectionTooltip:GetWidth()-10, 40)
+			descText.align = "<"
+			descText.valign = "^"
+
+			local arguments = DetailsFramework:CreateLabel(macroSelectionTooltip, "", 12, "orange")
+			local argumentsText = DetailsFramework:CreateLabel(macroSelectionTooltip, "", 11)
+			argumentsText.align = "<"
+			argumentsText.valign = "^"
+
+			local example = DetailsFramework:CreateLabel(macroSelectionTooltip, "", 12, "orange")
+			local exampleText = DetailsFramework:CreateLabel(macroSelectionTooltip, "", 11)
+			exampleText:SetSize(macroSelectionTooltip:GetWidth()-10, 220)
+			exampleText.align = "<"
+			exampleText.valign = "^"
+
+			local tooltipLineHeight = 12
+			local tooltipMaxLineHeight = 25
+
+			local alignObjectsInGroup = function(parent, startX, startY, space1, space2, groupOfObjects)
+				local previousObject
+				local y = startY
+
+				for i = 1, #groupOfObjects do
+					local thisGroup = groupOfObjects[i]
+					local newGroup = true
+
+					for o = 1, #thisGroup do
+						local object = thisGroup[o]
+						object:ClearAllPoints()
+
+						if (not previousObject) then
+							object:SetPoint(startX, startY)
+							previousObject = object
+							newGroup = false
+
+						else
+							local sizeToUse = max(1, newGroup and space2 or space1, previousObject:GetHeight())
+							y = y - sizeToUse
+							object:SetPoint(startX, y)
+							previousObject = object
+							newGroup = nil
+						end
+					end
+				end
+			end
+
+			macroSelectionTooltip.macroName = macroName
+			macroSelectionTooltip.macroNameText = macroNameText
+			macroSelectionTooltip.macroCommand = macroCommand
+			macroSelectionTooltip.macroCommandText = macroCommandText
+			macroSelectionTooltip.textToAdd = textToAdd
+			macroSelectionTooltip.desc = desc
+			macroSelectionTooltip.descText = descText
+			macroSelectionTooltip.arguments = arguments
+			macroSelectionTooltip.argumentsText = argumentsText
+			macroSelectionTooltip.example = example
+			macroSelectionTooltip.exampleText = exampleText
+
+			function macroSelectionTooltip:SetTooltip(buttonIndex)
+				local macroInfo = listOfMacros[buttonIndex]
+				if (macroInfo) then
+					macroSelectionTooltip.macroName.text = "Macro Name:"
+					macroSelectionTooltip.macroNameText.text = macroInfo.name
+
+					macroSelectionTooltip.macroCommand.text = "Macro Command:"
+					local commands = macroInfo.command
+					if (macroInfo.alias) then
+						for i = 1, #macroInfo.alias do
+							commands = commands .. ", " .. macroInfo.alias[i]
+						end
+					end
+					macroSelectionTooltip.macroCommandText.text = commands
+					macroSelectionTooltip.textToAdd.text = macroInfo.addtext
+
+					macroSelectionTooltip.desc.text = "Description:"
+					macroSelectionTooltip.descText.text = macroInfo.desc
+
+					macroSelectionTooltip.arguments.text = "Arguments:"
+					local argumentsList = ""
+					if (macroInfo.args) then
+						for i = 1, #macroInfo.args do
+							local argName = macroInfo.args[i][1]
+							local argDesc = macroInfo.args[i][2]
+							argumentsList = argumentsList .. argName .. ": " .. argDesc .. "\n"
+						end
+						argumentsList = argumentsList:gsub("\n$", "")
+						argumentsText:SetSize(macroSelectionTooltip:GetWidth()-10, max(10, (#macroInfo.args+1) * tooltipLineHeight))
+					else
+						argumentsText:SetSize(macroSelectionTooltip:GetWidth()-10, 10)
+					end
+					macroSelectionTooltip.argumentsText.text = argumentsList
+
+					macroSelectionTooltip.example.text = "Example:"
+					macroSelectionTooltip.exampleText.text = macroInfo.example
+
+					alignObjectsInGroup(macroSelectionTooltip, 2, -5, tooltipLineHeight, tooltipMaxLineHeight, {{macroName, macroNameText}, {macroCommand, macroCommandText, textToAdd}, {desc, descText}, {arguments, argumentsText}, {example, exampleText}})
+					macroSelectionTooltip:Show()
+				end
+			end
+
+			--{command = "combatlog", name = "Combat Log", example = "[combatlog = caststart, 355540, false, false]", desc = "Trigger the line upon combat log event.", arg = {"event: combat log token.", "spellId: spell ID.", "counter: times casted", "reset: set counter to 1 after X amount of casts."}, alias = "cl, cleu", addtext = "[combatlog = ]"},
+
+
 		local onEnterLine = function(self)
 			self:SetBackdropColor(unpack(scrollbox_line_backdrop_color_hightlight))
+			if (self.index) then
+				macroSelectionTooltip:SetTooltip(self.index)
+			end
 		end
 
 		local onLeaveLine = function(self)
 			self:SetBackdropColor(unpack(scrollbox_line_backdrop_color))
+			macroSelectionTooltip:Hide()
 		end
 
 		local onClickMacroLine = function(self)
@@ -2999,7 +3152,7 @@ local createPickFrame = function(mainFrame)
 		--create scroll lines
 		local createMacroLine = function(self, index)
 			local line = CreateFrame("button", "$parentLine" .. index, self, "BackdropTemplate")
-			line:SetPoint("topleft", self, "topleft", 0, -((index-1) * (macroSelectionLinesHeight+1)) - 1)
+			line:SetPoint("topleft", self, "topleft", 0, -((index-1) * (macroSelectionLinesHeight+1)) - 2)
 			line:SetSize(self:GetWidth(), macroSelectionLinesHeight)
 			line:RegisterForClicks("LeftButtonDown", "RightButtonDown")
 			DetailsFramework:ApplyStandardBackdrop(line)
