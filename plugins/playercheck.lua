@@ -122,13 +122,13 @@ function PlayerCheck.BuildOptions(frame)
 
 	if (frame.FirstRun) then
 		if (IsInGroup()) then
-			openRaidLib.RequestAllPlayersInfo()
+			openRaidLib.RequestAllData()
 		end
 		return
 	end
 
 	frame.FirstRun = true
-	openRaidLib.RequestAllPlayersInfo()
+	openRaidLib.RequestAllData()
 
 	--> register callback on lib Open Raid
 		function PlayerCheck.RefreshScrollData()
@@ -541,8 +541,8 @@ function PlayerCheck.BuildOptions(frame)
 	function playerInfoScroll.RefreshData()
 		--get the information needed
 		local openRaidLib = LibStub:GetLibrary("LibOpenRaid-1.0")
-		local allPlayersGear = openRaidLib.gearManager.GetAllPlayersGear()
-		local allPlayersInfo = openRaidLib.playerInfoManager.GetAllPlayersInfo()
+		local allPlayersGear = openRaidLib.GetAllUnitsGear()
+		local allPlayersInfo = openRaidLib.GetAllUnitsInfo()
 
 		--get which column is currently selected and the sort order
 		local columnIndex, order = RaidAssistPlayerCheckHeader:GetSelectedColumn()

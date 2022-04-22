@@ -973,7 +973,7 @@ function Notepad.BuildListOfPlayersInRaid()
 	end
 
 	local openRaidLib = LibStub:GetLibrary("LibOpenRaid-1.0")
-	local allPlayersInfo = openRaidLib.playerInfoManager.GetAllPlayersInfo()
+	local allPlayersInfo = openRaidLib.GetAllUnitsInfo()
 
 	if (IsInRaid()) then
 		local _, _, difficultyID = GetInstanceInfo()
@@ -4858,7 +4858,7 @@ function Notepad.BuildOptions(frame) --~options õptions
 
 			--update raid status
 			local openRaidLib = LibStub:GetLibrary("LibOpenRaid-1.0")
-			openRaidLib.RequestAllPlayersInfo()
+			openRaidLib.RequestAllData()
 			return
 		end
 

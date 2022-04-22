@@ -346,8 +346,8 @@ local onUpdate = function(self, deltaTime) --~update ~onupdate õnupdate
 		end
 
 		--get weapon enchants data
-		local raidStatusLib = LibStub:GetLibrary("LibOpenRaid-1.0")
-		local allPlayersGear = raidStatusLib.gearManager.GetAllPlayersGear()
+		local openRaidLib = LibStub:GetLibrary("LibOpenRaid-1.0")
+		local allPlayersGear = openRaidLib.GetAllUnitsGear()
 		--local debugTime = {stage1 = 0, stage2 = 0, stage3 = 0, stage4 = 0}
 		local Ambiguate = Ambiguate
 
@@ -513,8 +513,8 @@ function ReadyCheck:READY_CHECK(event, player, timeout)
 		ReadyCheck.AnswerTable = ReadyCheck.AnswerTable or {}
 		wipe(ReadyCheck.AnswerTable)
 
-		local raidStatusLib = LibStub:GetLibrary("LibOpenRaid-1.0")
-		raidStatusLib.RequestAllPlayersInfo()
+		local openRaidLib = LibStub:GetLibrary("LibOpenRaid-1.0")
+		openRaidLib.RequestAllData()
 
 		local instanceName, instanceType, difficultyID, difficultyName, maxPlayers, dynamicDifficulty, isDynamic, instanceID, instanceGroupSize, LfgDungeonID = GetInstanceInfo()
 		local isMythicRaid = difficultyID == 16
