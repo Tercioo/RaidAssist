@@ -202,6 +202,8 @@ function PlayerCheck.BuildOptions(frame)
 
 	local header = DF:CreateHeader(frame, headerTable, headerOptions, "RaidAssistPlayerCheckHeader")
 	header:SetPoint("topleft", frame, "topleft", 0, headerY)
+	RaidAssistPlayerCheckHeaderHeaderIndex2:Click()
+	RaidAssistPlayerCheckHeaderHeaderIndex2:Click()
 
 	local currentSelectedColumn = 1
 

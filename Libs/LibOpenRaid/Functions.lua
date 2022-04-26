@@ -17,6 +17,7 @@ local CONST_COOLDOWN_TYPE_DEFENSIVE_PERSONAL = 2
 local CONST_COOLDOWN_TYPE_DEFENSIVE_TARGET = 3
 local CONST_COOLDOWN_TYPE_DEFENSIVE_RAID = 4
 local CONST_COOLDOWN_TYPE_UTILITY = 5
+local CONST_COOLDOWN_TYPE_INTERRUPT = 6
 
 --simple non recursive table copy
 function openRaidLib.TCopy(tableToReceive, tableToCopy)
@@ -142,7 +143,8 @@ local filterStringToCooldownType = {
     ["defensive-target"] = CONST_COOLDOWN_TYPE_DEFENSIVE_TARGET,
     ["defensive-personal"] = CONST_COOLDOWN_TYPE_DEFENSIVE_PERSONAL,
     ["ofensive"] = CONST_COOLDOWN_TYPE_OFFENSIVE,
-    ["utility"] = CONST_COOLDOWN_TYPE_UTILITY
+    ["utility"] = CONST_COOLDOWN_TYPE_UTILITY,
+    ["interrupt"] = CONST_COOLDOWN_TYPE_INTERRUPT,
 }
 
 function openRaidLib.CooldownManager.DoesSpellPassFilter(spellId, filters)
@@ -214,4 +216,35 @@ function openRaidLib.FilterCooldowns(unitName, allCooldowns, filters)
     end
 
     return resultFilters
+end
+
+--compare the current list of spells of the player with a new spell list generated
+--add or remove spells from the current list, make the cache dirt and return a table with spells removed or added
+function openRaidLib.CooldownManager.CheckForSpellsAdeedOrRemoved()
+    local playerName = UnitName("player")
+    local currentCooldowns = openRaidLib.CooldownManager.UnitData[playerName]
+    local _, newCooldownList = openRaidLib.CooldownManager.GetPlayerCooldownList()
+    local spellsAdded, spellsRemoved = {}, {}
+
+    for spellId, cooldownInfo in pairs(newCooldownList) do
+        if (not currentCooldowns[spellId]) then
+            --a spell has been added
+            currentCooldowns[spellId] = cooldownInfo
+            spellsAdded[#spellsAdded+1] = {spellId}
+            --mark the filter cache of this unit as dirt
+            openRaidLib.CooldownManager.NeedRebuildFilters[playerName] = true
+        end
+    end
+
+    for spellId, cooldownInfo in pairs(currentCooldowns) do
+        if (not newCooldownList[spellId]) then
+            --a spell has been removed
+            currentCooldowns[spellId] = nil
+            spellsRemoved[#spellsRemoved+1] = {spellId}
+            --mark the filter cache of this unit as dirt
+            openRaidLib.CooldownManager.NeedRebuildFilters[playerName] = true
+        end
+    end
+
+    return spellsAdded, spellsRemoved
 end
