@@ -259,8 +259,14 @@ Notepad.OnInstall = function (plugin)
 	screenFrame:SetSize(250, 200)
 	screenFrame:SetClampedToScreen(true)
 	screenFrame:SetResizable(true)
-	screenFrame:SetMaxResize(600, 1024)
-	screenFrame:SetMinResize(150, 50)
+
+	if (screenFrame.SetMaxResize) then
+		screenFrame:SetMaxResize(600, 1024)
+		screenFrame:SetMinResize(150, 50)
+	elseif (screenFrame.SetResizeBounds) then
+		screenFrame:SetResizeBounds(150, 7, 600, 1024)
+	end
+
 	screenFrame:Hide()
 
 	local title_text = screenFrame:CreateFontString(nil, "overlay", "GameFontNormal")

@@ -1,4 +1,4 @@
-## Interface: 90200
+## Interface: 100000
 ## Title: Raid Assist
 ## Notes: Mods and Tools for raiding, type /raa to see.
 ## SavedVariables: RADataBase
@@ -6,8 +6,6 @@
 #@no-lib-strip@
 Libs\libs.xml
 #@end-no-lib-strip@
-
-gl\gl2.lua
 
 locales\enUS.lua
 

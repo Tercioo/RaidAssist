@@ -185,7 +185,11 @@ function PlayerCheck.BuildOptions(frame)
 
 	local headerOnClickCallback = function(headerFrame, columnHeader)
 		--need to change this to make a refresh in the scroll frame
-		_G[frame:GetName() .. "playerInfoScroll"].RefreshData()
+		local frameName = frame:GetName() .. "playerInfoScroll"
+		local scrollFrame = _G[frameName]
+		if (scrollFrame and scrollFrame.RefreshData) then
+			scrollFrame.RefreshData()
+		end
 	end
 
 	local headerOptions = {
@@ -202,8 +206,11 @@ function PlayerCheck.BuildOptions(frame)
 
 	local header = DF:CreateHeader(frame, headerTable, headerOptions, "RaidAssistPlayerCheckHeader")
 	header:SetPoint("topleft", frame, "topleft", 0, headerY)
-	RaidAssistPlayerCheckHeaderHeaderIndex2:Click()
-	RaidAssistPlayerCheckHeaderHeaderIndex2:Click()
+
+	C_Timer.After(0, function()
+		RaidAssistPlayerCheckHeaderHeaderIndex2:Click()
+		RaidAssistPlayerCheckHeaderHeaderIndex2:Click()
+	end)
 
 	local currentSelectedColumn = 1
 
