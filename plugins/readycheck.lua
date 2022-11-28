@@ -543,17 +543,19 @@ function ReadyCheck:READY_CHECK(event, player, timeout)
 
 		for i = 1, GetNumGroupMembers() do
 			local name, rank, subgroup, level, class, fileName, zone, online, isDead, role, isML, combatRole = GetRaidRosterInfo(i)
-			name = Ambiguate(name, "none")
+			if (name) then
+				name = Ambiguate(name, "none")
 
-			if (not isMythicRaid or (isMythicRaid and subgroup <= 4)) then --mythic raid check
-				if (not isNormalOrHeroic or (isNormalOrHeroic and subgroup <= 6)) then --heroic normal raid check
-					if (player ~= name) then
-						ReadyCheck.AnswerTable[name] = "afk"
-					else
-						ReadyCheck.AnswerTable[name] = true
+				if (not isMythicRaid or (isMythicRaid and subgroup <= 4)) then --mythic raid check
+					if (not isNormalOrHeroic or (isNormalOrHeroic and subgroup <= 6)) then --heroic normal raid check
+						if (player ~= name) then
+							ReadyCheck.AnswerTable[name] = "afk"
+						else
+							ReadyCheck.AnswerTable[name] = true
+						end
+
+						amt = amt + 1
 					end
-
-					amt = amt + 1
 				end
 			end
 		end

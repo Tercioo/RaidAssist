@@ -285,7 +285,7 @@ end
 function Cooldowns:PLAYER_LOGOUT()
 	--cleanup schedules objects
 
-	for i = 1, 12 do --12 classes
+	for i = 1, 13 do --13 classes
 		local classTable = Cooldowns.Roster[i]
 		for playerName, _ in pairs (classTable) do
 			local player = classTable [playerName]
@@ -323,7 +323,7 @@ function Cooldowns:ENCOUNTER_END()
 end
 
 Cooldowns.PLAYER_LOGIN = function()
-	for i = 1, 12 do --12 classes
+	for i = 1, 13 do --13 classes
 		Cooldowns.Roster[i] = {}
 	end
 
@@ -376,7 +376,7 @@ function Cooldowns.ResetRoster()
 	--reset roster
 	wipe (Cooldowns.Roster)
 
-	for i = 1, 12 do --12 classes
+	for i = 1, 13 do --13 classes
 		Cooldowns.Roster [i] = {}
 	end
 
@@ -536,7 +536,7 @@ function Cooldowns.RosterUpdate(needReset)
 		end
 
 		--quick clean up removing players that isn't in the group anymore
-		for i = 1, 12 do --12 classes
+		for i = 1, 13 do --13 classes
 			local classTable = Cooldowns.Roster[i]
 			if (classTable) then
 				for playerName, _ in pairs (classTable) do

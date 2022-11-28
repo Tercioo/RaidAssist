@@ -15,7 +15,7 @@ local max = math.max
 
 --api locals
 local PixelUtil = PixelUtil or DFPixelUtil
-local version = 6
+local version = 7
 
 local CONST_MENU_TYPE_MAINMENU = "main"
 local CONST_MENU_TYPE_SUBMENU = "sub"
@@ -27,6 +27,8 @@ function DF:CreateCoolTip()
 	if (_G.GameCooltip2 and _G.GameCooltip2.version >= version) then
 		return
 	end
+
+	local maxStatusBarValue = 100000000
 
 	local defaultBackdrop = {bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1,
 	tile = true, tileSize = 16, insets = {left = 0, right = 0, top = 0, bottom = 0}}
@@ -64,7 +66,22 @@ function DF:CreateCoolTip()
 		return CONST_MENU_TYPE_MAINMENU
 	end
 
-	local languageFontEditBox = function()
+	gameCooltip.LanguageEditBox = gameCooltip.LanguageEditBox or CreateFrame("editbox")
+	gameCooltip.LanguageEditBox:SetFontObject("GameFontNormal")
+	gameCooltip.LanguageEditBox:ClearFocus()
+	gameCooltip.LanguageEditBox:SetAutoFocus(false)
+
+	function gameCooltip.CheckNeedNewFont(text)
+		--local file = gameCooltip.LanguageEditBox:GetFont()
+		--print("1", file, text)
+		--gameCooltip.LanguageEditBox:SetText("Цены аукциона")
+		--local file2 = gameCooltip.LanguageEditBox:GetFont()
+		--print("2", file2)
+		--gameCooltip.LanguageEditBox:ClearFocus()
+
+		--if (file ~= file2) then
+		--	gameCooltip:SetOption("TextFont", file2)
+		--end
 	end
 
 	--containers
@@ -145,6 +162,16 @@ function DF:CreateCoolTip()
 		["SelectedBottomAnchorMod"] = true,
 		["SelectedLeftAnchorMod"] = true,
 		["SelectedRightAnchorMod"] = true,
+
+		["SparkTexture"] = true,
+		["SparkHeightOffset"] = true,
+		["SparkWidthOffset"] = true,
+		["SparkHeight"] = true,
+		["SparkWidth"] = true,
+		["SparkAlpha"] = true,
+		["SparkColor"] = true,
+		["SparkPositionXOffset"] = true,
+		["SparkPositionYOffset"] = true,
 	}
 
 	gameCooltip.AliasList = {
@@ -531,6 +558,9 @@ function DF:CreateCoolTip()
 		statusbar.spark:SetBlendMode("ADD")
 		statusbar.spark:SetSize(12, 24)
 		statusbar.spark:SetPoint("LEFT", statusbar, "RIGHT", -20, -1)
+		statusbar.spark.originalWidth = 12
+		statusbar.spark.originalHeight = 24
+		statusbar.spark.originalTexture = "Interface\\CastingBar\\UI-CastingBar-Spark"
 
 		statusbar.background = statusbar:CreateTexture("$parent_Background", "ARTWORK")
 		statusbar.background:Hide()
@@ -1136,15 +1166,31 @@ function DF:CreateCoolTip()
 	end
 
 	function gameCooltip:RefreshSpark(menuButton)
+		local sparkTexture = gameCooltip.OptionsTable.SparkTexture or menuButton.spark.originalTexture
+		local sparkAlpha = gameCooltip.OptionsTable.SparkAlpha or 1
+		local sparkColor = gameCooltip.OptionsTable.SparkColor or "white"
+
+		local sparkWidth = gameCooltip.OptionsTable.SparkWidth or menuButton.spark.originalWidth
+		local sparkHeight = gameCooltip.OptionsTable.SparkHeight or menuButton.spark.originalHeight
+		local sparkWidthOffset = gameCooltip.OptionsTable.SparkWidthOffset or 0
+		local sparkHeightOffset = gameCooltip.OptionsTable.SparkHeightOffset or  0
+		local positionXOffset = gameCooltip.OptionsTable.SparkPositionXOffset or 0
+		local positionYOffset = gameCooltip.OptionsTable.SparkPositionYOffset or 0
+
+		menuButton.spark:SetSize(sparkWidth + sparkWidthOffset, sparkHeight + sparkHeightOffset)
+		menuButton.spark:SetTexture(sparkTexture)
+		menuButton.spark:SetVertexColor(DF:ParseColors(sparkColor))
+		menuButton.spark:SetAlpha(sparkAlpha)
+
 		menuButton.spark:ClearAllPoints()
-		menuButton.spark:SetPoint("left", menuButton.statusbar, "left", (menuButton.statusbar:GetValue() * (menuButton.statusbar:GetWidth() / 100)) - 5, 0)
+		menuButton.spark:SetPoint("left", menuButton.statusbar, "left", (menuButton.statusbar:GetValue() * (menuButton.statusbar:GetWidth() / 100)) - 5 + positionXOffset, 0 + positionYOffset)
 		menuButton.spark2:ClearAllPoints()
-		menuButton.spark2:SetPoint("left", menuButton.statusbar, "left", menuButton.statusbar:GetValue() * (menuButton.statusbar:GetWidth()/100) - 16, 0)
+		menuButton.spark2:SetPoint("left", menuButton.statusbar, "left", menuButton.statusbar:GetValue() * (menuButton.statusbar:GetWidth()/100) - 16 + positionXOffset, 0 + positionYOffset)
 	end
 
 	function gameCooltip:StatusBar(menuButton, statusBarSettings)
 		if (statusBarSettings) then
-			menuButton.statusbar:SetValue(statusBarSettings[1])
+			menuButton.statusbar:SetValue(Clamp(statusBarSettings[1], 0, maxStatusBarValue))
 			menuButton.statusbar:SetStatusBarColor(statusBarSettings[2], statusBarSettings[3], statusBarSettings[4], statusBarSettings[5])
 			menuButton.statusbar:SetHeight(20 + (gameCooltip.OptionsTable.StatusBarHeightMod or 0))
 
@@ -1156,7 +1202,7 @@ function DF:CreateCoolTip()
 			end
 
 			if (statusBarSettings[7]) then
-				menuButton.statusbar2:SetValue(statusBarSettings[7].value)
+				menuButton.statusbar2:SetValue(Clamp(statusBarSettings[7].value, 0, maxStatusBarValue))
 				menuButton.statusbar2.texture:SetTexture(statusBarSettings[7].texture or [[Interface\RaidFrame\Raid-Bar-Hp-Fill]])
 				if (statusBarSettings[7].specialSpark) then
 					menuButton.spark2:Show()
@@ -2738,6 +2784,8 @@ function DF:CreateCoolTip()
 			end
 		end
 
+		gameCooltip.CheckNeedNewFont(leftText)
+
 		local rightTextType = type(rightText)
 		if (rightTextType ~= "string") then
 			if (rightTextType == "number") then
@@ -2746,6 +2794,8 @@ function DF:CreateCoolTip()
 				rightText = ""
 			end
 		end
+
+		gameCooltip.CheckNeedNewFont(rightText)
 
 		if (type(ColorR1) ~= "number") then
 			ColorR2, ColorG2, ColorB2, ColorA2, fontSize, fontFace, fontFlag = ColorG1, ColorB1, ColorA1, ColorR2, ColorG2, ColorB2, ColorA2
