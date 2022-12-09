@@ -3,6 +3,8 @@
 ## Notes: Mods and Tools for raiding, type /raa to see.
 ## SavedVariables: RADataBase
 
+RaidAssist.xml
+
 #@no-lib-strip@
 Libs\libs.xml
 #@end-no-lib-strip@

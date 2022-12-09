@@ -11,7 +11,7 @@ local _
 function RA:GetPopupAttachAnchors()
 	local anchorSide = RA.db.profile.addon.anchor_side
 	local anchor1, anchor2, x, y
-	
+
 	if (anchorSide == "left") then
 		anchor1, anchor2, x, y = "left", "right", 4, 0
 	elseif (anchorSide == "right") then
@@ -21,7 +21,7 @@ function RA:GetPopupAttachAnchors()
 	elseif (anchorSide == "bottom") then
 		anchor1, anchor2, x, y = "bottomleft", "right", 4, 0
 	end
-	
+
 	return anchor1, anchor2, x, y
 end
 
@@ -43,35 +43,35 @@ end
 	pluginObject: table, with all the plugin functions.
 	defaultConfig: table, with key and values to store on db.
 --]=]
-function RA:InstallPlugin (name, frameName, pluginObject, defaultConfig)
+function RA:InstallPlugin(name, frameName, pluginObject, defaultConfig)
 	assert (type (name) == "string", "InstallPlugin expects a string on parameter 1.")
 	assert (type (frameName) == "string", "InstallPlugin expects a string on parameter 2.")
 	assert (not RA.plugins [name], "Plugin name " ..name.." already in use.")
 	assert (type (pluginObject) == "table", "InstallPlugin expects a table on parameter 3.")
-	
+
 	if (not RA.db) then
 		RA.schedule_install [#RA.schedule_install+1] = {name, frameName, pluginObject, defaultConfig}
 		return "scheduled"
 	end
-	
-	RA.plugins [name] = pluginObject
+
+	RA.plugins[name] = pluginObject
 	RA.pluginIds[pluginObject.pluginId] = pluginObject
 	pluginObject.db_default = defaultConfig or {}
 	pluginObject._eventsCallback = {}
-	setmetatable (pluginObject, RA)
+	setmetatable(pluginObject, RA)
 
-	RA:LoadPluginDB (name, true)
+	RA:LoadPluginDB(name, true)
 
 	if (pluginObject.db.menu_priority == nil) then
 		pluginObject.db.menu_priority = 1
 	end
 
-	pluginObject.popup_frame = RA:CreatePopUpFrame (pluginObject, frameName .. "PopupFrame")
-	pluginObject.main_frame = RA:CreatePluginFrame (pluginObject, frameName .. "MainFrame", name)
+	pluginObject.popup_frame = RA:CreatePopUpFrame(pluginObject, frameName .. "PopupFrame")
+	pluginObject.main_frame = RA:CreatePluginFrame(pluginObject, frameName .. "MainFrame", name)
 
 	if (pluginObject.OnInstall) then
 		local err = geterrorhandler()
-		xpcall (pluginObject.OnInstall, err, pluginObject)
+		xpcall(pluginObject.OnInstall, err, pluginObject)
 	end
 
 	local eventFrame = CreateFrame("frame")
@@ -82,6 +82,58 @@ function RA:InstallPlugin (name, frameName, pluginObject, defaultConfig)
 			if (pluginObject.PLAYER_LOGIN) then
 				local err = geterrorhandler()
 				xpcall (pluginObject.PLAYER_LOGIN, err, pluginObject, event)
+			end
+		else
+			local callback = pluginObject._eventsCallback[event]
+			if (callback) then
+				local err = geterrorhandler()
+				xpcall(callback, err, pluginObject, event)
+			end
+		end
+	end)
+
+	return "successful"
+end
+
+function RA:InstallTrivialPlugin(name, frameName, pluginObject, defaultConfig)
+	assert(type(name) == "string", "InstallPlugin expects a string on parameter 1.")
+	assert(type(frameName) == "string", "InstallPlugin expects a string on parameter 2.")
+	assert(not RA.plugins [name], "Plugin name " .. name .. " already in use.")
+	assert(type(pluginObject) == "table", "InstallPlugin expects a table on parameter 3.")
+
+	if (not RA.db) then
+		RA.schedule_install_trivial[#RA.schedule_install_trivial+1] = {name, frameName, pluginObject, defaultConfig}
+		return "scheduled"
+	end
+
+	RA.pluginsTrivial[name] = pluginObject
+	RA.pluginsTrivialIds[pluginObject.pluginId] = pluginObject
+
+	pluginObject.db_default = defaultConfig or {}
+	pluginObject._eventsCallback = {}
+	setmetatable(pluginObject, RA)
+	RA:LoadPluginDB(name, true)
+
+	if (pluginObject.db.menu_priority == nil) then
+		pluginObject.db.menu_priority = 1
+	end
+
+	pluginObject.popup_frame = RA:CreatePopUpFrame(pluginObject, frameName .. "PopupFrame")
+	pluginObject.main_frame = RA:CreatePluginFrame(pluginObject, frameName .. "MainFrame", name)
+
+	if (pluginObject.OnInstall) then
+		local err = geterrorhandler()
+		xpcall(pluginObject.OnInstall, err, pluginObject)
+	end
+
+	local eventFrame = CreateFrame("frame")
+	pluginObject._eventFrame = eventFrame
+	eventFrame:RegisterEvent("PLAYER_LOGIN")
+	eventFrame:SetScript("OnEvent", function(self, event)
+		if (event == "PLAYER_LOGIN") then
+			if (pluginObject.PLAYER_LOGIN) then
+				local err = geterrorhandler()
+				xpcall(pluginObject.PLAYER_LOGIN, err, pluginObject, event)
 			end
 		else
 			local callback = pluginObject._eventsCallback[event]
@@ -155,10 +207,10 @@ end
 
 --[=[
 	RA:SendPluginCommMessage (prefix, channel, ...)
-	
+
 	Is a customized function to use when sending comm messages.
 	SendCommMessage / CommReceived / RegisterComm can all be used directly from the plugin.
-	
+
 	prefix (string) receiving func identification.
 	channel (string) which channel the comm is sent.
 	callback (function) called after the message as fully sent.
@@ -208,7 +260,7 @@ end
 function RA:IsAddOnInstalled (addonName)
 	assert (type (addonName) == "string", "IsAddOnInstalled expects a string on parameter 1.")
 	local name, title, notes, loadable, reason, security, newVersion = GetAddOnInfo (addonName)
-	
+
 	-- need to check ingame what the values is returning.
 	print (name, loadable, reason)
 end
@@ -235,7 +287,7 @@ end
 --]=]
 function RA:UnregisterForCLEUEvent (event, func)
 	if (RA.CLEU_registeredEvents [event]) then
-		for index, f in ipairs (RA.CLEU_registeredEvents [event]) do 
+		for index, f in ipairs (RA.CLEU_registeredEvents [event]) do
 			if (f == func) then
 				tremove (RA.CLEU_registeredEvents [event], index)
 				break
@@ -281,7 +333,7 @@ local canEnchantSlot = {
 	[INVSLOT_MAINHAND] = true,
 }
 local statsTable = {}
-function RA:GetSloppyEquipment()
+function RA:GetSloppyEquipment() --deprecated (use open raid lib instead)
 
 	local no_enchant = {}
 	local no_gem = {}
@@ -291,14 +343,14 @@ function RA:GetSloppyEquipment()
 			local item = GetInventoryItemLink ("player", equip_id)
 			if (item) then
 				local _, _, enchant, gemID1, gemID2, gemID3, gemID4 = strsplit (":", item)
-				
+
 				if (canEnchantSlot [equip_id] and (enchant == "0" or enchant == "")) then
 					no_enchant [#no_enchant+1] = equip_id
 				end
-				
+
 				statsTable.EMPTY_SOCKET_PRISMATIC = nil
 				GetItemStats (item, statsTable)
-				
+
 				--all sockets on WoD are prismatic, we are safe to make this
 				if (statsTable.EMPTY_SOCKET_PRISMATIC) then
 					--in WoD, no item has more than 1 slot
@@ -317,13 +369,13 @@ end
 	RA:GetTalents()
 	return a table where the first index is the specialization ID and the other 7 indexes are the IDs for the chosen talents.
 --]=]
-function RA:GetTalents()
+function RA:GetTalents() --deprecated on dragonflight
 	local specSlot = GetActiveSpecGroup()
 	if (specSlot) then
 		local talentInfo = {}
 		local id, name, description, icon, background, role = GetSpecializationInfo (specSlot)
 		talentInfo [#talentInfo+1] = id
-		
+
 		for i = 1, 7 do
 			for o = 1, 3 do
 				local talentID, name, texture, selected, available = GetTalentInfo (i, o, specSlot)
@@ -333,7 +385,7 @@ function RA:GetTalents()
 				end
 			end
 		end
-		
+
 		return talentInfo
 	end
 	return {}
@@ -346,13 +398,13 @@ end
 function RA:GetGuildRanks (forDropdown)
 	if (forDropdown) then
 		local t = {}
-		for i = 1, GuildControlGetNumRanks() do 
+		for i = 1, GuildControlGetNumRanks() do
 			tinsert (t, {value = i, label = GuildControlGetRankName (i), onclick = empty_func})
 		end
 		return t
 	else
 		local t = {}
-		for i = 1, GuildControlGetNumRanks() do 
+		for i = 1, GuildControlGetNumRanks() do
 			t [i] = GuildControlGetRankName (i)
 		end
 		return t
@@ -364,7 +416,7 @@ end
 	return is the player is in queue for bg, arena, dungeon, rf, premade.
 --]=]
 function RA:IsInQueue()
-	for LFG_CATEGORY = 1, 5 do 
+	for LFG_CATEGORY = 1, 5 do
 		if (GetLFGMode (LFG_CATEGORY)) then
 			return true
 		end
@@ -458,7 +510,7 @@ end
 	RA:RegisterForEnterRaidGroup (func)
 	RA:RegisterForLeaveRaidGroup (func)
 	Calls 'func' when the player enters or left a raid group.
-	
+
 	RA:UnregisterForEnterRaidGroup (func)
 	RA:UnregisterForLeaveRaidGroup (func)
 	Remove a previous regitered function.
@@ -566,13 +618,13 @@ function RA:PercentColor (value, inverted)
 	else
 		r = floor ( 255 - (value * 2 - 100) * 255 / 100)
 	end
-	
+
 	if (value > 50) then
 		g = 255
 	else
 		g = floor ( (value * 2) * 255 / 100)
 	end
-	
+
 	if (inverted) then
 		return g/255, r/255, 0
 	else
@@ -631,7 +683,7 @@ end
 --]=]
 local encounter_journal = {
 	--[instance EJID] { [boss EJID] = Combatlog ID}
-	
+
 	--Uldir
 	[1031] = {
 		2168, 2167, 2146, 2169, 2166, 2195, 2194, 2147,
@@ -644,7 +696,7 @@ local encounter_journal = {
 		[2194] = 2135, --Mythrax the Unraveler
 		[2147] = 2122, --G'huun
 	},
-	
+
 	--Battle of Daraz'alor
 	[1176] = {
 		2333, 2325, 2341, 2342, 2330, 2335, 2334, 2337, 2343,
@@ -658,7 +710,7 @@ local encounter_journal = {
 		[2337] = 2280, --Stormwall Blockade
 		[2343] = 2281, --Lady Jaina Proudmoore
 	},
-	
+
 	[1179] = {
 		2298, 2305, 2289, 2304, 2303, 2311, 2293, 2299,
 		[2352] = 2298, --Abyssal Commander Sivara
@@ -675,7 +727,7 @@ local encounter_journal = {
 
 local combat_log_ids = {
 	--[instance EJID] = { --[boss Combatlog ID] = boss EJID}
-	
+
 	--Uldir
 	[1031] = {
 		2144, 2141, 2128, 2136, 2134, 2145, 2135, 2122,
@@ -688,7 +740,7 @@ local combat_log_ids = {
 		[2135] = 2194, --Mythrax the Unraveler
 		[2122] = 2147, --G'huun
 	},
-	
+
 	--Battle of Daraz'alor
 	[1176] = {
 		2265, 2263, 2266, 2271, 2268, 2272, 2276, 2280, 2281,
@@ -702,7 +754,7 @@ local combat_log_ids = {
 		[2280] = 2337, --Stormwall Blockade
 		[2281] = 2343, --Lady Jaina Proudmoore
 	},
-	
+
 	[1179] = {
 		2352, 2347, 2353, 2354, 2351, 2359, 2349, 2361,
 		[2352] = 2352, --Abyssal Commander Sivara
@@ -790,7 +842,7 @@ end
 	return a table with all weak auras
 --]=]
 
-function RA:GetAllWeakAuras()
+function RA:GetAllWeakAuras() --
 	local WeakAuras_Object, WeakAuras_SavedVar = RA:GetWeakAuras2Object()
 	return WeakAuras_SavedVar and WeakAuras_SavedVar.displays
 end
@@ -800,7 +852,7 @@ end
 	install a weakaura into WeakAuras2 addon
 --]=]
 
-function RA:InstallWeakAura (auraTable)
+function RA:InstallWeakAura (auraTable) --this method is deprecated (guess)
 	if (not auraTable.id) then
 		return
 	end
@@ -818,3 +870,133 @@ function RA:InstallWeakAura (auraTable)
 end
 
 
+function RA:GetExpansionBossList(classId) --~bosslist
+	local bossIndexedTable = {}
+	local bossLootTable = {} --[bossId] = {lootInfoTable, lootInfoTable, lootInfoTable}
+	local bossInfoTable = {} --[bossId] = bossInfo
+
+	if (classId) then
+		EJ_SetLootFilter(classId, 0)
+	else
+		EJ_SetLootFilter(0, 0)
+	end
+
+	--in rare cases, the encounter journal doesn't load, here we load it and reset it
+	--must be a better way of doing this
+	if (not EncounterJournal) then
+		EncounterJournal_LoadUI()
+		EncounterJournalDungeonTab:Click()
+		EncounterJournal_TierDropDown_Select(_, 10) --dragon isles
+		EncounterJournalRaidTab:Click()
+
+		C_Timer.After(1, function()
+			EncounterJournalDungeonTab:Click()
+			EncounterJournalRaidTab:Click()
+			EncounterJournalDungeonTab:Click()
+		end)
+
+		C_Timer.After(2, function()
+
+		end)
+	end
+
+    for instanceIndex = 10, 1, -1 do
+		local instanceID, zoneName = _G.EJ_GetInstanceByIndex(instanceIndex, true)
+        if (instanceID) then
+			EncounterJournal_DisplayInstance(instanceID)
+
+            for i = 20, 1, -1 do
+				local name, description, journalEncounterID, rootSectionID, link, journalInstanceID, dungeonEncounterID, UiMapID = _G.EJ_GetEncounterInfoByIndex(i, instanceID)
+				if (name) then
+					local id, creatureName, creatureDescription, displayInfo, iconImage = EJ_GetCreatureInfo(1, journalEncounterID)
+					local thisbossIndexedTable = {
+						bossName = name,
+						journalEncounterID = journalEncounterID,
+						bossRaidName = zoneName,
+						bossIcon = iconImage,
+						bossIconCoords = {0, 1, 0, 0.95},
+						bossIconSize = {70, 36},
+						instanceId = instanceID,
+						uiMapId = UiMapID,
+						instanceIndex = instanceIndex,
+						journalInstanceId = journalInstanceID,
+					}
+					bossIndexedTable[#bossIndexedTable+1] = thisbossIndexedTable
+					bossInfoTable[journalEncounterID] = thisbossIndexedTable
+
+					EJ_SelectEncounter(journalEncounterID)
+
+					--already filtered by class
+					local lootTable = {}
+					bossLootTable[journalEncounterID] = lootTable
+					for lootIndex = 1, EJ_GetNumLoot() do
+						local thisLootInfo = C_EncounterJournal.GetLootInfoByIndex(lootIndex)
+						lootTable[#lootTable+1] = thisLootInfo
+					end
+                end
+            end
+        end
+	end
+
+	return bossIndexedTable, bossInfoTable, bossLootTable
+end
+
+
+
+local class_specs_coords = {
+	[577] = {128/512, 192/512, 256/512, 320/512}, --havoc demon hunter
+	[581] = {192/512, 256/512, 256/512, 320/512}, --vengeance demon hunter
+
+	[250] = {0, 64/512, 0, 64/512}, --blood dk
+	[251] = {64/512, 128/512, 0, 64/512}, --frost dk
+	[252] = {128/512, 192/512, 0, 64/512}, --unholy dk
+
+	[102] = {192/512, 256/512, 0, 64/512}, -- druid balance
+	[103] = {256/512, 320/512, 0, 64/512}, -- druid feral
+	[104] = {320/512, 384/512, 0, 64/512}, -- druid guardian
+	[105] = {384/512, 448/512, 0, 64/512}, -- druid resto
+
+	[253] = {448/512, 512/512, 0, 64/512}, -- hunter bm
+	[254] = {0, 64/512, 64/512, 128/512}, --hunter marks
+	[255] = {64/512, 128/512, 64/512, 128/512}, --hunter survivor
+
+	[62] = {(128/512) + 0.001953125, 192/512, 64/512, 128/512}, --mage arcane
+	[63] = {192/512, 256/512, 64/512, 128/512}, --mage fire
+	[64] = {256/512, 320/512, 64/512, 128/512}, --mage frost
+
+	[268] = {320/512, 384/512, 64/512, 128/512}, --monk bm
+	[269] = {448/512, 512/512, 64/512, 128/512}, --monk ww
+	[270] = {384/512, 448/512, 64/512, 128/512}, --monk mw
+
+	[65] = {0, 64/512, 128/512, 192/512}, --paladin holy
+	[66] = {64/512, 128/512, 128/512, 192/512}, --paladin protect
+	[70] = {(128/512) + 0.001953125, 192/512, 128/512, 192/512}, --paladin ret
+
+	[256] = {192/512, 256/512, 128/512, 192/512}, --priest disc
+	[257] = {256/512, 320/512, 128/512, 192/512}, --priest holy
+	[258] = {(320/512) + (0.001953125 * 4), 384/512, 128/512, 192/512}, --priest shadow
+
+	[259] = {384/512, 448/512, 128/512, 192/512}, --rogue assassination
+	[260] = {448/512, 512/512, 128/512, 192/512}, --rogue combat
+	[261] = {0, 64/512, 192/512, 256/512}, --rogue sub
+
+	[262] = {64/512, 128/512, 192/512, 256/512}, --shaman elemental
+	[263] = {128/512, 192/512, 192/512, 256/512}, --shamel enhancement
+	[264] = {192/512, 256/512, 192/512, 256/512}, --shaman resto
+
+	[265] = {256/512, 320/512, 192/512, 256/512}, --warlock aff
+	[266] = {320/512, 384/512, 192/512, 256/512}, --warlock demo
+	[267] = {384/512, 448/512, 192/512, 256/512}, --warlock destro
+
+	[71] = {448/512, 512/512, 192/512, 256/512}, --warrior arms
+	[72] = {0, 64/512, 256/512, 320/512}, --warrior fury
+	[73] = {64/512, 128/512, 256/512, 320/512}, --warrior protect
+
+	[1467] = {256/512, 320/512, 256/512, 320/512}, -- Devastation
+	[1468] = {320/512, 384/512, 256/512, 320/512}, -- Preservation
+}
+
+function RA:GetTexCoordForSpecId(specId)
+	local coords = class_specs_coords[specId]
+	return coords[1] or 0, coords[2] or 0, coords[3] or 0, coords[4] or 0
+end

@@ -2,7 +2,7 @@
 local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
-local default_priority = 90
+local default_priority = 12
 local DF = DetailsFramework
 
 local Invite = {version = "v0.1", pluginname = "Invites", pluginId = "INVI", displayName = "Invites"}
@@ -307,7 +307,7 @@ function Invite.BuildOptions (frame)
 		--guild rank to invite
 		local welcome_text_create1 = DF:CreateLabel (presetSetupFrame, "Select which ranks will be invited", Invite:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
 		welcome_text_create1:SetPoint ("topleft", panel, "topleft", 10, -42)
-		welcome_text_create1.fontsize = 14
+		welcome_text_create1.fontsize = 11
 		
 		local switchers = {}
 		function Invite:UpdateRanksOnProfileCreation()
@@ -633,7 +633,7 @@ function Invite.BuildOptions (frame)
 		--> welcome text
 		local welcome_text1 = DF:CreateLabel (profilesBackgroupFrame, "Select an Invite Preset to start inviting", Invite:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
 		welcome_text1:SetPoint ("topleft", main_frame, "topleft", x_start, -5)
-		welcome_text1.fontsize = 14
+		welcome_text1.fontsize = 11
 		
 		--> hold all preset buttons created
 		local preset_buttons = {}
@@ -694,7 +694,7 @@ function Invite.BuildOptions (frame)
 		--> create, edit or remove a preset
 		local welcome_text2 = DF:CreateLabel(profilesBackgroupFrame, "Create, edit or remove a preset", Invite:GetTemplate("font", "ORANGE_FONT_TEMPLATE"))
 		welcome_text2:SetPoint("topleft", main_frame, "topleft", x_start, -120) --POINT
-		welcome_text2.fontsize = 14
+		welcome_text2.fontsize = 11
 
 		local create_button = DF:CreateButton(profilesBackgroupFrame, Invite.create_new_preset, 160, 20, "Create Preset", _, _, _, _, _, _, Invite:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), Invite:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 		create_button:SetIcon("Interface\\AddOns\\" .. RA.InstallDir .. "\\media\\plus", 10, 10, "overlay", {0, 1, 0, 1}, {1, 1, 1}, 3, 1, 0)
@@ -779,7 +779,7 @@ function Invite.BuildOptions (frame)
 		--> welcome msg
 		local welcome_text3 = DF:CreateLabel (profilesConfigBgFrame, "On receiving a whisper with keyword, auto invite the person?", Invite:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
 		welcome_text3:SetPoint("topleft", profilesConfigBgFrame, "topleft", configXStart, -10) --POINT
-		welcome_text3.fontsize = 14
+		welcome_text3.fontsize = 11
 
 		--> enabled
 		local on_auto_invite_switch = function (_, _, value)
@@ -848,7 +848,7 @@ function Invite.BuildOptions (frame)
 		--> welcome msg
 		local welcome_text4 = DF:CreateLabel (profilesConfigBgFrame, "When a friend or guild member send an invite, auto accept it?", Invite:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
 		welcome_text4:SetPoint("topleft", profilesConfigBgFrame, "topleft", configXStart, -130) --POINT
-		welcome_text4.fontsize = 14
+		welcome_text4.fontsize = 11
 
 		--> enabled
 		local on_auto_ainvite_switch = function (_, _, value)
@@ -872,7 +872,7 @@ function Invite.BuildOptions (frame)
 		--> welcome msg
 		local welcome_text5 = DF:CreateLabel (profilesConfigBgFrame, "Repeat the invite announcement with each wave?", Invite:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
 		welcome_text5:SetPoint("topleft", profilesConfigBgFrame, "topleft", configXStart, -210)
-		welcome_text5.fontsize = 14
+		welcome_text5.fontsize = 11
 
 		--> enabled
 		local on_invite_msg_repeats_switch = function (_, _, value)
@@ -887,7 +887,7 @@ function Invite.BuildOptions (frame)
 		--> welcome msg
 		local welcome_text6 = DF:CreateLabel (profilesConfigBgFrame, "Interval in seconds between each invite wave.", Invite:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
 		welcome_text6:SetPoint("topleft", profilesConfigBgFrame, "topleft", configXStart, -270) --POINT
-		welcome_text6.fontsize = 14
+		welcome_text6.fontsize = 11
 
 		local invite_interval_slider, invite_interval_label = DF:CreateSlider(profilesConfigBgFrame, 180, 20, 20, 180, 1, Invite.db.invite_interval, _, "InviteInterval", _, "Inverval", Invite:GetTemplate ("slider", "OPTIONS_SLIDER_TEMPLATE"), Invite:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 		invite_interval_label:SetPoint("topleft", profilesConfigBgFrame, "topleft", configXStart, -290) --POINT

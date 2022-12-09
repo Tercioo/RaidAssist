@@ -771,7 +771,8 @@ function ReadyCheck.BuildOptions(frame)
 	local options_button_template = ReadyCheck:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE")
 
 	ReadyCheck:SetAsOptionsPanel(leftOptionsPanelFrame)
-	ReadyCheck:BuildMenu(leftOptionsPanelFrame, options_list, 5, -5, 500, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
+	options_list.always_boxfirst = true
+	ReadyCheck:BuildMenu(leftOptionsPanelFrame, options_list, 5, -5, 500, false, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
 end
 
 RA:InstallPlugin(ReadyCheck.displayName, "RAReadyCheck", ReadyCheck, default_config)

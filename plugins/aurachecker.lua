@@ -3,6 +3,7 @@ local RA = _G.RaidAssist
 local L = LibStub("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
 local default_priority = 26
+local DF = DetailsFramework
 
 local default_config = {
 	enabled = true,
@@ -239,6 +240,9 @@ function AuraCheck.BuildOptions (frame)
 		aurasFrame.fillPanel = fillPanel
 		DetailsFramework:ApplyStandardBackdrop(fillPanel)
 		fillPanel:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
+
+		local gradientBelowTheLine = DF:CreateTexture(fillPanel, {gradient = "vertical", fromColor = {0, 0, 0, 0.3}, toColor = "transparent"}, 1, 100, "artwork", {0, 1, 0, 1}, "gradientBelowTheLine")
+		gradientBelowTheLine:SetPoint("bottoms", fillPanel, 1, 1)
 
 		local NoAuraLabel = AuraCheck:CreateLabel (fillPanel, "Select a weakaura on the right scroll box.\nClick on 'Check Aura', to see users who has it in the raid.\nClick on 'Share Aura' to send the aura to all raid members.\nRaid members also must have 'Raid Assist' addon.")
 		NoAuraLabel:SetPoint ("bottomleft", RaidAssistOptionsPanel, "bottomleft", 225, 40)

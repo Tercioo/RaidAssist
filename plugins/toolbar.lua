@@ -2,209 +2,189 @@
 local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale("RaidAssistAddon")
 local _
-local default_priority = 15
+local defaultPriority = 3
+local DF = DetailsFramework
 
-local default_config = {
+local defaultConfig = {
 	enabled = false,
 	menu_priority = 1,
 	frame_scale = 1,
-	frame_orientation = "H",
-	reverse_order = true,
+	frame_orientation = "V",
+	reverse_order = false,
 	pull_timer = 15,
 	readycheck_timer = 35,
-	hide_in_combat = true,
-	hide_not_in_group = false,
+	hide_in_combat = false,
+	hide_not_in_group = true,
 }
 
-local text_color_enabled = {r=1, g=1, b=1, a=1}
-local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
+local textColorEnabled = {r=1, g=1, b=1, a=1}
+local textColorDisabled = {r=0.5, g=0.5, b=0.5, a=1}
 
-local toolbar_icon = [[Interface\CastingBar\UI-CastingBar-Border]]
-local icon_texcoord = {l=25/256, r=80/256, t=14/64, b=49/64}
+local raidMarkersIcon = [[Interface\TARGETINGFRAME\UI-RaidTargetingIcons]]
+local raidMarkersTexCoord = {l=0, r=0.5, t=0, b=0.5}
 
-local LeaderToolbar = {version = "v0.1", pluginname = "LeaderToolbar", pluginId = "TOBR", displayName = "Leader Toolbar"}
-_G ["RaidAssistLeaderToolbar"] = LeaderToolbar
+local RaidMarkersPlugin = {version = "v0.1", pluginname = "LeaderToolbar", pluginId = "TOBR", displayName = "Raid Markers"}
 
-LeaderToolbar.menu_text = function (plugin)
-	if (LeaderToolbar.db.enabled) then
-		return toolbar_icon, icon_texcoord, "Leader Toolbar", text_color_enabled
+RaidMarkersPlugin.menu_text = function(plugin)
+	if (RaidMarkersPlugin.db.enabled) then
+		return raidMarkersIcon, raidMarkersTexCoord, "Raid Markers", textColorEnabled
 	else
-		return toolbar_icon, icon_texcoord, "Leader Toolbar", text_color_disabled
+		return raidMarkersIcon, raidMarkersTexCoord, "Raid Markers", textColorDisabled
 	end
 end
 
-LeaderToolbar.menu_popup_show = function (plugin, ct_frame, param1, param2)
-
+RaidMarkersPlugin.menu_popup_show = function(plugin, ct_frame, param1, param2)
 end
 
-LeaderToolbar.menu_popup_hide = function (plugin, ct_frame, param1, param2)
-
+RaidMarkersPlugin.menu_popup_hide = function(plugin, ct_frame, param1, param2)
 end
 
-LeaderToolbar.menu_on_click = function (plugin)
-
+RaidMarkersPlugin.menu_on_click = function(plugin)
 end
 
-LeaderToolbar.OnInstall = function (plugin)
-	LeaderToolbar.db.menu_priority = default_priority
-	
-	if (LeaderToolbar.db.enabled) then
-		LeaderToolbar.OnEnable (LeaderToolbar)
+RaidMarkersPlugin.OnInstall = function(plugin)
+	RaidMarkersPlugin.db.menu_priority = defaultPriority
+	if (RaidMarkersPlugin.db.enabled) then
+		RaidMarkersPlugin.OnEnable(RaidMarkersPlugin)
 	end
 end
 
-function LeaderToolbar.CanShow()
-	local can_show = true
+function RaidMarkersPlugin.CanShow()
+	local canShow = true
 
-	if (not LeaderToolbar.db.enabled) then
-		can_show = false
+	if (not RaidMarkersPlugin.db.enabled) then
+		canShow = false
 	end
-	if (LeaderToolbar.db.hide_in_combat) then
-		if (UnitAffectingCombat ("player")) then
-			can_show = false
+	if (RaidMarkersPlugin.db.hide_in_combat) then
+		if (UnitAffectingCombat("player")) then
+			canShow = false
 		end
 	end
-	if (LeaderToolbar.db.hide_not_in_group) then
+	if (RaidMarkersPlugin.db.hide_not_in_group) then
 		if (not IsInGroup()) then
-			can_show = false
+			canShow = false
 		end
 	end
-	
-	--> we can't hide or show this frame while the interface is Lockdown
+
+	--we can't hide or show this frame while the interface is Lockdown
 	if (not InCombatLockdown()) then
-		if (not can_show) then
-			if (LeaderToolbar.ScreenPanel) then
-				if (LeaderToolbar.ScreenPanel:IsShown()) then
-					LeaderToolbar.ScreenPanel:Hide()
+		if (not canShow) then
+			if (RaidMarkersPlugin.ScreenPanel) then
+				if (RaidMarkersPlugin.ScreenPanel:IsShown()) then
+					RaidMarkersPlugin.ScreenPanel:Hide()
 				end
 			end
 		else
-			if (LeaderToolbar.ScreenPanel) then
-				if (not LeaderToolbar.ScreenPanel:IsShown()) then
-					LeaderToolbar.ScreenPanel:Show()
+			if (RaidMarkersPlugin.ScreenPanel) then
+				if (not RaidMarkersPlugin.ScreenPanel:IsShown()) then
+					RaidMarkersPlugin.ScreenPanel:Show()
 				end
 			end
 		end
 	end
 
-	return can_show
+	return canShow
 end
 
-function LeaderToolbar:PLAYER_REGEN_DISABLED()
-	if (LeaderToolbar.db.hide_in_combat) then
-		LeaderToolbar.CanShow()
+function RaidMarkersPlugin:PLAYER_REGEN_DISABLED()
+	if (RaidMarkersPlugin.db.hide_in_combat) then
+		RaidMarkersPlugin.CanShow()
 	end
 end
 
-function LeaderToolbar:PLAYER_REGEN_ENABLED()
-	if (LeaderToolbar.db.hide_in_combat) then
-		LeaderToolbar.CanShow()
+function RaidMarkersPlugin:PLAYER_REGEN_ENABLED()
+	if (RaidMarkersPlugin.db.hide_in_combat) then
+		RaidMarkersPlugin.CanShow()
 	end
 end
 
-function LeaderToolbar:GROUP_ROSTER_UPDATE()
-	if (LeaderToolbar.db.hide_not_in_group) then
-		LeaderToolbar.CanShow()
+function RaidMarkersPlugin:GROUP_ROSTER_UPDATE()
+	if (RaidMarkersPlugin.db.hide_not_in_group) then
+		RaidMarkersPlugin.CanShow()
 	end
 end
 
-LeaderToolbar.OnEnable = function (plugin)
-	LeaderToolbar:RegisterEvent ("PLAYER_REGEN_DISABLED")
-	LeaderToolbar:RegisterEvent ("PLAYER_REGEN_ENABLED")
-	LeaderToolbar:RegisterEvent ("GROUP_ROSTER_UPDATE")
+RaidMarkersPlugin.OnEnable = function(plugin)
+	RaidMarkersPlugin:RegisterEvent("PLAYER_REGEN_DISABLED")
+	RaidMarkersPlugin:RegisterEvent("PLAYER_REGEN_ENABLED")
+	RaidMarkersPlugin:RegisterEvent("GROUP_ROSTER_UPDATE")
 
-	if (not LeaderToolbar.ScreenPanel) then
-		LeaderToolbar.CreateScreenPanel()
+	if (not RaidMarkersPlugin.ScreenPanel) then
+		RaidMarkersPlugin.CreateScreenPanel()
 	end
-	
-	LeaderToolbar.CanShow()
+
+	RaidMarkersPlugin.CanShow()
 end
 
-LeaderToolbar.OnDisable = function (plugin)
+RaidMarkersPlugin.OnDisable = function(plugin)
+	RaidMarkersPlugin:UnregisterEvent("PLAYER_REGEN_DISABLED")
+	RaidMarkersPlugin:UnregisterEvent("PLAYER_REGEN_ENABLED")
+	RaidMarkersPlugin:UnregisterEvent("GROUP_ROSTER_UPDATE")
 
-	LeaderToolbar:UnregisterEvent ("PLAYER_REGEN_DISABLED")
-	LeaderToolbar:UnregisterEvent ("PLAYER_REGEN_ENABLED")
-	LeaderToolbar:UnregisterEvent ("GROUP_ROSTER_UPDATE")
-
-	if (LeaderToolbar.ScreenPanel) then
-		if (LeaderToolbar.ScreenPanel:IsShown()) then
-			LeaderToolbar.ScreenPanel:Hide()
+	if (RaidMarkersPlugin.ScreenPanel) then
+		if (RaidMarkersPlugin.ScreenPanel:IsShown()) then
+			RaidMarkersPlugin.ScreenPanel:Hide()
 		end
-	end	
+	end
 end
 
-LeaderToolbar.OnProfileChanged = function (plugin)
-
+RaidMarkersPlugin.OnProfileChanged = function(plugin)
 end
 
-function LeaderToolbar.OnShowOnOptionsPanel()
-	local OptionsPanel = LeaderToolbar.OptionsPanel
-	LeaderToolbar.BuildOptions (OptionsPanel)
+function RaidMarkersPlugin.OnShowOnOptionsPanel()
+	local OptionsPanel = RaidMarkersPlugin.OptionsPanel
+	RaidMarkersPlugin.BuildOptions(OptionsPanel)
 end
 
-local align_raidmarkers = function()
-	local ScreenPanel = LeaderToolbarScreenFrame
-	if (ScreenPanel and LeaderToolbar.MarkersButtons) then
-		if (LeaderToolbar.db.reverse_order) then
+local alignRaidMarkers = function()
+	local ScreenPanel = RaidMarkersScreenFrameRA
+
+	if (ScreenPanel and RaidMarkersPlugin.MarkersButtons) then
+		if (RaidMarkersPlugin.db.reverse_order) then
 			local o = 1
 			for i = 8, 1, -1 do
-				local button = LeaderToolbar.MarkersButtons [i]
+				local button = RaidMarkersPlugin.MarkersButtons[i]
 				button:ClearAllPoints()
-				button:SetPoint ("topleft", ScreenPanel, "topleft", 3 + ((o-1)*21), -3)
+				button:SetPoint("topleft", ScreenPanel.reset_markers_button, "topright", 3 + ((o-1) * 21), ScreenPanel.reset_markers_button:GetHeight())
 				o = o + 1
 			end
 		else
 			for i = 1, 8 do
-				local button = LeaderToolbar.MarkersButtons [i]
+				local button = RaidMarkersPlugin.MarkersButtons[i]
 				button:ClearAllPoints()
-				button:SetPoint ("topleft", ScreenPanel, "topleft", 3 + ((i-1)*21), -3)
+				button:SetPoint("topleft", ScreenPanel.reset_markers_button2, "topright", 3 + ((i-1) * 21), ScreenPanel.reset_markers_button:GetHeight())
 			end
 		end
 	end
 end
 
 local adjust_scale = function()
-	local ScreenPanel = LeaderToolbarScreenFrame
-	if (ScreenPanel and LeaderToolbar.MarkersButtons) then
-		ScreenPanel:SetScale (LeaderToolbar.db.frame_scale)
+	local ScreenPanel = RaidMarkersScreenFrameRA
+	if (ScreenPanel and RaidMarkersPlugin.MarkersButtons) then
+		ScreenPanel:SetScale(RaidMarkersPlugin.db.frame_scale)
 	end
 end
 
+function RaidMarkersPlugin.CreateScreenPanel()
+	local ScreenPanel = RaidMarkersPlugin:CreateCleanFrame(RaidMarkersPlugin, "RaidMarkersScreenFrameRA")
+	ScreenPanel:SetSize(294, 46)
+	RaidMarkersPlugin.ScreenPanel = ScreenPanel
+	DetailsFramework:ApplyStandardBackdrop(ScreenPanel)
 
-function LeaderToolbar.CreateScreenPanel()
-
-	local ScreenPanel = LeaderToolbar:CreateCleanFrame (LeaderToolbar, "LeaderToolbarScreenFrame")
-	ScreenPanel:SetSize (292, 46)
-	LeaderToolbar.ScreenPanel = ScreenPanel
-	
-	DetailsFramework:ApplyStandardBackdrop (ScreenPanel)
-	
-	local hook_on_mousedown = function (self, mousebutton, capsule)
-
+	local hook_on_mousedown = function(self, mousebutton, capsule)
 	end
-	
-	local hook_on_mouseup = function (self, mousebutton, capsule)
+
+	local hook_on_mouseup = function(self, mousebutton, capsule)
 		if (mousebutton == "LeftButton") then
-			SetRaidTargetIcon ("target", capsule.IconIndex)
+			SetRaidTargetIcon("target", capsule.IconIndex)
 		elseif (mousebutton == "RightButton") then
-			SetRaidTargetIcon ("target", 0)
+			SetRaidTargetIcon("target", 0)
 		end
 	end
-	
-	LeaderToolbar.MarkersButtons = {}
-	LeaderToolbar.WorldMarkersButtons = {}
-	
-	local markers_3d = {
-		[[spells\raid_ui_fx_yellow]],
-		[[spells\raid_ui_fx_orange]],
-		[[spells\raid_ui_fx_purple]],
-		[[spells\raid_ui_fx_green]],
-		[[spells\raid_ui_fx_silver]],
-		[[spells\raid_ui_fx_cyan]],
-		[[spells\raid_ui_fx_red]],
-		[[spells\raid_ui_fx_white]]
-	}
-	
+
+	RaidMarkersPlugin.MarkersButtons = {}
+	RaidMarkersPlugin.WorldMarkersButtons = {}
+
 	local button_template = {
 		backdrop = {edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1, bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true},
 		backdropcolor = {0, 0, 0, .5},
@@ -212,29 +192,29 @@ function LeaderToolbar.CreateScreenPanel()
 		onentercolor = {1, 1, 1, .5},
 		onenterbordercolor = {1, 1, 1, 1},
 	}
-	
-	local icon_idle_color = {.7, .7, .7}
-	local icon_active_color = {1, 1, 1}
-	
-	local button_on_enter = function (self)
-		self:SetBackdropBorderColor (unpack (button_template.onenterbordercolor))
-		self.MyIcon:SetVertexColor (unpack (icon_active_color))
+
+	local iconIdleColor = {.7, .7, .7}
+	local iconActiveColor = {1, 1, 1}
+
+	local buttonOnEnter = function(self)
+		self:SetBackdropBorderColor(unpack(button_template.onenterbordercolor))
+		self.MyIcon:SetVertexColor(unpack(iconActiveColor))
 	end
-	
-	local button_on_leave = function (self)
-		self:SetBackdropBorderColor (unpack (button_template.backdropbordercolor))
-		self.MyIcon:SetVertexColor (unpack (icon_idle_color))
+
+	local buttonOnLeave = function(self)
+		self:SetBackdropBorderColor(unpack(button_template.backdropbordercolor))
+		self.MyIcon:SetVertexColor(unpack(iconIdleColor))
 	end
-	
-	local hook_on_enter = function (self, capsule)
-		capsule.MyIcon:SetVertexColor (unpack (icon_active_color))
+
+	local hookOnEnter = function(self, capsule)
+		capsule.MyIcon:SetVertexColor(unpack(iconActiveColor))
 	end
-	
-	local hook_on_leave = function (self, capsule)
-		capsule.MyIcon:SetVertexColor (unpack (icon_idle_color))
+
+	local hookOnLeave = function(self, capsule)
+		capsule.MyIcon:SetVertexColor(unpack(iconIdleColor))
 	end
-	
-	local world_markers_colors = {
+
+	local worldMarkersColors = {
 		[1] = 5,
 		[2] = 6,
 		[3] = 3,
@@ -244,214 +224,181 @@ function LeaderToolbar.CreateScreenPanel()
 		[7] = 4,
 		[8] = 8,
 	}
-	
-	--> buttons for the 8 markers (icons and world markers)
+
+	--buttons for the 8 markers (icons and world markers)
 	for i = 1, 8 do
-		local button =  LeaderToolbar:CreateButton (ScreenPanel, function()end, 20, 20, "", i, _, _, "button" .. i, _, _, button_template)
-		button:SetHook ("OnMouseDown", hook_on_mousedown)
-		button:SetHook ("OnMouseUp", hook_on_mouseup)
-		button:SetHook ("OnEnter", hook_on_enter)
-		button:SetHook ("OnLeave", hook_on_leave)
+		local button = RaidMarkersPlugin:CreateButton(ScreenPanel, function()end, 20, 20, "", i, _, _, "button" .. i, _, _, button_template)
+		button:SetHook("OnMouseDown", hook_on_mousedown)
+		button:SetHook("OnMouseUp", hook_on_mouseup)
+		button:SetHook("OnEnter", hookOnEnter)
+		button:SetHook("OnLeave", hookOnLeave)
 		button.IconIndex = i
 		button:EnableMouse(true)
 		button:SetScript("OnClick", function(self) SetRaidTargetIcon("target", i) end)
-		
-		local icon = LeaderToolbar:CreateImage (button, "Interface\\TARGETINGFRAME\\UI-RaidTargetingIcon_" .. i , 19, 19, "overlay")
-		icon:SetPoint ("center", button, "center")
-		icon:SetVertexColor (unpack (icon_idle_color))
-		button.MyIcon = icon
-		LeaderToolbar.MarkersButtons [i] = button
-		
-		local raid_marker_button = CreateFrame ("button", "LeaderToolbarRaidGroundIcon" .. i, ScreenPanel, "SecureActionButtonTemplate, BackdropTemplate")
-		raid_marker_button:SetAttribute ("type1", "macro")
-		raid_marker_button:SetAttribute ("type2", "macro")
-		raid_marker_button:SetSize (20, 20)
-		raid_marker_button:RegisterForClicks ("AnyDown")
-		raid_marker_button:SetAttribute ("macrotext1", "/wm " .. world_markers_colors [i] .. "")
-		raid_marker_button:SetAttribute ("macrotext2", "/cwm " .. world_markers_colors [i] .. "")
-		raid_marker_button:SetPoint ("top", button.widget, "bottom", 0, -0)
 
-		raid_marker_button:SetScript ("OnEnter", button_on_enter)
-		raid_marker_button:SetScript ("OnLeave", button_on_leave)
-		
-		raid_marker_button:SetBackdrop (button_template.backdrop)
-		raid_marker_button:SetBackdropColor (unpack (button_template.backdropcolor))
-		raid_marker_button:SetBackdropBorderColor (unpack (button_template.backdropbordercolor))
-		
-		local icon = LeaderToolbar:CreateImage (button, [[Interface\AddOns\RaidAssist\media\world_markers_icons]] , 18, 18, "overlay") 
-		icon:SetTexCoord (((i-1) * 20) / 256, ((i) * 20) / 256, 0, 20/32)
-		icon:SetPoint ("center", raid_marker_button, "center", 0, 0)
-		icon:SetVertexColor (unpack (icon_idle_color))
-		raid_marker_button.MyIcon = icon
-		LeaderToolbar.WorldMarkersButtons [i] = raid_marker_button
+		local raidTargetIcon = RaidMarkersPlugin:CreateImage(button, "Interface\\TARGETINGFRAME\\UI-RaidTargetingIcon_" .. i , 19, 19, "overlay")
+		raidTargetIcon:SetPoint("center", button, "center")
+		raidTargetIcon:SetVertexColor(unpack(iconIdleColor))
+		button.MyIcon = raidTargetIcon
+		RaidMarkersPlugin.MarkersButtons[i] = button
+
+		local raidMarkerButton = CreateFrame("button", "LeaderToolbarRaidGroundIcon" .. i, ScreenPanel, "SecureActionButtonTemplate, BackdropTemplate")
+		raidMarkerButton:SetAttribute("type1", "macro")
+		raidMarkerButton:SetAttribute("type2", "macro")
+		raidMarkerButton:SetSize(20, 20)
+		raidMarkerButton:RegisterForClicks("AnyDown")
+		raidMarkerButton:SetAttribute("macrotext1", "/wm " .. worldMarkersColors [i] .. "")
+		raidMarkerButton:SetAttribute("macrotext2", "/cwm " .. worldMarkersColors [i] .. "")
+		raidMarkerButton:SetPoint("top", button.widget, "bottom", 0, -0)
+
+		raidMarkerButton:SetScript("OnEnter", buttonOnEnter)
+		raidMarkerButton:SetScript("OnLeave", buttonOnLeave)
+
+		raidMarkerButton:SetBackdrop(button_template.backdrop)
+		raidMarkerButton:SetBackdropColor(unpack(button_template.backdropcolor))
+		raidMarkerButton:SetBackdropBorderColor(unpack(button_template.backdropbordercolor))
+
+		local raidMarkerIcon = RaidMarkersPlugin:CreateImage(button, [[Interface\AddOns\RaidAssist\media\world_markers_icons]] , 18, 18, "overlay")
+		raidMarkerIcon:SetTexCoord(((i-1) * 20) / 256, ((i) * 20) / 256, 0, 20/32)
+		raidMarkerIcon:SetPoint("center", raidMarkerButton, "center", 0, 0)
+		raidMarkerIcon:SetVertexColor(unpack(iconIdleColor))
+		raidMarkerButton.MyIcon = raidMarkerIcon
+		RaidMarkersPlugin.WorldMarkersButtons [i] = raidMarkerButton
 	end
-	
-	--> reset buttons
-	LeaderToolbar.remove_self_mark = function (self, deltaTime)
-		SetRaidTargetIcon ("player", 0)
-		local icon = GetRaidTargetIndex ("player")
-		if (icon) then
-			C_Timer.After (0.1, LeaderToolbar.remove_self_mark)
-		end
-	end
-	local reset_marks = function (self)
-		for i = 8, 1, -1 do
-			SetRaidTargetIcon ("player", i)
-		end
-		C_Timer.After (0.5, LeaderToolbar.remove_self_mark)
-	end
-	local reset_button = LeaderToolbar:CreateButton (ScreenPanel, reset_marks, 14, 20, "X", _, _, _, "reset_markers_button", _, "none", button_template)
-	--reset_button:SetPoint ("left", LeaderToolbar.MarkersButtons [#LeaderToolbar.MarkersButtons], "right", 2, 0)
-	reset_button:SetPoint ("topleft", ScreenPanel, "topleft", 3 + (8*21), -3)
-	
-	local reset_button2 = LeaderToolbar:CreateButton (ScreenPanel, ClearRaidMarker, 14, 20, "X", _, _, _, "reset_markers_button2", _, "none", button_template)
-	--reset_button2:SetPoint ("left", LeaderToolbar.WorldMarkersButtons [#LeaderToolbar.WorldMarkersButtons], "right", 2, 0)
-	reset_button2:SetPoint ("topleft", ScreenPanel, "topleft", 3 + (8*21), -23)
-	
-	local open_raidstatus = function()
+
+	local openRaidStatusCallback = function()
 		RA.OpenMainOptionsByPluginIndex(2)
 	end
 
-	local status_button = LeaderToolbar:CreateButton (ScreenPanel, open_raidstatus, 50, 20, "Status", _, _, _, "status_button", _, "none", button_template)
-	status_button:SetPoint ("left", reset_button, "right", 2, 0)
-	local status_frame = CreateFrame ("frame", nil, UIParent, "BackdropTemplate")
-	status_frame:SetSize (790, 460)
-	status_frame:SetFrameStrata ("TOOLTIP")
-	status_frame:SetClampedToScreen (true)
-	status_frame:SetBackdrop (button_template.backdrop)
-	status_frame:SetBackdropColor (unpack (button_template.backdropcolor))
-	status_frame:SetBackdropColor (0, 0, 0, 1)
-	status_frame:SetBackdropBorderColor (unpack (button_template.backdropbordercolor))
-	local fill_panel = LeaderToolbar:CreateFillPanel (status_frame, {}, 790, 460, false, false, false, {rowheight = 16}, "fill_panel", "PlayerCheckScreenFillPanel")
-	fill_panel:SetPoint ("topleft", status_frame, "topleft", 0, 0)
+	local statusButton = RaidMarkersPlugin:CreateButton(ScreenPanel, openRaidStatusCallback, 50, 20, "Status", _, _, _, "statusButton", _, "none", button_template)
+	statusButton:SetPoint("topleft", ScreenPanel, "topleft", 3, -3)
 
-	status_button:SetHook ("OnEnter", function()
-		--[=[
-		local PlayerCheck = _G ["RaidAssistPlayerCheck"]
-		if (PlayerCheck) then
-			PlayerCheck.update_PlayerCheck (fill_panel)
-			status_frame:Show()
-			status_frame:SetPoint ("bottom", status_button.widget, "top", 0, 2)
-		end
-		--]=]
-	end)
-	status_button:SetHook ("OnLeave", function()
-		status_frame:Hide()
-	end)
-	
-	--> manage groups
-	local open_raidgroups = function()
+	--manage groups
+	local openRaidGroupsCallback = function()
 		RA.OpenMainOptionsByPluginIndex(3)
 	end
-	local raidgroups_button = LeaderToolbar:CreateButton (ScreenPanel, open_raidgroups, 50, 20, "Groups", _, _, _, "raidgroups_button", _, "none", button_template)
-	raidgroups_button:SetPoint ("left", reset_button2, "right", 2, 0)
-	
---	pull_timer = 15,
---	readycheck_timer = 35,	
-	
-	--> readycheck and pull
-	local do_readycheck = function()
+	local raidGroupsButton = RaidMarkersPlugin:CreateButton(ScreenPanel, openRaidGroupsCallback, 50, 20, "Groups", _, _, _, "raidGroupsButton", _, "none", button_template)
+	raidGroupsButton:SetPoint("topleft", ScreenPanel, "topleft", 3, -23)
+
+	--readycheck and pull
+	local doReadyCheckCallback = function()
 		DoReadyCheck()
 	end
-	local readycheck_button = LeaderToolbar:CreateButton (ScreenPanel, do_readycheck, 50, 20, "Check", _, _, _, "readycheck_button", _, "none", button_template)
-	readycheck_button:SetPoint ("left", status_button, "right", 2, 0)
-	
+	local readyCheckButton = RaidMarkersPlugin:CreateButton(ScreenPanel, doReadyCheckCallback, 50, 20, "Check", _, _, _, "readyCheckButton", _, "none", button_template)
+	readyCheckButton:SetPoint("left", statusButton, "right", 2, 0)
+
 	local function dopull()
-		C_PartyInfo.DoCountdown(LeaderToolbar.db.pull_timer)
+		C_PartyInfo.DoCountdown(RaidMarkersPlugin.db.pull_timer)
 	end
-	
-	local pull_button = LeaderToolbar:CreateButton (ScreenPanel, dopull, 50, 20, "Pull", _, _, _, "pull_button", _, "none", button_template)
-	pull_button:SetPoint ("left", raidgroups_button, "right", 2, 0)
-	
-	--> post process
-	align_raidmarkers()
+
+	local pullButton = RaidMarkersPlugin:CreateButton(ScreenPanel, dopull, 50, 20, "Pull", _, _, _, "pullButton", _, "none", button_template)
+	pullButton:SetPoint("left", raidGroupsButton, "right", 2, 0)
+
+	--reset buttons
+	RaidMarkersPlugin.remove_self_mark = function(self, deltaTime)
+		SetRaidTargetIcon("player", 0)
+		local icon = GetRaidTargetIndex("player")
+		if (icon) then
+			C_Timer.After(0.1, RaidMarkersPlugin.remove_self_mark)
+		end
+	end
+
+	local resetMarksCallback = function (self)
+		for i = 8, 1, -1 do
+			SetRaidTargetIcon("player", i)
+		end
+		C_Timer.After(0.5, RaidMarkersPlugin.remove_self_mark)
+	end
+
+	local resetButton = RaidMarkersPlugin:CreateButton(ScreenPanel, resetMarksCallback, 14, 20, "X", _, _, _, "reset_markers_button", _, "none", button_template)
+	--resetButton:SetPoint("topleft", ScreenPanel, "topleft", 3 + (8*21), -3)
+	resetButton:SetPoint("left", readyCheckButton, "right", 2, 0)
+
+	local resetButton2 = RaidMarkersPlugin:CreateButton(ScreenPanel, ClearRaidMarker, 14, 20, "X", _, _, _, "reset_markers_button2", _, "none", button_template)
+	--resetButton2:SetPoint("topleft", ScreenPanel, "topleft", 3 + (8*21), -23)
+	resetButton2:SetPoint("left", pullButton, "right", 2, 0)
+
+	--post process
+	alignRaidMarkers()
 	adjust_scale()
 	ScreenPanel:Show()
-
 end
-	
-function LeaderToolbar.BuildOptions (frame)
-	
+
+function RaidMarkersPlugin.BuildOptions(frame)
 	if (frame.FirstRun) then
 		return
 	end
 	frame.FirstRun = true
-	
-	if (LeaderToolbar.db.enabled) then
-		if (not LeaderToolbar.ScreenPanel) then
-			LeaderToolbar.CreateScreenPanel()
+
+	if (RaidMarkersPlugin.db.enabled) then
+		if (not RaidMarkersPlugin.ScreenPanel) then
+			RaidMarkersPlugin.CreateScreenPanel()
 		end
 	end
-	
+
 	local on_select_orientation = function (self, fixed_value, value)
-		LeaderToolbar.db.frame_orientation = value
-		
+		RaidMarkersPlugin.db.frame_orientation = value
+
 	end
 	local orientation_options = {
 		{value = "H", label = "Horizontal", onclick = on_select_orientation},
 		{value = "V", label = "Vertical", onclick = on_select_orientation},
-	}	
-	
+	}
+
 	local options_list = {
-		{type = "label", get = function() return "General Options:" end, text_template = LeaderToolbar:GetTemplate ("font", "ORANGE_FONT_TEMPLATE")},
+		{type = "label", get = function() return "General Options:" end, text_template = RaidMarkersPlugin:GetTemplate ("font", "ORANGE_FONT_TEMPLATE")},
 		{
 			type = "toggle",
-			get = function() return LeaderToolbar.db.enabled end,
-			set = function (self, fixedparam, value) 
-				LeaderToolbar.db.enabled = value
+			get = function() return RaidMarkersPlugin.db.enabled end,
+			set = function (self, fixedparam, value)
+				RaidMarkersPlugin.db.enabled = value
 				if (value) then
-					LeaderToolbar.OnEnable()
+					RaidMarkersPlugin.OnEnable()
 				else
-					LeaderToolbar.OnDisable()
+					RaidMarkersPlugin.OnDisable()
 				end
 			end,
 			name = "Enabled",
 		},
-		
+
 		{type = "blank"},
-		
-		
-		
---		{
---			type = "select",
---			get = function() return LeaderToolbar.db.frame_orientation end,
---			values = function() return orientation_options end,
---			name = "Frame Orientation",
---		},
+
 		{
 			type = "toggle",
-			get = function() return LeaderToolbar.db.reverse_order end,
-			set = function (self, fixedparam, value) 
-				LeaderToolbar.db.reverse_order = value
-				align_raidmarkers()
+			get = function() return RaidMarkersPlugin.db.reverse_order end,
+			set = function (self, fixedparam, value)
+				RaidMarkersPlugin.db.reverse_order = value
+				alignRaidMarkers()
 			end,
 			name = "Reverse Icons",
 		},
-		
+
 		{
 			type = "toggle",
-			get = function() return LeaderToolbar.db.hide_in_combat end,
-			set = function (self, fixedparam, value) 
-				LeaderToolbar.db.hide_in_combat = value
-				LeaderToolbar.CanShow()
+			get = function() return RaidMarkersPlugin.db.hide_in_combat end,
+			set = function (self, fixedparam, value)
+				RaidMarkersPlugin.db.hide_in_combat = value
+				RaidMarkersPlugin.CanShow()
 			end,
 			name = "Hide in Combat",
 		},
 		{
 			type = "toggle",
-			get = function() return LeaderToolbar.db.hide_not_in_group end,
-			set = function (self, fixedparam, value) 
-				LeaderToolbar.db.hide_not_in_group = value
-				LeaderToolbar.CanShow()
+			get = function() return RaidMarkersPlugin.db.hide_not_in_group end,
+			set = function (self, fixedparam, value)
+				RaidMarkersPlugin.db.hide_not_in_group = value
+				RaidMarkersPlugin.CanShow()
 			end,
 			name = "Hide When not in Group",
 		},
-		
+
+		{type = "blank"},
+
 		{
 			type = "range",
-			get = function() return LeaderToolbar.db.frame_scale end,
-			set = function (self, fixedparam, value) 
-				LeaderToolbar.db.frame_scale = value
+			get = function() return RaidMarkersPlugin.db.frame_scale end,
+			set = function (self, fixedparam, value)
+				RaidMarkersPlugin.db.frame_scale = value
 				adjust_scale()
 			end,
 			min = 0.65,
@@ -462,9 +409,9 @@ function LeaderToolbar.BuildOptions (frame)
 		},
 		{
 			type = "range",
-			get = function() return LeaderToolbar.db.pull_timer end,
-			set = function (self, fixedparam, value) 
-				LeaderToolbar.db.pull_timer = value
+			get = function() return RaidMarkersPlugin.db.pull_timer end,
+			set = function (self, fixedparam, value)
+				RaidMarkersPlugin.db.pull_timer = value
 			end,
 			min = 3,
 			max = 20,
@@ -474,15 +421,15 @@ function LeaderToolbar.BuildOptions (frame)
 		},
 	}
 
-	local options_text_template = LeaderToolbar:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE")
-	local options_dropdown_template = LeaderToolbar:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE")
-	local options_switch_template = LeaderToolbar:GetTemplate ("switch", "OPTIONS_CHECKBOX_TEMPLATE")
-	local options_slider_template = LeaderToolbar:GetTemplate ("slider", "OPTIONS_SLIDER_TEMPLATE")
-	local options_button_template = LeaderToolbar:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE")
+	local options_text_template = RaidMarkersPlugin:GetTemplate("font", "OPTIONS_FONT_TEMPLATE")
+	local options_dropdown_template = RaidMarkersPlugin:GetTemplate("dropdown", "OPTIONS_DROPDOWN_TEMPLATE")
+	local options_switch_template = RaidMarkersPlugin:GetTemplate("switch", "OPTIONS_CHECKBOX_TEMPLATE")
+	local options_slider_template = RaidMarkersPlugin:GetTemplate("slider", "OPTIONS_SLIDER_TEMPLATE")
+	local options_button_template = RaidMarkersPlugin:GetTemplate("button", "OPTIONS_BUTTON_TEMPLATE")
 
-	LeaderToolbar:SetAsOptionsPanel (frame)
-	LeaderToolbar:BuildMenu (frame, options_list, 0, 0, 300, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
-
+	RaidMarkersPlugin:SetAsOptionsPanel(frame)
+	options_list.always_boxfirst = true
+	RaidMarkersPlugin:BuildMenu(frame, options_list, 0, 0, 300, false, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
 end
 
-RA:InstallPlugin(LeaderToolbar.displayName, "RALeaderToolbar", LeaderToolbar, default_config)
+RA:InstallTrivialPlugin(RaidMarkersPlugin.displayName, "RALeaderToolbar", RaidMarkersPlugin, defaultConfig)

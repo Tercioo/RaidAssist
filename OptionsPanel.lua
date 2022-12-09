@@ -87,6 +87,7 @@ function RA.OpenMainOptions(command, value)
 
 	f.AllOptionsButtons = {}
 	f.AllOptionsPanels = {}
+	f.TrivialPluginsButton = {}
 
 	--create the footer and attach it into the bottom of the main frame
 		local statusBar = CreateFrame ("frame", nil, f, "BackdropTemplate")
@@ -105,10 +106,10 @@ function RA.OpenMainOptions(command, value)
 		local onSelectPlugin =  function (button, mouse, plugin)
 			--reset
 			f:ResetButtonsAndPanels()
-			
+
 			--make the button change its text color
 			plugin.textcolor = "orange"
-			
+
 			--show the panel for the plugin
 			if (plugin.OnShowOnOptionsPanel) then
 				plugin.OnShowOnOptionsPanel()
@@ -119,11 +120,15 @@ function RA.OpenMainOptions(command, value)
 				DetailsFramework:ApplyStandardBackdrop(thisButton)
 			end
 
+			for i, thisButton in ipairs(allButtons) do
+				DetailsFramework:ApplyStandardBackdrop(thisButton)
+			end
+
 			button:SetBackdropColor(.75, .75, .75, .9)
 
 			RA.UpdateKeybindToPlugin(plugin)
 		end
-	
+
 		--change the selected plugin from inside plugins
 		RA.OpenMainOptionsForPlugin = function (plugin)
 			return onSelectPlugin (nil, nil, plugin)
@@ -131,11 +136,16 @@ function RA.OpenMainOptions(command, value)
 
 	--hide all panels for all addons
 		function f:ResetButtonsAndPanels()
-			for _, panel in pairs (f.AllOptionsPanels) do
+			for _, panel in pairs(f.AllOptionsPanels) do
 				panel:Hide()
-			end		
-			for _, button in pairs (f.AllOptionsButtons) do
+			end
+
+			for _, button in pairs(f.AllOptionsButtons) do
 				button.textcolor = "white"
+			end
+
+			for _, button in pairs(f.TrivialPluginsButton) do
+				button.textcolor = {.9, .9, .9, .6}
 			end
 		end
 
@@ -143,21 +153,21 @@ function RA.OpenMainOptions(command, value)
 		local plugins_list = RA:GetSortedPluginsInPriorityOrder()
 		local plugins_sorted_list = {}
 		local bossmods_sorted_list = {}
-	
+
 		--build a table to hold plugins
 		for _, plugin in pairs (plugins_list) do
 			if (not plugin.IsBossMod) then
 				plugin.db.menu_priority = plugin.db.menu_priority or 1
-				tinsert (plugins_sorted_list, plugin)
+				tinsert(plugins_sorted_list, plugin)
 
 			elseif (plugin.IsBossMod) then
 				plugin.db.menu_priority = plugin.db.menu_priority or 1
-				tinsert (bossmods_sorted_list, plugin)
+				tinsert(bossmods_sorted_list, plugin)
 			end
 		end
 
-		table.sort (plugins_sorted_list, function (plugin1, plugin2) return ( (plugin1 and plugin1.db.menu_priority) or 1) > ( (plugin2 and plugin2.db.menu_priority) or 1) end)
-		table.sort (bossmods_sorted_list, function (plugin1, plugin2) return ( (plugin1 and plugin1.db.menu_priority) or 1) > ( (plugin2 and plugin2.db.menu_priority) or 1) end)
+		table.sort(plugins_sorted_list, function (plugin1, plugin2) return ( (plugin1 and plugin1.db.menu_priority) or 1) > ( (plugin2 and plugin2.db.menu_priority) or 1) end)
+		table.sort(bossmods_sorted_list, function (plugin1, plugin2) return ( (plugin1 and plugin1.db.menu_priority) or 1) > ( (plugin2 and plugin2.db.menu_priority) or 1) end)
 
 	--create the menu scroll box
 		--this function refreshes the scroll options
@@ -194,6 +204,8 @@ function RA.OpenMainOptions(command, value)
 					button:Show()
 				end
 			end
+
+			RA.RefreshTrivialPluginsMenu()
 		end
 
 		--create the left menu scroll
@@ -210,11 +222,11 @@ function RA.OpenMainOptions(command, value)
 		--this list will be used to update the left menu
 		local allPlugin = {}
 		for _, plugin in pairs (plugins_sorted_list) do
-			allPlugin [ #allPlugin + 1 ] = plugin
+			allPlugin[ #allPlugin + 1] = plugin
 		end
-		
+
 		for _, plugin in pairs (bossmods_sorted_list) do
-			allPlugin [ #allPlugin + 1 ] = plugin
+			allPlugin[ #allPlugin + 1] = plugin
 		end
 
 	--create the options frame for each plugin
@@ -225,18 +237,92 @@ function RA.OpenMainOptions(command, value)
 			optionsFrame:Hide()
 			optionsFrame:SetSize (1, 1)
 			optionsFrame:SetPoint ("topleft", f, "topleft", CONST_OPTIONSPANEL_STARTPOS_X, CONST_OPTIONSPANEL_STARTPOS_Y)
-			
+
 			plugin.OptionsPanel = optionsFrame
-			f.AllOptionsPanels [ #f.AllOptionsPanels + 1 ] = optionsFrame
+			f.AllOptionsPanels[ #f.AllOptionsPanels + 1 ] = optionsFrame
 		end
 
-		local menuScrollBox = DF:CreateScrollBox (f, "$parentScrollBox", refreshLeftMenuScrollBox, allPlugin, CONST_MENU_SCROLL_WIDTH, CONST_MENU_SCROLL_HEIGHT, CONST_MENU_MAX_BUTTONS, CONST_MENU_BUTTON_HEIGHT)
-		DF:ReskinSlider (menuScrollBox)
+		local menuScrollBox = DF:CreateScrollBox(f, "$parentScrollBox", refreshLeftMenuScrollBox, allPlugin, CONST_MENU_SCROLL_WIDTH, CONST_MENU_SCROLL_HEIGHT, CONST_MENU_MAX_BUTTONS, CONST_MENU_BUTTON_HEIGHT)
+		DF:ReskinSlider(menuScrollBox)
 		menuScrollBox:SetPoint("topleft", f, "topleft", CONST_MENU_STARTPOS_X, CONST_MENU_STARTPOS_Y)
 
 		--create the scrollbox lines
 		for i = 1, CONST_MENU_MAX_BUTTONS do
-			menuScrollBox:CreateLine (createMenuScrollBoxLine)
+			menuScrollBox:CreateLine(createMenuScrollBoxLine)
+		end
+
+		--create trivial plugins menu
+		for i = 1, 5 do
+			local newButton = RA:CreateButton(menuScrollBox, onSelectPlugin, CONST_MENU_BUTTON_WIDTH, CONST_MENU_BUTTON_HEIGHT, "", 0, nil, nil, nil, nil, 1)
+			DetailsFramework:ApplyStandardBackdrop(newButton)
+			newButton.textsize = CONST_MENU_FONT_SIZE
+			newButton:SetPoint("bottomleft", menuScrollBox, "bottomleft", 1, ((i - 1) * CONST_MENU_BUTTON_HEIGHT))
+			f.TrivialPluginsButton[#f.TrivialPluginsButton+1] = newButton
+			allButtons[#allButtons+1] = newButton
+		end
+
+		local createOptionsFrameForTrivialPlugin = function(plugin)
+			local optionsFrame = CreateFrame("frame", "RaidAssistOptionsPanel" .. (plugin.pluginname or math.random (1, 1000000)), f, "BackdropTemplate")
+			optionsFrame:Hide()
+			optionsFrame:SetSize(1, 1)
+			optionsFrame:SetPoint("topleft", f, "topleft", CONST_OPTIONSPANEL_STARTPOS_X, CONST_OPTIONSPANEL_STARTPOS_Y)
+
+			plugin.OptionsPanel = optionsFrame
+			f.AllOptionsPanels[#f.AllOptionsPanels + 1] = optionsFrame
+		end
+
+		function RA.RefreshTrivialPluginsMenu()
+			local pluginsArray = {}
+			for pluginName, pluginObject in pairs(RA.pluginsTrivial) do
+				pluginsArray[#pluginsArray+1] = {pluginName, pluginObject}
+				if (not pluginObject.OptionsPanel) then
+					createOptionsFrameForTrivialPlugin(pluginObject)
+				end
+			end
+
+			table.sort(pluginsArray, function(t1, t2) return t1[1] < t2[1] end)
+
+			for i = 1, 5 do
+				local button = f.TrivialPluginsButton[i]
+				button:Hide()
+			end
+
+			for i = 1, #pluginsArray do
+				local index = i
+				local pluginTable = pluginsArray[index]
+
+				local pluginName = pluginTable[1]
+				local pluginObject = pluginTable[2]
+
+				if (pluginObject) then
+					--get the data
+					local iconTexture, iconTexcoord, text, textColor = pluginObject.menu_text(pluginObject)
+
+					--update the line
+					local button = f.TrivialPluginsButton[i]
+					button:Show()
+					button:SetText(text)
+
+					--pluginIdToIndex[pluginObject.pluginId] = index
+					--pluginIndexToObject[index] = pluginObject
+
+					button:SetClickFunction(onSelectPlugin, pluginObject)
+
+					if (iconTexcoord) then
+						button:SetIcon(iconTexture, 18, 18, "overlay", {iconTexcoord.l, iconTexcoord.r, iconTexcoord.t, iconTexcoord.b}, nil, 5, 2)
+					else
+						button:SetIcon(iconTexture, 18, 18, "overlay", {0, 1, 0, 1}, nil, 4, 2)
+					end
+
+					if (pluginObject.IsDisabled) then
+						button:Disable()
+					else
+						button:Enable()
+					end
+
+					button:Show()
+				end
+			end
 		end
 
 		menuScrollBox:Refresh()
@@ -246,7 +332,7 @@ function RA.OpenMainOptions(command, value)
 
 		--if a plugin requested to open its options
 		if (plugin) then
-			onSelectPlugin (nil, nil, plugin)
+			onSelectPlugin(nil, nil, plugin)
 		end
 
 		if (command) then
@@ -263,7 +349,6 @@ function RA.OpenMainOptions(command, value)
 end
 
 function RA.CreateHotkeyFrame(f)
-
 	local currentKeyBind = RA.DATABASE.OptionsKeybind
 
 	local keyBindListener = CreateFrame ("frame", "RaidAssistBindListenerFrame", f, "BackdropTemplate")
@@ -360,7 +445,7 @@ function RA.CreateHotkeyFrame(f)
 		keyBindListener.keybindIndex = keybindIndex
 		keyBindListener:SetScript("OnKeyDown", registerKeybind)
 		GameCooltip:Hide()
-		
+
 		enterKeybindFrame:Show()
 		enterKeybindFrame:SetPoint ("bottom", self, "top")
 	end

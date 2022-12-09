@@ -64,7 +64,14 @@ if (WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE and not isExpansion_Dragonflight()) t
 end
 
 local major = "LibOpenRaid-1.0"
-local CONST_LIB_VERSION = 75
+local CONST_LIB_VERSION = 84
+
+if (not LIB_OPEN_RAID_MAX_VERSION) then
+    LIB_OPEN_RAID_MAX_VERSION = CONST_LIB_VERSION
+else
+    LIB_OPEN_RAID_MAX_VERSION = math.max(LIB_OPEN_RAID_MAX_VERSION, CONST_LIB_VERSION)
+end
+
 LIB_OPEN_RAID_CAN_LOAD = false
 
 local unpack = table.unpack or _G.unpack
@@ -72,9 +79,12 @@ local unpack = table.unpack or _G.unpack
 --declae the library within the LibStub
     local libStub = _G.LibStub
     local openRaidLib = libStub:NewLibrary(major, CONST_LIB_VERSION)
+
     if (not openRaidLib) then
         return
     end
+
+    openRaidLib.__version = CONST_LIB_VERSION
 
     LIB_OPEN_RAID_CAN_LOAD = true
 
@@ -89,6 +99,8 @@ local unpack = table.unpack or _G.unpack
     local CONST_DIAGNOSTIC_ERRORS = false
     --show the data to be sent and data received from comm
     local CONST_DIAGNOSTIC_COMM = false
+    --show data received from other players
+    local CONST_DIAGNOSTIC_COMM_RECEIVED = false
 
     local CONST_COMM_PREFIX = "LRS"
     local CONST_COMM_FULLINFO_PREFIX = "F"
@@ -121,7 +133,7 @@ local unpack = table.unpack or _G.unpack
     local CONST_SPECIALIZATION_VERSION_CLASSIC = 0
     local CONST_SPECIALIZATION_VERSION_MODERN = 1
 
-    local CONST_COOLDOWN_CHECK_INTERVAL = CONST_TWO_SECONDS
+    local CONST_COOLDOWN_CHECK_INTERVAL = CONST_ONE_SECOND
     local CONST_COOLDOWN_TIMELEFT_HAS_CHANGED = CONST_ONE_SECOND
 
     local CONST_COOLDOWN_INDEX_TIMELEFT = 1
@@ -130,6 +142,8 @@ local unpack = table.unpack or _G.unpack
     local CONST_COOLDOWN_INDEX_DURATION = 4
     local CONST_COOLDOWN_INDEX_UPDATETIME = 5
     local CONST_COOLDOWN_INDEX_AURA_DURATION = 6
+
+    local CONST_COOLDOWN_INFO_SIZE = 6
 
     local GetContainerNumSlots = GetContainerNumSlots or C_Container.GetContainerNumSlots
     local GetContainerItemID = GetContainerItemID or C_Container.GetContainerItemID
@@ -160,11 +174,33 @@ local unpack = table.unpack or _G.unpack
         end
     end
 
+    local diagnosticFilter = nil
     local diagnosticComm = function(msg, ...)
         if (CONST_DIAGNOSTIC_COMM) then
+            if (diagnosticFilter) then
+                local lowerMessage = msg:lower()
+                if (lowerMessage:find(diagnosticFilter)) then
+                    sendChatMessage("|cFFFF9922OpenRaidLib|r:", msg, ...)
+                    --dumpt(msg)
+                end
+            else
+                sendChatMessage("|cFFFF9922OpenRaidLib|r:", msg, ...)
+            end
+        end
+    end
+
+    local diagnosticCommReceivedFilter = nil
+    openRaidLib.diagnosticCommReceived = function(msg, ...)
+        if (diagnosticCommReceivedFilter) then
+            local lowerMessage = msg:lower()
+            if (lowerMessage:find(diagnosticCommReceivedFilter)) then
+                sendChatMessage("|cFFFF9922OpenRaidLib|r:", msg, ...)
+            end
+        else
             sendChatMessage("|cFFFF9922OpenRaidLib|r:", msg, ...)
         end
     end
+
 
     openRaidLib.DeprecatedMessage = function(msg)
         sendChatMessage("|cFFFF9922OpenRaidLib|r:", "|cFFFF5555" .. msg .. "|r")
@@ -390,6 +426,10 @@ end
                 end
             end
 
+            if (CONST_DIAGNOSTIC_COMM_RECEIVED) then
+                openRaidLib.diagnosticCommReceived(data)
+            end
+
             --get the table with functions regitered for this type of data
             local callbackTable = openRaidLib.commHandler.commCallback[dataTypePrefix]
             if (not callbackTable) then
@@ -497,15 +537,15 @@ end
         local payload = tickerObject.payload
         local callback = tickerObject.callback
 
-        local result, errortext = xpcall(callback, geterrorhandler(), unpack(payload))
-        if (not result) then
-            sendChatMessage("openRaidLib: error on scheduler:", tickerObject.scheduleName, tickerObject.stack)
-        end
-
         if (tickerObject.isUnique) then
             local namespace = tickerObject.namespace
             local scheduleName = tickerObject.scheduleName
             openRaidLib.Schedules.CancelUniqueTimer(namespace, scheduleName)
+        end
+
+        local result, errortext = xpcall(callback, geterrorhandler(), unpack(payload))
+        if (not result) then
+            sendChatMessage("openRaidLib: error on scheduler:", tickerObject.scheduleName, tickerObject.stack)
         end
 
         return result
@@ -686,6 +726,7 @@ end
         ["mythicDungeonStart"] = {},
         ["playerPetChange"] = {},
         ["mythicDungeonEnd"] = {},
+        ["unitAuraRemoved"] = {},
     }
 
     openRaidLib.internalCallback.RegisterCallback = function(event, func)
@@ -764,9 +805,11 @@ end
 
         ["PLAYER_ENTERING_WORLD"] = function(...)
             --has the selected character just loaded?
-            if (not openRaidLib.isFirstEnteringWorld) then
+            if (not openRaidLib.bHasEnteredWorld) then
                 --register events
                 openRaidLib.OnEnterWorldRegisterEvents()
+
+                --openRaidLib.AuraTracker.StartScanUnitAuras("player")
 
                 if (IsInGroup()) then
                     openRaidLib.RequestAllData()
@@ -805,7 +848,7 @@ end
                         detailsEventListener:RegisterEvent("UNIT_TALENTS", "UnitTalentsFound")
                     end
 
-                openRaidLib.isFirstEnteringWorld = true
+                openRaidLib.bHasEnteredWorld = true
             end
 
             openRaidLib.internalCallback.TriggerEvent("onEnterWorld")
@@ -820,6 +863,11 @@ end
         ["TRAIT_CONFIG_UPDATED"] = function(...)
             delayedTalentChange()
         end,
+        ["TRAIT_TREE_CURRENCY_INFO_UPDATED"] = function(...)
+            delayedTalentChange()
+        end,
+
+        --SPELLS_CHANGED
 
         ["PLAYER_PVP_TALENT_UPDATE"] = function(...)
             openRaidLib.internalCallback.TriggerEvent("pvpTalentUpdate")
@@ -921,7 +969,8 @@ end
             eventFrame:RegisterEvent("ENCOUNTER_END")
             eventFrame:RegisterEvent("CHALLENGE_MODE_START")
             eventFrame:RegisterEvent("CHALLENGE_MODE_COMPLETED")
-            --eventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+            eventFrame:RegisterEvent("PLAYER_SPECIALIZATION_CHANGED")
+            eventFrame:RegisterEvent("TRAIT_TREE_CURRENCY_INFO_UPDATED")
             eventFrame:RegisterEvent("TRAIT_CONFIG_UPDATED")
         end
     end
@@ -1332,7 +1381,7 @@ end
 openRaidLib.internalCallback.RegisterCallback("talentUpdate", openRaidLib.UnitInfoManager.OnPlayerTalentChanged)
 
 function openRaidLib.UnitInfoManager.OnReceiveTalentsUpdate(data, unitName)
-    local talentsTableUnpacked = openRaidLib.UnpackTable(data, 1, false, false, 7)
+    local talentsTableUnpacked = openRaidLib.UnpackTable(data, 1, false, false, 7) --this 7 should be a constant
 
     local unitInfo = openRaidLib.UnitInfoManager.GetUnitInfo(unitName, true)
     if (unitInfo) then
@@ -1373,7 +1422,7 @@ end
 openRaidLib.internalCallback.RegisterCallback("pvpTalentUpdate", openRaidLib.UnitInfoManager.OnPlayerPvPTalentChanged)
 
 function openRaidLib.UnitInfoManager.OnReceivePvPTalentsUpdate(data, unitName)
-    local pvpTalentsTableUnpacked = openRaidLib.UnpackTable(data, 1, false, false, 3)
+    local pvpTalentsTableUnpacked = openRaidLib.UnpackTable(data, 1, false, false, 3) --this 3 should be a constant
 
     local unitInfo = openRaidLib.UnitInfoManager.GetUnitInfo(unitName, true)
     if (unitInfo) then
@@ -1537,11 +1586,11 @@ openRaidLib.internalCallback.RegisterCallback("onLeaveCombat", openRaidLib.UnitI
 
         --build the table with the gear information
         local playerGearInfo = {}
-        playerGearInfo[#playerGearInfo+1] = itemLevel           --[1]
-        playerGearInfo[#playerGearInfo+1] = gearDurability      --[2]
-        playerGearInfo[#playerGearInfo+1] = weaponEnchant       --[3]
-        playerGearInfo[#playerGearInfo+1] = slotsWithoutEnchant --[4]
-        playerGearInfo[#playerGearInfo+1] = slotsWithoutGems    --[5]
+        playerGearInfo[#playerGearInfo+1] = itemLevel           --[1] - one index
+        playerGearInfo[#playerGearInfo+1] = gearDurability      --[2] - one index
+        playerGearInfo[#playerGearInfo+1] = weaponEnchant       --[3] - one index
+        playerGearInfo[#playerGearInfo+1] = slotsWithoutEnchant --[4] - undefined
+        playerGearInfo[#playerGearInfo+1] = slotsWithoutGems    --[5] - undefined
 
         return playerGearInfo
     end
@@ -1938,6 +1987,35 @@ end
         openRaidLib.CooldownManager.CheckCooldownChanges()
     end
 
+    function openRaidLib.CooldownManager.OnAuraRemoved(event, unitId, spellId)
+        --under development ~aura
+        local timeLeft, charges, startTimeOffset, duration, auraDuration = openRaidLib.CooldownManager.GetPlayerCooldownStatus(spellId)
+
+        --do need to update?
+        if (not timeLeft or timeLeft < 1 or not auraDuration or auraDuration < 1) then
+            return
+        end
+
+        local latencyCompensation = 1
+
+        if (spellId) then
+            if (auraDuration > latencyCompensation) then
+                --cooldown aura got removed before expiration
+                local newAuraDuration = 0
+                local unitName = GetUnitName(unitId, true) or unitId
+                openRaidLib.CooldownManager.CooldownSpellUpdate(unitName, spellId, timeLeft, charges, startTimeOffset, duration, newAuraDuration)
+
+                --trigger a public callback
+                local playerCooldownTable = openRaidLib.GetUnitCooldowns(unitName)
+                local cooldownInfo = cooldownGetSpellInfo(unitName, spellId)
+                openRaidLib.publicCallback.TriggerCallback("CooldownUpdate", "player", spellId, cooldownInfo, playerCooldownTable, openRaidLib.CooldownManager.UnitData)
+
+                --send to comm
+                openRaidLib.CooldownManager.SendPlayerCooldownUpdate(spellId, timeLeft, charges, startTimeOffset, duration, newAuraDuration)
+            end
+        end
+    end
+
     openRaidLib.internalCallback.RegisterCallback("onLeaveGroup", openRaidLib.CooldownManager.OnPlayerLeaveGroup)
     openRaidLib.internalCallback.RegisterCallback("playerCast", openRaidLib.CooldownManager.OnPlayerCast)
     openRaidLib.internalCallback.RegisterCallback("onPlayerRess", openRaidLib.CooldownManager.OnPlayerRess)
@@ -1946,6 +2024,7 @@ end
     openRaidLib.internalCallback.RegisterCallback("onLeaveCombat", openRaidLib.CooldownManager.OnEncounterEnd)
     openRaidLib.internalCallback.RegisterCallback("mythicDungeonStart", openRaidLib.CooldownManager.OnMythicPlusStart)
     openRaidLib.internalCallback.RegisterCallback("playerPetChange", openRaidLib.CooldownManager.OnPlayerPetChanged)
+    openRaidLib.internalCallback.RegisterCallback("unitAuraRemoved", openRaidLib.CooldownManager.OnAuraRemoved)
 
 --send a list through comm with cooldowns added or removed
 function openRaidLib.CooldownManager.CheckCooldownChanges()
@@ -1980,6 +2059,7 @@ end
 function openRaidLib.CooldownManager.OnReceiveUnitCooldownChanges(data, unitName)
     local currentCooldowns = openRaidLib.CooldownManager.UnitData[unitName]
     --if does not have the full list of cooldowns of this unit, ignore cooldown add/remove comms
+
     if (not currentCooldowns or not openRaidLib.CooldownManager.HasFullCooldownList[unitName]) then
         return
     end
@@ -2018,7 +2098,8 @@ function openRaidLib.CooldownManager.OnReceiveUnitCooldownChanges(data, unitName
 
     if (#addedCooldowns > 0) then
         tinsert(addedCooldowns, 1, #addedCooldowns) --amount of indexes for UnpackTable()
-        local cooldownsAddedUnpacked = openRaidLib.UnpackTable(addedCooldowns, 1, true, true, 5)
+
+        local cooldownsAddedUnpacked = openRaidLib.UnpackTable(addedCooldowns, 1, true, true, CONST_COOLDOWN_INFO_SIZE)
         for spellId, cooldownInfo in pairs(cooldownsAddedUnpacked) do
             --add the spell into the list of cooldowns of this unit
             local timeLeft, charges, timeOffset, duration, updateTime, auraDuration = openRaidLib.CooldownManager.GetCooldownInfoValues(cooldownInfo)
@@ -2201,13 +2282,219 @@ end
 --triggered when the lib receives a full list of cooldowns from another player in the raid
 --@data: table received from comm
 --@unitName: player name
+
 function openRaidLib.CooldownManager.OnReceiveUnitCooldowns(data, unitName)
-    --unpack the table as a pairs table | the cooldown info uses 5 indexes
-    local unpackedTable = openRaidLib.UnpackTable(data, 1, true, true, 5)
+    --unpack the table as a pairs table
+    local unpackedTable = openRaidLib.UnpackTable(data, 1, true, true, CONST_COOLDOWN_INFO_SIZE)
+    --local unpackedTable = openRaidLib.UnpackTable(data, 1, true, true, 5)
+    --dumpt(unpackedTable)
+
     --add the list of cooldowns
     openRaidLib.CooldownManager.AddUnitCooldownsList(unitName, unpackedTable)
 end
 openRaidLib.commHandler.RegisterComm(CONST_COMM_COOLDOWNFULLLIST_PREFIX, openRaidLib.CooldownManager.OnReceiveUnitCooldowns)
+
+--debug data clean up on next version
+
+--[=[]] received data
+["1"] = "72", --72 indexes
+["2"] = "7744",
+["3"] = "0",
+["4"] = "1",
+["5"] = "0",
+["6"] = "0",
+["7"] = "0",
+["8"] = "586",
+["9"] = "0",
+["10"] = "1",
+["11"] = "0",
+["12"] = "0",
+["13"] = "0",
+["14"] = "10060",
+["15"] = "0",
+["16"] = "1",
+["17"] = "0",
+["18"] = "0",
+["19"] = "0",
+["20"] = "8122",
+["21"] = "0",
+["22"] = "1",
+["23"] = "0",
+["24"] = "0",
+["25"] = "0",
+["26"] = "15286",
+["27"] = "0",
+["28"] = "1",
+["29"] = "0",
+["30"] = "0",
+["31"] = "0",
+["32"] = "64901",
+["33"] = "0",
+["34"] = "1",
+["35"] = "0",
+["36"] = "0",
+["37"] = "0",
+["38"] = "19236",
+["39"] = "0",
+["40"] = "1",
+["41"] = "0",
+["42"] = "0",
+["43"] = "0",
+["44"] = "32375",
+["45"] = "0",
+["46"] = "1",
+["47"] = "0",
+["48"] = "0",
+["49"] = "0",
+["50"] = "34433",
+["51"] = "0",
+["52"] = "1",
+["53"] = "0",
+["54"] = "0",
+["55"] = "0",
+["56"] = "64843",
+["57"] = "0",
+["58"] = "1",
+["59"] = "0",
+["60"] = "0",
+["61"] = "0",
+["62"] = "265202",
+["63"] = "0",
+["64"] = "1",
+["65"] = "0",
+["66"] = "0",
+["67"] = "0",
+["68"] = "47788",
+["69"] = "0",
+["70"] = "1",
+["71"] = "0",
+["72"] = "0",
+["73"] = "0",
+--]=]
+
+--[=[
+unpack data with 5 indexes:
+[1] =  { --1 spellID - word of recall
+   ["1"] = 0,
+   ["2"] = 0,
+   ["3"] = 0,
+   ["4"] = 64843, --divine hymm spellID
+},
+[7744] =  {
+   ["1"] = 0,
+   ["2"] = 1,
+   ["3"] = 0,
+   ["4"] = 0,
+},
+[265202] =  {
+   ["1"] = 0,
+   ["2"] = 1,
+   ["3"] = 0,
+   ["4"] = 0,
+},
+[64901] =  {
+   ["1"] = 0,
+   ["2"] = 1,
+   ["3"] = 0,
+   ["4"] = 0,
+},
+[0] =  { --0 spellID
+   ["1"] = 0,
+   ["2"] = 0,
+   ["3"] = 0,
+   ["4"] = 0,
+},
+--]=]
+
+--[=[ unpacked data with 6 indexes, matches
+[7744] =  {
+   ["1"] = 0,
+   ["2"] = 1,
+   ["3"] = 0,
+   ["4"] = 0,
+   ["5"] = 0,
+},
+[586] =  {
+   ["1"] = 0,
+   ["2"] = 1,
+   ["3"] = 0,
+   ["4"] = 0,
+   ["5"] = 0,
+},
+[10060] =  {
+   ["1"] = 0,
+   ["2"] = 1,
+   ["3"] = 0,
+   ["4"] = 0,
+   ["5"] = 0,
+},
+[32375] =  {
+   ["1"] = 0,
+   ["2"] = 1,
+   ["3"] = 0,
+   ["4"] = 0,
+   ["5"] = 0,
+},
+[15286] =  {
+   ["1"] = 0,
+   ["2"] = 1,
+   ["3"] = 0,
+   ["4"] = 0,
+   ["5"] = 0,
+},
+[64901] =  {
+   ["1"] = 0,
+   ["2"] = 1,
+   ["3"] = 0,
+   ["4"] = 0,
+   ["5"] = 0,
+},
+[19236] =  {
+   ["1"] = 0,
+   ["2"] = 1,
+   ["3"] = 0,
+   ["4"] = 0,
+   ["5"] = 0,
+},
+[47788] =  {
+   ["1"] = 0,
+   ["2"] = 1,
+   ["3"] = 0,
+   ["4"] = 0,
+   ["5"] = 0,
+},
+[265202] =  {
+   ["1"] = 0,
+   ["2"] = 1,
+   ["3"] = 0,
+   ["4"] = 0,
+   ["5"] = 0,
+},
+[64843] =  {
+   ["1"] = 0,
+   ["2"] = 1,
+   ["3"] = 0,
+   ["4"] = 0,
+   ["5"] = 0,
+},
+[34433] =  {
+   ["1"] = 0,
+   ["2"] = 1,
+   ["3"] = 0,
+   ["4"] = 0,
+   ["5"] = 0,
+},
+[8122] =  {
+   ["1"] = 0,
+   ["2"] = 1,
+   ["3"] = 0,
+   ["4"] = 0,
+   ["5"] = 0,
+},
+
+--]=]
+
+
 
 --send a comm requesting other units in the raid to send an update on the requested spell
 --any unit in the raid that has this cooldown should send a CONST_COMM_COOLDOWNUPDATE_PREFIX
@@ -2561,3 +2848,16 @@ C_Timer.After(0.1, function()
 end)
 
 tempCache.RestoreData()
+
+
+--[=[
+3x ...ns/Details/Libs/LibOpenRaid/GetPlayerInformation.lua:603: attempt to index field '?' (a nil value)
+[string "@Interface/AddOns/Details/Libs/LibOpenRaid/GetPlayerInformation.lua"]:634: in function `GetPlayerCooldownStatus'
+[string "@Interface/AddOns/Details/Libs/LibOpenRaid/LibOpenRaid.lua"]:1696: in function `CleanupCooldownTickers'
+[string "@Interface/AddOns/Details/Libs/LibOpenRaid/LibOpenRaid.lua"]:1925: in function <...face/AddOns/Details/Libs/LibOpenRaid/LibOpenRaid.lua:1924>
+[string "=[C]"]: in function `xpcall'
+[string "@Interface/AddOns/Details/Libs/LibOpenRaid/LibOpenRaid.lua"]:506: in function <...face/AddOns/Details/Libs/LibOpenRaid/LibOpenRaid.lua:496>
+
+
+
+]=]

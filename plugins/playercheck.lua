@@ -143,6 +143,16 @@ function PlayerCheck.BuildOptions(frame)
 		openRaidLib.RegisterCallback(PlayerCheck, "GearUpdate", "RefreshScrollData")
 		openRaidLib.RegisterCallback(PlayerCheck, "GearDurabilityUpdate", "RefreshScrollData")
 
+	--talent frame
+	TalentFrame_LoadUI()
+	ClassTalentFrame_LoadUI()
+
+	RaidAssistClassTalentFrame = CreateFrame("frame", "RaidAssistClassTalentFrame", frame, "ClassTalentFrameTemplate")
+
+	RaidAssistClassTalentFrame:ClearAllPoints()
+	RaidAssistClassTalentFrame:SetParent(frame)
+	RaidAssistClassTalentFrame:SetPoint("topleft", frame, "topleft", 450, -20)
+	RaidAssistClassTalentFrame:Hide()
 
 	--spell scroll options
 	local scroll_width = 848
@@ -163,6 +173,7 @@ function PlayerCheck.BuildOptions(frame)
 	local headerSizeMedium = 75
 	local headerSizeBig = 120
 	local headerSizeBigPlus = 140
+	local headerSizeTalents = 387
 
 	local defaultTextColor = {.89, .89, .89, .89}
 
@@ -178,9 +189,9 @@ function PlayerCheck.BuildOptions(frame)
 		{text = "Repair", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "No Enchant", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "No Gems", width = headerSizeMedium, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
-		{text = "Talents", width = headerSizeBigPlus, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
-		{text = "Renown", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
-		{text = "Conduit", width = 195, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
+		{text = "Talents", width = headerSizeTalents, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
+		--{text = "Renown", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
+		--{text = "Conduit", width = 195, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
 	}
 
 	local headerOnClickCallback = function(headerFrame, columnHeader)
@@ -226,8 +237,9 @@ function PlayerCheck.BuildOptions(frame)
 		local talentId = self.talentId
 		if (talentId) then
 			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
-			GameTooltip:SetTalent(talentId, false, self)
-			self.UpdateTooltip = PlayerTalentFrameTalent_OnEnter
+			--GameTooltip:SetTalent(talentId) --, false, self
+			GameTooltip:SetSpellByID(talentId)
+			--self.UpdateTooltip = PlayerTalentFrameTalent_OnEnter
 			GameTooltip:Show()
 			self.icon:SetBlendMode("ADD")
 		end
@@ -238,6 +250,7 @@ function PlayerCheck.BuildOptions(frame)
 		self.icon:SetBlendMode("BLEND")
 	end
 
+	--[[
 	local conduitIconOnEnter = function(self)
 		if (self.spellId) then
 			GameTooltip:SetOwner(self, "ANCHOR_RIGHT")
@@ -251,6 +264,7 @@ function PlayerCheck.BuildOptions(frame)
 		GameTooltip:Hide()
 		self.icon:SetBlendMode("BLEND")
 	end
+	--]]
 
 	local headerFontSize = 11
 
@@ -293,6 +307,7 @@ function PlayerCheck.BuildOptions(frame)
 			specIcon.hoverWidth = specIcon.width * 1.15
 			specIcon.hoverHeight = specIcon.height * 1.15
 
+			--[[
 			local covenantIcon = DF:CreateImage(line, "", line:GetHeight() - 2, line:GetHeight() - 2)
 			covenantIcon.texcoord = {.1, .9, .1, .9}
 			covenantIcon.originalWidth = covenantIcon.width
@@ -300,6 +315,7 @@ function PlayerCheck.BuildOptions(frame)
 			covenantIcon.hoverWidth = covenantIcon.width * 1.15
 			covenantIcon.hoverHeight = covenantIcon.height * 1.15
 			covenantIcon:SetPoint("left", specIcon, "right", 2, 0)
+			--]]
 
 			--player name
 			local playerName = DF:CreateLabel(line)
@@ -327,7 +343,7 @@ function PlayerCheck.BuildOptions(frame)
 			local talentsFrame = CreateFrame("frame", "$parentTalents", line)
 			talentsFrame:SetSize(headerSizeBig, line:GetHeight() - 2)
 			talentsFrame.frames = {}
-			for i = 1, 7 do
+			for i = 1, 70 do
 				local talentFrame = CreateFrame("frame", "$parentTalent" .. i, talentsFrame)
 				talentFrame:SetPoint("left", talentsFrame, "left", (i-1)*scroll_line_height, 0)
 				tinsert(talentsFrame.frames, talentFrame)
@@ -341,11 +357,14 @@ function PlayerCheck.BuildOptions(frame)
 			end
 
 			--renown
+			--[[ shadowlands only
 			local renownLevel = DF:CreateLabel(line)
 			renownLevel.fontsize = headerFontSize
 			renownLevel.alpha = 1
+			]]
 
 			--conduits
+			--[[ shadowlands only
 			local conduitsFrame = CreateFrame("frame", "$parentConduits", line)
 			conduitsFrame:SetSize(headerSizeBig, line:GetHeight() - 2)
 			conduitsFrame.frames = {}
@@ -361,18 +380,19 @@ function PlayerCheck.BuildOptions(frame)
 				conduitFrame:SetScript("OnEnter", conduitIconOnEnter)
 				conduitFrame:SetScript("OnLeave", conduitIconOnLeave)
 			end
+			--]]
 
 		--store the labels into the line object
 		line.specIcon = specIcon
-		line.covenantIcon = covenantIcon
+		--line.covenantIcon = covenantIcon
 		line.playerName = playerName
 		line.itemLevel = itemLevel
 		line.repairPct = repairPct
 		line.enchantMissing = enchantMissing
 		line.gemMissing = gemMissing
 		line.talentsFrame = talentsFrame
-		line.renownLevel = renownLevel
-		line.conduitsFrame = conduitsFrame
+		--line.renownLevel = renownLevel
+		--line.conduitsFrame = conduitsFrame
 
 		line.playerName.fontcolor = defaultTextColor
 		line.itemLevel.fontcolor = defaultTextColor
@@ -380,8 +400,8 @@ function PlayerCheck.BuildOptions(frame)
 		line.enchantMissing.fontcolor = defaultTextColor
 		line.gemMissing.fontcolor = defaultTextColor
 		line.talentsFrame.fontcolor = defaultTextColor
-		line.renownLevel.fontcolor = defaultTextColor
-		line.conduitsFrame.fontcolor = defaultTextColor
+		--line.renownLevel.fontcolor = defaultTextColor
+		--line.conduitsFrame.fontcolor = defaultTextColor
 
 		--align with the header
 		line:AddFrameToHeaderAlignment(specIcon)
@@ -391,8 +411,8 @@ function PlayerCheck.BuildOptions(frame)
 		line:AddFrameToHeaderAlignment(enchantMissing)
 		line:AddFrameToHeaderAlignment(gemMissing)
 		line:AddFrameToHeaderAlignment(talentsFrame)
-		line:AddFrameToHeaderAlignment(renownLevel)
-		line:AddFrameToHeaderAlignment(conduitsFrame)
+		--line:AddFrameToHeaderAlignment(renownLevel)
+		--line:AddFrameToHeaderAlignment(conduitsFrame)
 
 		line:AlignWithHeader(header, "left")
 
@@ -418,12 +438,14 @@ function PlayerCheck.BuildOptions(frame)
 					line.specIcon:SetTexture("")
 				end
 
+				--[[
 				local covenantId = dataTable[11]
 				if (covenantId > 0) then
 					line.covenantIcon:SetTexture(LIB_OPEN_RAID_COVENANT_ICONS[covenantId])
 				else
 					line.covenantIcon:SetTexture("")
 				end
+				--]]
 
 				--player name
 				line.playerName:SetText(DF:RemoveRealmName(dataTable[1]))
@@ -489,8 +511,12 @@ function PlayerCheck.BuildOptions(frame)
 						local talentWidget = line.talentsFrame.frames[i]
 						if (talentId) then
 							talentWidget:Show()
-							local _, _, texture = GetTalentInfoByID(talentId)
-							talentWidget.icon:SetTexture(texture)
+
+							--need a new call here
+							--local a, b, texture = GetTalentInfoByID(talentId)
+							local talentName, _, talentIcon = GetSpellInfo(talentId)
+							
+							talentWidget.icon:SetTexture(talentIcon)
 							talentWidget.icon:SetTexCoord(0.05, 0.95, 0.05, 0.95)
 							talentWidget.talentId = talentId
 						else
@@ -500,10 +526,13 @@ function PlayerCheck.BuildOptions(frame)
 				end
 
 				--renown
+				--[[
 				line.renownLevel:SetText(dataTable[8])
 				line.renownLevel.fontcolor = "white"
+				--]]
 
 				--conduits
+				--[[
 				--line.conduitsFrame = conduitsFrame
 				local conduits = dataTable[10] or {}
 				for i = 1, #line.conduitsFrame.frames do
@@ -530,6 +559,7 @@ function PlayerCheck.BuildOptions(frame)
 						conduitIndex = conduitIndex + 1
 					end
 				end
+				--]]
 			end
 		end
 	end
@@ -539,6 +569,9 @@ function PlayerCheck.BuildOptions(frame)
 	DF:ReskinSlider(playerInfoScroll)
 	playerInfoScroll:SetPoint("topleft", frame, "topleft", 0, scrollY)
 	playerInfoScroll:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
+
+	local gradientBelowTheLine = DF:CreateTexture(playerInfoScroll, {gradient = "vertical", fromColor = {0, 0, 0, 0.3}, toColor = "transparent"}, 1, 100, "artwork", {0, 1, 0, 1}, "gradientBelowTheLine")
+	gradientBelowTheLine:SetPoint("bottoms", playerInfoScroll, 1, 1)
 
 	--create lines for the spell scroll
 	for i = 1, scroll_lines do

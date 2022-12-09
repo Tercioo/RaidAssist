@@ -820,7 +820,8 @@ function RaidGroups.BuildOptions(frame)
 	local options_button_template = RaidGroups:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE")
 
 	RaidGroups:SetAsOptionsPanel (frame)
-	RaidGroups:BuildMenu (optionsFrame, options_list, 5, -40, 300, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
+	options_list.always_boxfirst = true
+	RaidGroups:BuildMenu (optionsFrame, options_list, 5, -40, 300, false, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
 
 	--> filters
 	local filter_label = RaidGroups:CreateLabel (optionsFrame, "Filter" .. ":", RaidGroups:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"), _, _, "label_filter1")
@@ -1146,9 +1147,9 @@ function RaidGroups.BuildOptions(frame)
 	syncOptionsFrame:SetBackdropColor(.1, .1, .1, 1)
 
 	--text
-	local syncLockedText = DF:CreateLabel(syncOptionsFrame, "Apply Changes Immediately (no need to use 'Apply Changes' and 'Refresh Roster' buttons)", DF:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
+	local syncLockedText = DF:CreateLabel(syncOptionsFrame, "Apply Changes Immediately (no need to use 'Apply Changes' and 'Refresh Roster')", DF:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
 	syncLockedText:SetPoint("topleft", syncOptionsFrame, "topleft", 25, -10) --POINT
-	syncLockedText.fontsize = 14
+	syncLockedText.fontsize = 11
 
 	--checkbox
 	local syncLockedCheckboxFunc = function (_, _, value)

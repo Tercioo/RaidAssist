@@ -2,7 +2,7 @@
 local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
-local default_priority = 20
+local default_priority = 11
 local DF = DetailsFramework
 
 local PasteText = {version = "v0.1", pluginname = "PasteText", pluginId = "PATX", displayName = "Share Text"}
@@ -377,6 +377,9 @@ function PasteText.BuildOptions (frame)
 		pasteEditbox:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
 		pasteEditbox:SetBackdropColor(unpack (luaeditor_backdrop_color))
 
+		local gradientBelowTheLine = DF:CreateTexture(pasteEditbox, {gradient = "vertical", fromColor = {0, 0, 0, 0.3}, toColor = "transparent"}, 1, 100, "artwork", {0, 1, 0, 1}, "gradientBelowTheLine")
+		gradientBelowTheLine:SetPoint("bottoms", pasteEditbox, 1, 1)
+
 		frame.PasteMenuEditBox = pasteEditbox
 		PasteText.OptionsPasteEditbox = pasteEditbox
 		
@@ -570,4 +573,4 @@ function PasteText.ShareText(data)
 	end
 end
 
-RA:InstallPlugin (PasteText.displayName, "RAPasteText", PasteText, default_config)
+RA:InstallTrivialPlugin(PasteText.displayName, "RAPasteText", PasteText, default_config)

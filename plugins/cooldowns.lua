@@ -64,6 +64,7 @@ local icon_texture = "Interface\\AddOns\\RaidAssist\\media\\plugin_icons"
 local Cooldowns = {version = "v0.1", pluginname = "Cooldowns", pluginId = "CDCL", displayName = "Cooldowns"}
 _G ["RaidAssistCooldowns"] = Cooldowns
 Cooldowns.IsDisabled = true
+local canInstallPlugin = false
 
 Cooldowns.ScreenPanels = {}
 Cooldowns.Roster = {}
@@ -1810,4 +1811,6 @@ function Cooldowns.BuildOptions (frame)
 	main_frame:Show()
 end
 
-RA:InstallPlugin (Cooldowns.displayName, "RACooldowns", Cooldowns, default_config)
+if (canInstallPlugin) then
+	RA:InstallPlugin (Cooldowns.displayName, "RACooldowns", Cooldowns, default_config)
+end

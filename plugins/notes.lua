@@ -34,7 +34,7 @@ local default_config = {
 	dbm_boss_timers = {},
 	bw_boss_timers = {},
 	bar_texture = "You Are Beautiful!",
-	editor_alpha = 0.5,
+	editor_alpha = 0.1,
 }
 
 local CONST_MACRO_INDEXNAME = 1
@@ -109,15 +109,11 @@ Notepad.menu_on_click = function (plugin)
 	RA.OpenMainOptions (Notepad)
 end
 
-Notepad.PLAYER_LOGIN = function()
-	--need to wait till encounter journal is loaded
+local loadFrame = CreateFrame("frame")
+loadFrame:RegisterEvent("PLAYER_ENTERING_WORLD")
+
+loadFrame:SetScript("OnEvent", function()
 	Notepad:BuildBossList()
-	C_Timer.After(1, function()
-		Notepad:BuildBossList()
-	end)
-	C_Timer.After(3, function()
-		Notepad:BuildBossList()
-	end)
 
 	--check if it was showing a note on screen
 	C_Timer.After(5, function()
@@ -130,7 +126,9 @@ Notepad.PLAYER_LOGIN = function()
 			end
 		end
 	end)
-end
+end)
+
+Notepad.PLAYER_LOGIN = function() end
 
 function Notepad.InstallBossModsHandlers()
 	--dbm
@@ -845,15 +843,32 @@ function Notepad:BuildBossList() --~bosslist
 
 	--EJ_SelectTier(7) --for older expansions
 
+	local bFoundResults = false
+
+	--in rare cases, the encounter journal doesn't load, here we load it and reset it
+	if (not EncounterJournal) then
+		EncounterJournal_LoadUI()
+		EncounterJournalDungeonTab:Click()
+		EncounterJournal_TierDropDown_Select(_, 10) --dragon isles
+		EncounterJournalRaidTab:Click()
+
+		C_Timer.After(1, function()
+			EncounterJournalDungeonTab:Click()
+			EncounterJournalRaidTab:Click()
+			EncounterJournalDungeonTab:Click()
+		end)
+	end
+
     for instanceIndex = 10, 1, -1 do
 		local instanceID, zoneName = _G.EJ_GetInstanceByIndex(instanceIndex, true)
         if (instanceID) then
+			EncounterJournal_DisplayInstance(instanceID)
+
             for i = 20, 1, -1 do
 				local name, description, bossID, rootSectionID, link, journalInstanceID, dungeonEncounterID, UiMapID = _G.EJ_GetEncounterInfoByIndex (i, instanceID)
-
 				if (name) then
 					local id, creatureName, creatureDescription, displayInfo, iconImage = EJ_GetCreatureInfo(1, bossID)
-					bossTable[#bossTable+1] = {
+					local thisBossTable = {
 						bossName = name,
 						bossId = bossID,
 						bossRaidName = zoneName,
@@ -865,16 +880,22 @@ function Notepad:BuildBossList() --~bosslist
 						instanceIndex = instanceIndex,
 						journalInstanceId = journalInstanceID,
 					}
-					Notepad.bossListHashTable[bossID] = bossTable[#bossTable]
+					bossTable[#bossTable+1] = thisBossTable
+					Notepad.bossListHashTable[bossID] = thisBossTable
+					bFoundResults = true
                 end
             end
         end
 	end
 
+	Notepad.bRequireBossListRefresh = not bFoundResults
 	return bossTable
 end
 
 function Notepad:GetBossList()
+	if (Notepad.bRequireBossListRefresh) then
+		Notepad:BuildBossList()
+	end
 	return Notepad.bossListTable
 end
 
@@ -3226,6 +3247,8 @@ function Notepad.BuildOptions(frame) --~options õptions
 	createPickFrame(mainFrame)
 
 	mainFrame:SetScript("OnShow", function()
+		Notepad:GetBossList()
+
 		if (Notepad:GetCurrentlyShownBoss()) then
 			Notepad:UpdateFrameShownOnOptions()
 			if (Notepad.screenFrame.on_combat) then
@@ -3314,6 +3337,8 @@ function Notepad.BuildOptions(frame) --~options õptions
 			name = L["S_FRAME_BACKGROUND_COLOR"],
 		},
 
+		{type = "blank"},
+
 		{
 			type = "select",
 			get = function() return Notepad.db.framestrata end,
@@ -3394,7 +3419,8 @@ function Notepad.BuildOptions(frame) --~options õptions
 	local options_button_template = Notepad:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE")
 
 	--Notepad:SetAsOptionsPanel(userScreenPanelOptions)
-	Notepad:BuildMenu(userScreenPanelOptions, options_list, 10, -12, 300, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
+	options_list.always_boxfirst = true
+	Notepad:BuildMenu(userScreenPanelOptions, options_list, 10, -12, 300, false, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
 
 	--left boss selection scroll frame functions
 	local refreshBossList = function(self, data, offset, totalLines)
@@ -3794,6 +3820,7 @@ function Notepad.BuildOptions(frame) --~options õptions
 	local bossData = Notepad:GetBossList()
 
 	--create the left scroll to select which boss to edit ~bossframe
+
 	local bossScrollFrame = DF:CreateScrollBox(mainFrame, "$parentBossScrollBox", refreshBossList, bossData, scrollBossWidth, scrollBossHeight, amoutBossLines, bossLinesHeight)
 	mainFrame.bossScrollFrame = bossScrollFrame
 	bossScrollFrame.isMaximized = true

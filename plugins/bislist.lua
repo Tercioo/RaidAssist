@@ -2,30 +2,46 @@
 local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
-local default_priority = 13
+local defaultPriority = 13
+local DF = DetailsFramework
+
+--fazer o lance de mandar os items para a raid
 
 --battle res default config
-local default_config = {
+local defaultPluginConfig = {
 	enabled = true,
 	menu_priority = 1,
-	characters = {},
+	player_bis_list = {},
+	editing_boss_id = 0,
 }
 
 local icon_texture = [[Interface\GUILDFRAME\GuildLogo-NoLogo]]
 local icon_texcoord = {l=10/64, r=54/64, t=10/64, b=54/64}
 local text_color_enabled = {r=1, g=1, b=1, a=1}
 local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
+local scrollbox_line_backdrop_color = {.1, .10, .10, 0.5}
+local scrollbox_line_backdrop_color_hightlight = {.4, .4, .4, 0.6}
+local scrollbox_line_backdrop_color_selected = {.7, .7, .7, 0.9}
 
 local BisList = {version = "v0.1", pluginname = "BisList", pluginId = "BISL", displayName = "Bis List"}
-_G ["RaidAssistBisList"] = BisList
+_G["RaidAssistBisList"] = BisList
 
-BisList.IsDisabled = true
---BisList.IsDisabled = false
+BisList.IsDisabled = false
+local canInstall = true
 
-local can_install = false
-local can_install = true
+local scrollBossWidth = 200
+local scrollBossHeight = 659
+local bossLinesHeight = 40
+local amoutBossLines = math.floor(scrollBossHeight / bossLinesHeight)
 
-BisList.menu_text = function (plugin)
+--raid leader query for a single user
+local COMM_QUERY_USERLIST = "BISU"
+--raid leader query the entire raid
+local COMM_QUERY_RAIDLIST = "BISR"
+--a user sent the list
+local COMM_RECEIVED_LIST = "BISL"
+
+BisList.menu_text = function(plugin)
 	if (BisList.db.enabled) then
 		return icon_texture, icon_texcoord, "Loot (My Bis List)", text_color_enabled
 	else
@@ -33,417 +49,589 @@ BisList.menu_text = function (plugin)
 	end
 end
 
-BisList.menu_popup_show = function (plugin, ct_frame, param1, param2)
-	RA:AnchorMyPopupFrame (BisList)
+BisList.menu_popup_show = function(plugin, ct_frame, param1, param2)
+	RA:AnchorMyPopupFrame(BisList)
 end
 
-BisList.menu_popup_hide = function (plugin, ct_frame, param1, param2)
+BisList.menu_popup_hide = function(plugin, ct_frame, param1, param2)
 	BisList.popup_frame:Hide()
 end
 
-BisList.menu_on_click = function (plugin)
-	RA.OpenMainOptions (BisList)
+BisList.menu_on_click = function(plugin)
+	RA.OpenMainOptions(BisList)
 end
 
-BisList.OnInstall = function (plugin)
+BisList.OnInstall = function(plugin)
 	--C_Timer.After (5, BisList.menu_on_click)
-	BisList.db.menu_priority = default_priority
+	BisList.db.menu_priority = defaultPriority
 end
 
-BisList.OnEnable = function (plugin)
-	-- enabled from the options panel.
+BisList.OnEnable = function(plugin)
+	--enabled from the options panel.
 end
 
-BisList.OnDisable = function (plugin)
-	-- disabled from the options panel.
-end
-
-BisList.OnProfileChanged = function (plugin)
-	if (plugin.db.enabled) then
-		BisList.OnEnable (plugin)
-	else
-		BisList.OnDisable (plugin)
-	end
-	
-	if (plugin.options_built) then
-		plugin.main_frame:RefreshOptions()
-	end
-end
-
-function BisList:GetCharacterItemList()
-	local guid = UnitGUID ("player")
-	local db = BisList.db.characters [guid]
-	
-	if (not db) then
-		BisList.db.characters [guid] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-		db = BisList.db.characters [guid]
-	end
-	
-	return db
-end
-
-local get_current_equiped_itemid = function (equip_slot)
-	local current_equiped = GetInventoryItemLink ("player", equip_slot)
-	if (current_equiped) then
-		local _, item_id, _, _, _, _, _, _, _, _, _, _, instanceDifficultyID = strsplit (":", current_equiped)
-		item_id, instanceDifficultyID = tonumber (item_id), tonumber (instanceDifficultyID)
-		return item_id or 0, instanceDifficultyID or 0
-	end
-	return 0, 0
-end
-
-BisList.LostList = {
-	[INVSLOT_HEAD] = 1,
-	[INVSLOT_NECK ] = 2,
-	[INVSLOT_SHOULDER] = 3,
-	[INVSLOT_CHEST] = 4,
-	[INVSLOT_WAIST] = 5,
-	[INVSLOT_LEGS] = 6,
-	[INVSLOT_FEET] = 7,
-	[INVSLOT_WRIST] = 8,
-	[INVSLOT_HAND] = 9,
-	[INVSLOT_FINGER1] = 10,
-	[INVSLOT_FINGER2] = 11,
-	[INVSLOT_TRINKET1] = 12,
-	[INVSLOT_TRINKET2] = 13,
-	[INVSLOT_BACK] = 14,
-	[INVSLOT_MAINHAND] = 15,
-	[INVSLOT_OFFHAND] = 16,
-}
-
-function BisList:GetMyItems()
-	local IHave = {}
-	local list = BisList:GetCharacterItemList()
-	
-	--head 1
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_HEAD)
-	IHave [BisList.LostList [INVSLOT_HEAD]] = "" .. (list [BisList.LostList [INVSLOT_HEAD]] == item_id and "1" or "0") .. ":" .. diff
-	--neck 2
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_NECK)
-	IHave [BisList.LostList [INVSLOT_NECK]] = "" .. (list [BisList.LostList [INVSLOT_NECK]] == item_id and "1" or "0") .. ":" .. diff
-	--shoulder 3
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_SHOULDER)
-	IHave [BisList.LostList [INVSLOT_SHOULDER]] = "" .. (list [BisList.LostList [INVSLOT_SHOULDER]] == item_id and "1" or "0") .. ":" .. diff
-	--chest 4
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_CHEST)
-	IHave [BisList.LostList [INVSLOT_CHEST]] = "" .. (list [BisList.LostList [INVSLOT_CHEST]] == item_id and "1" or "0") .. ":" .. diff
-	--waist 5
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_WAIST)
-	IHave [BisList.LostList [INVSLOT_WAIST]] = "" .. (list [BisList.LostList [INVSLOT_WAIST]] == item_id and "1" or "0") .. ":" .. diff
-	--legs 6
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_LEGS)
-	IHave [BisList.LostList [INVSLOT_LEGS]] = "" .. (list [BisList.LostList [INVSLOT_LEGS]] == item_id and "1" or "0") .. ":" .. diff
-	--feet 7
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_FEET)
-	IHave [BisList.LostList [INVSLOT_FEET]] = "" .. (list [BisList.LostList [INVSLOT_FEET]] == item_id and "1" or "0") .. ":" .. diff
-	--wrist 8
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_WRIST)
-	IHave [BisList.LostList [INVSLOT_WRIST]] = "" .. (list [BisList.LostList [INVSLOT_WRIST]] == item_id and "1" or "0") .. ":" .. diff
-	
-	--hands 9
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_HAND)
-	IHave [BisList.LostList [INVSLOT_HAND]] = "" .. (list [BisList.LostList [INVSLOT_HAND]] == item_id and "1" or "0") .. ":" .. diff
-	
-	--finger1 10
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_FINGER1)
-	IHave [BisList.LostList [INVSLOT_FINGER1]] = "" .. (list [BisList.LostList [INVSLOT_FINGER1]] == item_id and "1" or "0") .. ":" .. diff
-	--finger2 11
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_FINGER2)
-	IHave [BisList.LostList [INVSLOT_FINGER2]] = "" .. (list [BisList.LostList [INVSLOT_FINGER2]] == item_id and "1" or "0") .. ":" .. diff
-	--trinket1 12
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_TRINKET1)
-	IHave [BisList.LostList [INVSLOT_TRINKET1]] = "" .. (list [BisList.LostList [INVSLOT_TRINKET1]] == item_id and "1" or "0") .. ":" .. diff
-	--trinket2 13
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_TRINKET2)
-	IHave [BisList.LostList [INVSLOT_TRINKET2]] = "" .. (list [BisList.LostList [INVSLOT_TRINKET2]] == item_id and "1" or "0") .. ":" .. diff
-	--cloak 14
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_BACK)
-	IHave [BisList.LostList [INVSLOT_BACK]] = "" .. (list [BisList.LostList [INVSLOT_BACK]] == item_id and "1" or "0") .. ":" .. diff
-	--weapon1
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_MAINHAND)
-	IHave [BisList.LostList [INVSLOT_MAINHAND]] = "" .. (list [BisList.LostList [INVSLOT_MAINHAND]] == item_id and "1" or "0") .. ":" .. diff
-	--weapon2
-	local item_id, diff = get_current_equiped_itemid (INVSLOT_OFFHAND)
-	IHave [BisList.LostList [INVSLOT_OFFHAND]] = "" .. (list [BisList.LostList [INVSLOT_OFFHAND]] == item_id and "1" or "0") .. ":" .. diff
-	
-	return IHave
-end
-
-local GetPlayerArmorType = function()	
-	local _, cloth, lether, mail, plate = GetAuctionItemSubClasses (2)
-	local armor = {[cloth] = true, [lether] = true, [mail] = true, [plate] = true}
-	--print (cloth, lether, mail, plate)
-	for i = 1, 3 do
-		local link = GetInventoryItemLink ("player", i)
-		if (link) then
-			GameTooltip:SetOwner (UIParent)
-			GameTooltip:SetHyperlink (link)
-			for o = 1, 10 do
-				local text = _G ["GameTooltipTextRight" .. o] and _G ["GameTooltipTextRight" .. o]:GetText()
-				GameTooltip:Hide()
-				if (text and armor [text]) then
-					return text, armor
-				end
-			end
-		end
-	end
-	return false, armor
+BisList.OnDisable = function(plugin)
+	--disabled from the options panel.
 end
 
 function BisList.OnShowOnOptionsPanel()
 	local OptionsPanel = BisList.OptionsPanel
-	BisList.BuildOptions (OptionsPanel)
+	BisList.BuildOptions(OptionsPanel)
 end
 
-function BisList.BuildOptions (frame)
-	
-	if (frame.FirstRun) then
+local buildPlayerItemList = function()
+	local equipmentList = {}
+	for i = 1, 18 do
+		local itemLink = GetInventoryItemLink("player", i)
+		if (itemLink) then
+			local itemName, itemLink, itemQuality, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, sellPrice, classID, subclassID, bindType, expacID, setID, isCraftingReagent = GetItemInfo(itemLink)
+			if (itemName) then
+				local itemId = itemLink:match("|Hitem%:(%d+)%:")
+				print(itemName, itemId, itemLink)
+				equipmentList[i] = {itemId, itemLink}
+			end
+		end
+	end
+	BisList.PlayerEquipmentList = equipmentList
+end
+
+--return the item level of the item the player currently possesses
+local getCurrentOwnItem = function(itemLink)
+	local itemName, itemLink, itemQuality, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, sellPrice, classID, subclassID, bindType, expacID, setID, isCraftingReagent = GetItemInfo(itemLink)
+
+	for id = 0, 17 do
+		local hasEquippedItemLink = GetInventoryItemLink("player", id)
+		if (hasEquippedItemLink) then
+			local thisItemName, thisItemLink, thisItemQuality, thisItemLevel = GetItemInfo(hasEquippedItemLink)
+			if (thisItemName and thisItemLink and thisItemQuality and thisItemLevel) then
+				if (itemName == thisItemName) then
+					local itemId = itemLink:match("|Hitem%:(%d+)%:")
+					itemId = tonumber(itemId) or 0
+					return itemLevel, itemLink, itemId
+				end
+			end
+		end
+	end
+
+	for bagId = 1, 6 do
+		local numSlots = C_Container.GetContainerNumSlots(bagId)
+		if (numSlots > 0) then
+			for slotId = 1, numSlots do
+				local itemLink = C_Container.GetContainerItemLink(bagId, slotId)
+				if (itemLink) then
+					local thisItemName, thisItemLink, thisItemQuality, thisItemLevel = GetItemInfo(itemLink)
+					if (thisItemName and thisItemLink and thisItemQuality and thisItemLevel) then
+						if (itemName == thisItemName) then
+							local itemId = itemLink:match("|Hitem%:(%d+)%:")
+							itemId = tonumber(itemId) or 0
+							return itemLevel, itemLink, itemId
+						end
+					end
+				end
+			end
+		end
+	end
+end
+
+local getItemIDFromItemLink = function(itemLink)
+	local itemId = itemLink:match("|Hitem%:(%d+)%:")
+	itemId = tonumber(itemId) or 0
+	return itemId
+end
+
+local getBisListForPlayer = function()
+	local bisListDB = BisList.db.player_bis_list
+	local playerGUID = UnitGUID("player")
+
+	local bisList = bisListDB[playerGUID]
+	if (not bisList) then
+		bisList = {}
+		bisListDB[playerGUID] = bisList
+	end
+
+	return bisList
+end
+
+local sendListScheduled
+
+--send the bis list to raid leader
+function BisList.SendBisList()
+	--get the bis list of the player
+	local bisList = getBisListForPlayer()
+	local maxItemlevel, currentItemLevel = GetAverageItemLevel()
+
+	local listToSend = {
+		ilvl = currentItemLevel,
+		items = {},
+		specId = PlayerUtil.GetCurrentSpecID(),
+	}
+
+	for itemId, lootInfo in pairs(bisList) do
+		if (lootInfo.enabled) then
+			local itemTable = {
+				lootInfo.encounterID,
+				lootInfo.itemQuality,
+				getCurrentOwnItem(lootInfo.link) or 0,
+			}
+			listToSend.items[itemId] = itemTable
+		end
+	end
+
+	--send the comm
+	if (IsInRaid()) then
+		if (sendListScheduled and not sendListScheduled:IsCancelled()) then
+			return
+		end
+
+		local callback = function()
+			BisList:SendPluginCommMessage(COMM_RECEIVED_LIST, "RAID", nil, nil, listToSend)
+			sendListScheduled = nil
+		end
+
+		sendListScheduled = DF.Schedules.NewTimer(0.1 + math.random() * 4, callback)
+	end
+end
+
+RA:RegisterForEnterRaidGroup(function()
+	C_Timer.After(0.5, function()
+		BisList.SendBisList()
+	end)
+end)
+
+function BisList.OnReceiveComm(sourceName, prefix, sourcePluginVersion, sourceUnit, data1, data2, data3)
+	if (prefix == COMM_QUERY_RAIDLIST) then
+		BisList.SendBisList()
+	end
+end
+
+--RA:RegisterPluginComm(COMM_QUERY_USERLIST, BisList.OnReceiveComm)
+RA:RegisterPluginComm(COMM_QUERY_RAIDLIST, BisList.OnReceiveComm)
+--RA:RegisterPluginComm(COMM_RECEIVED_LIST, BisList.OnReceiveComm)
+
+local GetLootTable = function(thisClassId)
+	local className, classFileName, classId = UnitClass("player")
+	BisList.LootFilterClassId = thisClassId or BisList.LootFilterClassId or classId
+
+	--create the boss selector
+	local arrayOfBosses, bossInfoData, lootInfoData = RA:GetExpansionBossList(BisList.LootFilterClassId)
+	BisList.main_frame.BossData = arrayOfBosses --array of bosses
+	BisList.main_frame.BossInfoData = bossInfoData --map[journalEncounterID] = bossInfo
+	BisList.main_frame.LootInfoData = lootInfoData --map[journalEncounterID] = lootInfo
+
+	return arrayOfBosses, bossInfoData, lootInfoData
+end
+
+function BisList.BuildOptions(frame)
+	if (frame.bBuiltFrames) then
+		--frame.bossScrollFrame:Refresh()
 		return
 	end
-	frame.FirstRun = true
-	
-	--window object
-	local main_frame = frame
-	BisList.main_frame = frame
-	main_frame:SetSize (422, 385)
-	
-	--get this character bislist or create one
-	local list = BisList:GetCharacterItemList()
-	local no_border = {5/64, 59/64, 5/64, 59/64}
-	
-	--build the panel
-	local slot_list = {
-		L["S_EQUIPSLOT_1"],--1
-		L["S_EQUIPSLOT_2"],--2
-		L["S_EQUIPSLOT_3"],--3
-		L["S_EQUIPSLOT_5"],--4
-		L["S_EQUIPSLOT_6"],--5
-		L["S_EQUIPSLOT_7"],--6
-		L["S_EQUIPSLOT_8"],--7
-		L["S_EQUIPSLOT_9"],--8
-		L["S_EQUIPSLOT_10"],--9
-		L["S_EQUIPSLOT_11"],--10
-		L["S_EQUIPSLOT_11"],--11
-		L["S_EQUIPSLOT_13"],--12
-		L["S_EQUIPSLOT_13"],--13
-		L["S_EQUIPSLOT_15"],--14
-		"Relic", 
-		"Relic", 
-		"Relic", 
-		--L["S_EQUIPSLOT_16"],--15
-		--L["S_EQUIPSLOT_16"],--16
-	}
-	local slot_indexes = {1, 2, 3, 5, 6, 7, 8, 9, 10, 11, 11, 13, 13, 15, 16, 16, 16, 18, 19, 20, 20, 20} --16, 16
-	local armor_slots = {[1]=true, [3]=true, [5]=true, [6]=true, [7]=true, [8]=true, [9]=true, [10]=true}
-	local player_armor_type, armor_types = GetPlayerArmorType()
-	
-	local get_item_encounterid = function (item_id, item_equip_slot)
-		for _, item in ipairs (RA.LootList [item_equip_slot]) do
-			if (item[1] == item_id) then
-				return item[2]
+
+	frame.bBuiltFrames = true
+
+	local mainFrame = frame
+	mainFrame:SetSize(422, 385)
+	BisList.main_frame = mainFrame
+
+	--left boss selection scroll frame functions
+	local refreshBossList = function(self, data, offset, totalLines)
+		local lastBossSelected = BisList.db.editing_boss_id
+
+		--update boss scroll
+		for i = 1, totalLines do
+			local index = i + offset
+			local thisData = data[index]
+			if (thisData) then
+				local line = self:GetLine(i)
+
+				local bossName = thisData.bossName
+				local bossRaidName = thisData.bossRaidName
+				local bossIcon = thisData.bossIcon
+				local bossId = thisData.journalEncounterID
+
+				--update the line
+				line.bossName:SetText(bossName)
+				line.bossName:SetPoint("left", line.bossIcon, "right", -8, 6)
+				DF:TruncateText(line.bossName, 130)
+				line.bossRaidName:SetText(bossRaidName)
+				DF:TruncateText(line.bossRaidName, 130)
+
+				line.bossIcon:SetTexture(bossIcon)
+				line.bossIcon:SetTexCoord(unpack(thisData.bossIconCoords))
+				line.bossIcon:SetSize(thisData.bossIconSize[1], thisData.bossIconSize[2])
+
+				line.bossIcon:SetPoint("left", line, "left", 2, 0)
+				line.bossName:Show()
+				line.bossRaidName:Show()
+
+				line.bossId = bossId
+				line:Show()
 			end
 		end
 	end
-	
-	local select_item_frame = BisList:CreateCleanFrame (BisList, "BLSelectItemFrame")
-	select_item_frame:SetParent (main_frame)
-	select_item_frame:SetFrameLevel (main_frame:GetFrameLevel()+4)
-	
-	select_item_frame.buttons = {}
-	local item_selected = function (self, button, itemid)
-		list [select_item_frame.current_slotid] = itemid
-		select_item_frame:Hide()
-		main_frame:Refresh()
-	end
-	function select_item_frame:Reset()
-		for _, button in ipairs (select_item_frame.buttons) do
-			button:Hide()
-		end
-	end
-	select_item_frame:Hide()
 
-	local waiting = {}
-	local wait_for_item_info = function()
-		BisList.select_item (waiting.button, nil, waiting.id, waiting.slot, true)
+	local CONST_LOOT_SELECTIONFRAME_WIDTH = 635
+	local CONST_LOOT_BUTTON_WIDTH = 200
+	local CONST_LOOT_BUTTON_HEIGHT = 50
+
+	local lootSpaceWidth = CONST_LOOT_BUTTON_WIDTH + 10
+	local lootSpaceHeight = CONST_LOOT_BUTTON_HEIGHT + 10
+	local lootIconSize = CONST_LOOT_BUTTON_HEIGHT - 5
+	local lootButtonPerRow = math.floor(CONST_LOOT_SELECTIONFRAME_WIDTH / lootSpaceWidth)
+
+	local startOffsetX = 5
+	local startOffsetY = -5
+
+	local lootNameFontSize = 10
+	local lootSlotFontSize = 10
+
+	local className, classFileName, classId = UnitClass("player")
+	local arrayOfBosses, bossInfoData, lootInfoData = GetLootTable(classId)
+
+	local bossScrollFrame = DF:CreateScrollBox(mainFrame, "$parentBossScrollBox", refreshBossList, arrayOfBosses, scrollBossWidth, scrollBossHeight, amoutBossLines, bossLinesHeight)
+	mainFrame.bossScrollFrame = bossScrollFrame
+	bossScrollFrame.isMaximized = true
+
+	local lootSelectionFrame = CreateFrame("frame", nil, mainFrame, "BackdropTemplate")
+	lootSelectionFrame:SetPoint("topleft", bossScrollFrame, "topright", 26, 0)
+	lootSelectionFrame:SetPoint("bottomleft", bossScrollFrame, "bottomright", 26, 0)
+	lootSelectionFrame:SetWidth(CONST_LOOT_SELECTIONFRAME_WIDTH)
+	DF:ApplyStandardBackdrop(lootSelectionFrame)
+	lootSelectionFrame.LootButtons = {}
+	lootSelectionFrame.NextLootButton = 1
+	lootSelectionFrame.NextOffsetX = startOffsetX
+	lootSelectionFrame.NextOffsetY = startOffsetY
+
+	local selectLootString = lootSelectionFrame:CreateFontString(nil, "overlay", "GameFontNormal")
+	selectLootString:SetText("Select The Items You Desire From Each Boss")
+	selectLootString:SetPoint("bottom", lootSelectionFrame, "bottom", 0, 2)
+
+	local r, g, b = DF:ParseColors("black")
+
+	local gradientBelowTheLine = DF:CreateTexture(lootSelectionFrame, {gradient = "vertical", fromColor = {r, g, b, 0.3}, toColor = "transparent"}, 1, 100, "artwork", {0, 1, 0, 1}, "gradientBelowTheLine")
+	gradientBelowTheLine:SetPoint("bottoms", lootSelectionFrame, 1, 1)
+
+	function lootSelectionFrame:ResetLootButtons()
+		for buttonIndex, lootButton in ipairs(lootSelectionFrame.LootButtons) do
+			lootButton:Hide()
+		end
+		lootSelectionFrame.NextLootButton = 1
+		lootSelectionFrame.NextOffsetX = startOffsetX
+		lootSelectionFrame.NextOffsetY = startOffsetY
 	end
-	
-	local PRESET_LABEL_SELECT_PANEL = {color = "white", size = 12, font = "Accidental Presidency"}
-	local PRESET_BUTTON_SELECT_PANEL = {	
-		backdrop = {bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true},
-		backdropcolor = {1, 1, 1, .1},
-		onentercolor = {1, 1, 1, .5},
-	}
-	
-	local button_select_panel_on_enter = function (self, capsule)
-		GameTooltip:SetOwner (self)
-		GameTooltip:SetHyperlink (capsule.itemLink)
+
+	local lootButtonOnEnter = function(lootButton)
+		local lootInfo = lootButton.LootInfo
+		GameTooltip:SetOwner(lootButton, "ANCHOR_TOPRIGHT")
+		GameTooltip:SetHyperlink(lootInfo.link)
 		GameTooltip:Show()
-		GameTooltip:ClearAllPoints()
-		GameTooltip:SetPoint ("left", self, "right", 2, 0)
 	end
-	local button_select_panel_on_leave = function (self, capsule)
-		GameTooltip:Hide()
-	end
-	
-	BisList.select_item = function (self, _, slotid, slotindex, queued)
-	
-		local item_list = BisList.LootList [slotindex]
-		local showing, width = 0, 0
-		
-		if (not queued and select_item_frame:IsShown() and slotid == select_item_frame.current_slotid) then
-			return select_item_frame:Hide()
-		end
-		
-		select_item_frame.current_slotid = slotid
-		select_item_frame.current_slotindex = slotindex
-		select_item_frame:Reset()
-		
-		local button_index = 1
-		for i, loot in ipairs (item_list) do
-			
-			local itemid, encounterid = unpack (loot)
-			waiting.id, waiting.slot, waiting.button = slotid, slotindex, self
-			
-			local itemName, itemLink, _, itemLevel, _, itemType, itemSubType, _, _, itemTexture = GetItemInfo (itemid)
-			if (itemName) then
-				if (not player_armor_type or not armor_types [itemSubType] or (player_armor_type and player_armor_type == itemSubType)) then
-					local button = select_item_frame.buttons [button_index]
-					if (not button) then
-						button = BisList:CreateButton (select_item_frame, item_selected, 20, 20, nil, nil, nil, nil, nil, nil, nil, PRESET_BUTTON_SELECT_PANEL, PRESET_LABEL_SELECT_PANEL)
-						select_item_frame.buttons [button_index] = button
-						button:SetPoint ("topleft", select_item_frame, "topleft", 2, -(button_index-1)*21)
-						button:SetPoint ("topright", select_item_frame, "topright", -2, -(button_index-1)*21)
-						button:SetHook ("OnEnter", button_select_panel_on_enter)
-						button:SetHook ("OnLeave", button_select_panel_on_leave)
-					end
 
-					local encounter_name = BisList:GetEncounterName (encounterid)
-					button:SetText (itemName .. " (|cFFFFDD22" .. encounter_name .. "|r)")
-					button:SetIcon (itemTexture, 18, 18, "overlay", no_border, nil, 4, 2)
-					button:SetClickFunction (item_selected, itemid)
-					button.itemLink = itemLink
-					button:Show()
-					
-					showing = showing + 1
-					button_index = button_index + 1
-					
-					local w = button.widget.text:GetStringWidth() + 36
-					if (w > width) then
-						width = w
-					end
-				end
-			else
-				C_Timer.After (0.1, wait_for_item_info)
-			end
-		end
-		
-		select_item_frame:SetSize (width, showing * 21)
-		select_item_frame:ClearAllPoints()
-		select_item_frame:SetPoint ("left", self, "right", 2, 0)
-		select_item_frame:Show()
-	end
-	
-	local panel_itemlabels = {}
-	local panel_encounterlabels = {}
-	local panel_itembuttons = {}
-	local panel_backgrounds = {}
-	
-	local item_name_on_enter = function (self)
-		local color = BAG_ITEM_QUALITY_COLORS [LE_ITEM_QUALITY_EPIC]
-		self.label:SetTextColor (color.r+0.1, color.g+0.1, 1)
-		if (self.link) then
-			GameTooltip:SetOwner (self, "ANCHOR_TOP")
-			GameTooltip:SetHyperlink (self.link)
-			GameTooltip:Show()
-		end
-	end
-	local item_name_on_leave = function (self)
-		local color = BAG_ITEM_QUALITY_COLORS [LE_ITEM_QUALITY_EPIC]
-		self.label:SetTextColor (color.r, color.g, color.b)
+	local lootButtonOnLeave = function(lootButton)
 		GameTooltip:Hide()
 	end
-	
-	local backdrop_table = {bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true}
-	for i = 1, 16 do
-		local label_slot_name =  BisList:CreateLabel (main_frame, slot_list [i] .. ":", BisList:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
-		local button_select_item = BisList:CreateButton (main_frame, BisList.select_item, 60, 20, "select", i, slot_indexes[i], _, _, _, _, BisList:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"))
-		local background = CreateFrame ("frame", nil, main_frame)
-		background:SetFrameLevel (main_frame:GetFrameLevel()+1)
-		background:SetBackdrop (backdrop_table)
-		background:SetBackdropColor (1, 1, 1, 0.1)
-		local label_item_name = BisList:CreateLabel (background, "", BisList:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
-		local label_encounter_name = BisList:CreateLabel (background, "", BisList:GetTemplate ("font", "ORANGE_FONT_TEMPLATE"))
-		
-		local y = (-i * 21) - 15
-		
-		label_slot_name:SetPoint ("topleft", main_frame, "topleft", 10, y)
-		label_item_name:SetPoint ("topleft", main_frame, "topleft", 75, y)
-		label_encounter_name:SetPoint ("left", label_item_name, "right", 0, 0)
-		button_select_item:SetPoint ("topleft", main_frame, "topleft", 350, y)
-		
-		background:SetPoint ("topleft", main_frame, "topleft", 60, y)
-		background:SetPoint ("bottomright", button_select_item.widget, "bottomleft", -2, 0)
-		background.label = label_item_name
-		background:SetScript ("OnEnter", item_name_on_enter)
-		background:SetScript ("OnLeave", item_name_on_leave)
-		
-		BisList:SetFontSize (label_slot_name, 14)
-		BisList:SetFontSize (label_item_name, 14)
-		BisList:SetFontSize (label_encounter_name, 14)
-		
-		tinsert (panel_itemlabels, label_item_name)
-		tinsert (panel_encounterlabels, label_encounter_name)
-		tinsert (panel_itembuttons, button_select_item)
-		tinsert (panel_backgrounds, background)
-	end
-	
-	function main_frame:Refresh()
-	
-		local itemlist = BisList:GetCharacterItemList()
-		local myitems = BisList:GetMyItems()
-		
-		if (itemlist) then
-			for index, label in ipairs (panel_itemlabels) do
-			
-				local item_id = itemlist [index]
-				if (item_id > 0) then
-					local itemName, itemLink, _, itemLevel, _, _, _, _, _, itemTexture = GetItemInfo (item_id)
-					
-					if (not itemName) then
-						C_Timer.After (0.1, main_frame.Refresh)
-						break
-					else
-						local equip_slot = slot_indexes [index] --equip slot
-						local encounter_id = get_item_encounterid (item_id, equip_slot)
-						local encounter_name = BisList:GetEncounterName (encounter_id)
-						label:SetText ("[" .. itemName .. "]")
-						local color = BAG_ITEM_QUALITY_COLORS [LE_ITEM_QUALITY_EPIC]
-						label:SetTextColor (color.r, color.g, color.b)
-						panel_encounterlabels[index]:SetText (" " .. encounter_name .. "")
-						panel_backgrounds[index].link = itemLink
-						
-						if (myitems [index]:gsub (":.*", "") == "1") then
-							panel_backgrounds[index]:SetBackdropColor (0, 1, 0, 0.2)
-						else
-							panel_backgrounds[index]:SetBackdropColor (0, 0, 0, 0)
-						end
-						
-					end
-				else
-					label:SetText ("")
-				end
-			end
+
+	local lootButonRefreshBorderColor = function(lootButton)
+		local lootInfo = lootButton.LootInfo
+		local bisList = getBisListForPlayer()
+
+		if (bisList[lootInfo.itemID] and bisList[lootInfo.itemID].enabled) then
+			local r, g, b, a = lootButton:GetBackdropColor()
+			local backdropTable = lootButton:GetBackdrop()
+			backdropTable.edgeSize = 3
+			lootButton:SetBackdrop(backdropTable)
+			lootButton:SetBackdropBorderColor(1, 1, 0, 1)
+			lootButton:SetBackdropColor(r, g, b, a)
 		else
-			C_Timer.After (0.5, main_frame.Refresh)
+			local r, g, b, a = lootButton:GetBackdropColor()
+			local backdropTable = lootButton:GetBackdrop()
+			backdropTable.edgeSize = 1
+			lootButton:SetBackdrop(backdropTable)
+			lootButton:SetBackdropBorderColor(0, 0, 0, 1)
+			lootButton:SetBackdropColor(r, g, b, a)
 		end
 	end
+
+	local lootButtonOnClick = function(lootButton)
+		local lootInfo = lootButton.LootInfo
+		local bisList = getBisListForPlayer()
+		local thisLootInfo = bisList[lootInfo.itemID]
+
+		if (not thisLootInfo) then
+			thisLootInfo = {}
+			thisLootInfo.enabled = false
+
+			--store the entire lootInfo
+			DF.table.deploy(thisLootInfo, lootInfo)
+			bisList[lootInfo.itemID] = thisLootInfo
+		end
+
+		thisLootInfo.enabled = not thisLootInfo.enabled
+		lootButonRefreshBorderColor(lootButton)
+
+		if (IsInRaid()) then
+			BisList.SendBisList()
+		end
+	end
+
+	local createLootButton = function(buttonIndex)
+		local lootButton = CreateFrame("button", nil, lootSelectionFrame, "BackdropTemplate")
+		DF:ApplyStandardBackdrop(lootButton)
+
+		lootButton:SetScript("OnEnter", lootButtonOnEnter)
+		lootButton:SetScript("OnLeave", lootButtonOnLeave)
+		lootButton:SetScript("OnClick", lootButtonOnClick)
+
+		lootButton.Icon = lootButton:CreateTexture(nil, "artwork")
+		lootButton.Icon:SetSize(lootIconSize, lootIconSize)
+		lootButton.Icon:SetPoint("left", lootButton, "left", 5, 0)
+
+		lootButton.IconBorder = lootButton:CreateTexture(nil, "overlay")
+		lootButton.IconBorder:SetAllPoints(lootButton.Icon)
+		lootButton.IconBorder:SetTexture(651080)
+
+		lootButton.HasItemIndicator = DetailsFramework:CreateTexture(lootButton, {gradient = "horizontal", fromColor = {0, 0, 0, 0}, toColor = {.2, .9, .2, 0.3}}, 120, 1, "border", {0, 1, 0, 1})
+		lootButton.HasItemIndicator:SetPoint("rights", lootButton, -1)
+
+		lootButton.ItemNameString = lootButton:CreateFontString(nil, "artwork", "GameFontNormal")
+		lootButton.ItemNameString:SetPoint("topleft", lootButton.Icon, "topright", 10, -5)
+		DF:SetFontSize(lootButton.ItemNameString, lootNameFontSize)
+
+		lootButton.ItemSlotString = lootButton:CreateFontString(nil, "artwork", "GameFontNormal")
+		lootButton.ItemSlotString:SetPoint("bottomleft", lootButton.Icon, "bottomright", 10, 5)
+		DF:SetFontSize(lootButton.ItemSlotString, lootSlotFontSize)
+
+		lootButton.ItemLevelString = lootButton:CreateFontString(nil, "artwork", "GameFontNormal")
+		lootButton.ItemLevelString:SetPoint("bottomright", lootButton, "bottomright", -4, 5)
+		DF:SetFontSize(lootButton.ItemLevelString, lootSlotFontSize)
+
+		lootButton.HightlightTexture = lootButton:CreateTexture(nil, "highlight")
+		lootButton.HightlightTexture:SetAllPoints()
+		lootButton.HightlightTexture:SetColorTexture(1, 1, 1, .1)
+
+		lootButton:SetSize(CONST_LOOT_BUTTON_WIDTH, CONST_LOOT_BUTTON_HEIGHT)
+		lootButton:SetPoint("topleft", lootSelectionFrame, "topleft", lootSelectionFrame.NextOffsetX, lootSelectionFrame.NextOffsetY)
+		lootSelectionFrame.NextOffsetX = lootSelectionFrame.NextOffsetX + lootSpaceWidth
+
+		if (buttonIndex % lootButtonPerRow == 0) then
+			lootSelectionFrame.NextOffsetX = startOffsetX
+			lootSelectionFrame.NextOffsetY = lootSelectionFrame.NextOffsetY - lootSpaceHeight
+		end
+
+		lootSelectionFrame.LootButtons[buttonIndex] = lootButton
+	end
+
+	for i = 1, 27 do
+		createLootButton(i)
+	end
+
+	function lootSelectionFrame:GetLootButton()
+		local buttonIndex = lootSelectionFrame.NextLootButton
+		local lootButton = lootSelectionFrame.LootButtons[buttonIndex]
+		lootSelectionFrame.NextLootButton = buttonIndex + 1
+		lootButton:Show()
+		return lootButton
+	end
+
+	--bossIndex: are the index of the table results from 
+	lootSelectionFrame.SetLootListForBossIndex = function(bossId)
+
+	end
+
+	function BisList.GetBossScrollFrame()
+		return bossScrollFrame
+	end
+
+--[[
+	["armorType"] = "Mail",
+	["handError"] = false,
+	["weaponTypeError"] = false,
+	["slot"] = "Legs",
+	["enabled"] = true,
+	["itemID"] = 195522,
+	["filterType"] = 8,
+	["displayAsExtremelyRare"] = false,
+	["displayAsVeryRare"] = false,
+	["name"] = "Tassets of the Tarasek Legion",
+	["link"] = "[Tassets of the Tarasek Legion]",
+	["encounterID"] = 2493,
+	["displayAsPerPlayerLoot"] = false,
+	["icon"] = 4567908,
+	["itemQuality"] = "ffa335ee",
 	
-	main_frame:Refresh()
+	["armorType"] = "Tecido",
+	["slot"] = "Pés",
+	["weaponTypeError"] = 1,
+	["handError"] = false,
+	["filterType"] = 9,
+	["encounterID"] = 2499,
+	["displayAsExtremelyRare"] = false,
+	["displayAsVeryRare"] = false,
+	["itemID"] = 195532,
+	["link"] = "[Sandálias da Soberana Selvagem]",
+	["name"] = "Sandálias da Soberana Selvagem",
+	["displayAsPerPlayerLoot"] = false,
+	["icon"] = 4392920,
+	["itemQuality"] = "ffa335ee",
 
+	["armorType"] = "",
+	["slot"] = "",
+	["weaponTypeError"] = false,
+	["handError"] = false,
+	["filterType"] = 14,
+	["encounterID"] = 2499,
+	["displayAsExtremelyRare"] = false,
+	["displayAsVeryRare"] = false,
+	["itemID"] = 196590,
+	["link"] = "[Dreadful Topaz Forgestone]",
+	["name"] = "Dreadful Topaz Forgestone",
+	["displayAsPerPlayerLoot"] = false,
+	["icon"] = 4555633,
+	["itemQuality"] = "ffa335ee",
+]]
+
+	local selectBoss = function(bossId, bossButton)
+		--reset loot buttons
+		lootSelectionFrame:ResetLootButtons()
+
+		local bossLootTable = mainFrame.LootInfoData[bossId] --array
+
+		for i = 1, #bossLootTable do --refresh loot
+			local thisLoot = bossLootTable[i]
+			if (thisLoot.name:find("Dreadful")) then
+				dumpt(thisLoot)
+			end
+
+			if (thisLoot.slot == "") then
+				thisLoot.filterType = 50
+			end
+
+			--thisLoot.weaponTypeError = thisLoot.weaponTypeError and 0 or 1
+			thisLoot.equipSort = IsEquippableItem(thisLoot.link) and thisLoot.filterType or thisLoot.filterType + 25
+			--thisLoot.filterType = thisLoot.filterType or 20
+		end
+
+		--table.sort(bossLootTable, function(t1, t2) return t1.filterType < t2.filterType end) --heads first, trinkets last
+		table.sort(bossLootTable, function(t1, t2) return t1.equipSort < t2.equipSort end)
+
+		--update the loot for this boss
+		for i = 1, #bossLootTable do --refresh loot
+			local thisLoot = bossLootTable[i]
+
+			--need to check if the player can wear the gear
+			local lootButton = lootSelectionFrame:GetLootButton()
+
+			lootButton.Icon:SetTexture(thisLoot.icon)
+			lootButton.ItemNameString:SetText(thisLoot.name)
+			DF:TruncateTextSafe(lootButton.ItemNameString, CONST_LOOT_BUTTON_WIDTH - CONST_LOOT_BUTTON_HEIGHT - 10)
+
+			lootButton.ItemSlotString:SetText(thisLoot.slot)
+			lootButton.LootInfo = thisLoot
+			local r, g, b, a = DF:ParseColors("#" .. thisLoot.itemQuality)
+			DF:SetFontColor(lootButton.ItemNameString, r, g, b, a)
+			lootButton.IconBorder:SetVertexColor(r, g, b, a)
+
+			local itemLevel, itemLink, itemId = getCurrentOwnItem(thisLoot.link)
+			lootButton.ItemLevelString:SetText(itemLevel or "")
+			if (itemLevel) then
+				lootButton.ItemLevelString:SetText(itemLevel)
+				lootButton.HasItemIndicator:Show()
+			else
+				lootButton.ItemLevelString:SetText("")
+				lootButton.HasItemIndicator:Hide()
+			end
+
+			--dumpt(thisLoot)
+
+			if (thisLoot.displayAsVeryRare) then
+
+			elseif (thisLoot.displayAsExtremelyRare) then
+
+			end
+
+			lootButonRefreshBorderColor(lootButton)
+		end
+
+		--update the boss button selected indicator
+		BisList.db.editing_boss_id = bossId
+		bossButton.selectedInidicator:Show()
+		for lineIndex, line in pairs(bossScrollFrame:GetLines()) do
+			if (line.bossId ~= bossId) then
+				line.selectedInidicator:Hide()
+			end
+		end
+	end
+
+	local onClickBossButton = function(self)
+		local bossId = self.bossId
+		selectBoss(bossId, self)
+	end
+
+	local onEnterBossLine = function(self)
+		self:SetBackdropColor(unpack(scrollbox_line_backdrop_color_hightlight))
+	end
+
+	local onLeaveBossLine = function(self)
+		self:SetBackdropColor(unpack(scrollbox_line_backdrop_color))
+	end
+
+	local createdBossLine = function(self, index)
+		local line = CreateFrame("button", "$parentLine" .. index, self, "BackdropTemplate")
+		line:SetPoint("topleft", self, "topleft", 1, -((index-1) * (bossLinesHeight+1)) - 1)
+		line:SetSize(scrollBossWidth-2, bossLinesHeight)
+		line:RegisterForClicks("LeftButtonDown", "RightButtonDown")
+		DF:ApplyStandardBackdrop(line)
+
+		line:SetScript("OnEnter", onEnterBossLine)
+		line:SetScript("OnLeave", onLeaveBossLine)
+		line:SetScript("OnClick", onClickBossButton)
+
+		line.index = index
+
+		local selectedInidicator = line:CreateTexture(nil, "border")
+		selectedInidicator:SetAllPoints()
+		selectedInidicator:SetColorTexture(1, 1, 1, 0.4)
+		selectedInidicator:Hide()
+		line.selectedInidicator = selectedInidicator
+
+		--boss icon
+		local bossIcon = line:CreateTexture("$parentIcon", "overlay")
+		bossIcon:SetSize(bossLinesHeight + 30, bossLinesHeight-4)
+		bossIcon:SetPoint("left", line, "left", 2, 0)
+		line.bossIcon = bossIcon
+
+		local bossName = line:CreateFontString(nil, "overlay", "GameFontNormal")
+		local bossRaid = line:CreateFontString(nil, "overlay", "GameFontNormal")
+		bossName:SetPoint("left", bossIcon, "right", -8, 6)
+		bossRaid:SetPoint("topleft", bossName, "bottomleft", 0, -2)
+		DF:SetFontSize(bossName, 10)
+		DF:SetFontSize(bossRaid, 9)
+		DF:SetFontColor(bossRaid, "silver")
+
+		line.bossName = bossName
+		line.bossRaidName = bossRaid
+
+		return line
+	end
+
+	--create the scrollbox lines
+	for i = 1, amoutBossLines do
+		bossScrollFrame:CreateLine(createdBossLine, i)
+	end
+
+	DF:ReskinSlider(bossScrollFrame)
+
+	DF:ApplyStandardBackdrop(bossScrollFrame)
+	mainFrame.BossSelectionBox = bossScrollFrame
+	bossScrollFrame:SetPoint("topleft", mainFrame, "topleft", 0, 5)
+
+	frame.bossScrollFrame:Refresh()
+
+	--select the first boss in the list
+	bossScrollFrame:GetLines()[1]:Click()
 end
 
-if (can_install) then
-	RA:InstallPlugin (BisList.displayName, "RABisList", BisList, default_config)
+if (canInstall) then
+	RA:InstallPlugin(BisList.displayName, "RABisList", BisList, defaultPluginConfig)
 end
-
 

@@ -3,6 +3,7 @@ local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
 local default_priority = 24
+local DF = DetailsFramework
 
 local default_config = {
 	enabled = true,
@@ -72,21 +73,21 @@ end
 
 AddonsCheck.OnInstall = function (plugin)
 	AddonsCheck.db.menu_priority = default_priority
-	
+
 	AddonsCheck:RegisterPluginComm (COMM_SYNC_RECEIVED, AddonsCheck.PluginCommReceived)
-	AddonsCheck:RegisterPluginComm (COMM_SYNC_REQUEST, AddonsCheck.PluginCommReceived)	
-	
+	AddonsCheck:RegisterPluginComm (COMM_SYNC_REQUEST, AddonsCheck.PluginCommReceived)
+
 	if (AddonsCheck.db.enabled) then
 		AddonsCheck.OnEnable (AddonsCheck)
 	end
 end
 
 AddonsCheck.OnEnable = function (plugin)
-	
+
 end
 
 AddonsCheck.OnDisable = function (plugin)
-	
+
 end
 
 AddonsCheck.OnProfileChanged = function (plugin)
@@ -112,7 +113,9 @@ function AddonsCheck.BuildOptions (frame)
 	local fillPanel = AddonsCheck:CreateFillPanel(frame, {}, fillpanel_width, fillpanel_height, false, false, false, {rowheight = 16}, _, "OPAddOnsCheckFP")
 	fillPanel:SetPoint ("topleft", frame, "topleft", 0, -30)
 	AddonsCheck.fillPanel = fillPanel
-	
+
+	local gradientBelowTheLine = DF:CreateTexture(fillPanel, {gradient = "vertical", fromColor = {0, 0, 0, 0.3}, toColor = "transparent"}, 1, 100, "artwork", {0, 1, 0, 1}, "gradientBelowTheLine")
+	gradientBelowTheLine:SetPoint("bottoms", fillPanel, 1, 1)
 
 	DetailsFramework:ApplyStandardBackdrop(fillPanel)
 	fillPanel:SetBackdropBorderColor(unpack(RA.BackdropBorderColor))
@@ -140,13 +143,13 @@ function AddonsCheck.BuildOptions (frame)
 			tinsert (alphabetical_players, {playername, table})
 		end
 		table.sort (alphabetical_players, function (t1, t2) return t2[1] < t1[1] end)
-		
+
 		if (#alphabetical_players > 0) then
 			fillPanel.WelcomeLabel:Hide()
 		else
 			fillPanel.WelcomeLabel:Show()
 		end
-		
+
 		--> build the player name and addon name header
 		local header = {
 			{name = "Player Name", type = "text", width = 120},
@@ -160,7 +163,7 @@ function AddonsCheck.BuildOptions (frame)
 			addonName = text
 			tinsert (header, {name = addonName, type = "text", width = 80})
 		end
-		
+
 		fillPanel:SetFillFunction (function (index)
 			local name = Ambiguate (alphabetical_players [index][1], "none")
 			local t = alphabetical_players [index][2]
@@ -227,7 +230,7 @@ function AddonsCheck.BuildOptions (frame)
 		return true
 	end)
 	AddonsCheck.StatusBar = statusBar
-	
+
 	function AddonsCheck.UpdateAddonsString()
 		local s = "Tracking: "
 		for addonName, IsTracking in pairs (AddonsCheck.db.tracking_addons) do
@@ -236,7 +239,7 @@ function AddonsCheck.BuildOptions (frame)
 		end
 		addons_string.text = s
 	end
-	
+
 	AddonsCheck.UpdateAddonsString()
 
 	--add more addons panel
@@ -260,13 +263,13 @@ function AddonsCheck.BuildOptions (frame)
 
 		wipe (AddonsCheck.PlayerUsingAddons)
 		wipe (AddonsCheck.LatestSyncAddonNames)
-		
+
 		manage_panel:UpdateCheckingAddOns()
 		AddonsCheck.UpdateAddonsString()
-		
+
 		AddonsCheck.UpdateFillPanel()
 	end
-	
+
 	local current_tracking_label = AddonsCheck:CreateLabel (manage_panel, "Tracking:", AddonsCheck:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	current_tracking_label:SetPoint ("topleft", manage_panel, "topleft", 10, -10)
 
@@ -277,7 +280,7 @@ function AddonsCheck.BuildOptions (frame)
 
 		local addonExclude = AddonsCheck:CreateButton(f, remove_addon, 10, 17, "X", i, _, _, "button_remove" .. i, _, _, AddonsCheck:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), AddonsCheck:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 		local addonName = AddonsCheck:CreateLabel(f, "", AddonsCheck:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-		addonName.fontsize = 13
+		addonName.fontsize = 10
 		addonName.fontcolor = "yellow"
 
 		addonExclude:SetPoint("left", f, "left", 2, 0)
@@ -304,36 +307,36 @@ function AddonsCheck.BuildOptions (frame)
 			i = i + 1
 		end
 	end
-	
+
 	local your_addons_installed_label = AddonsCheck:CreateLabel (manage_panel, "Add AddOns:", AddonsCheck:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
 	your_addons_installed_label:SetPoint ("topleft", manage_panel, "topleft", 175, -10)
-	
-	local add_addon = function (self, button, addonName)
-		AddonsCheck.db.tracking_addons [addonName] = true
+
+	local addAddon = function(self, button, addonName)
+		AddonsCheck.db.tracking_addons[addonName] = true
 		manage_panel:UpdateCheckingAddOns()
 		AddonsCheck.UpdateAddonsString()
 	end
-	
+
 	local x, y = 170, -38
 	local lastAddon = "NOADDONNAME"
 	local lastAddon2 = "NOADDONNAME"
 	local index = 1
-	
+
 	for i = 1, GetNumAddOns() do
 		local addonName = GetAddOnInfo(i)
 
 		--> check for not addin plugins of the same addon
 		if ((not addonName:lower():find(lastAddon)) and (not addonName:lower():find(lastAddon2))) then
-			local f = CreateFrame("frame", nil, manage_panel, "BackdropTemplate")
-			f:SetSize(150, 21)
-			f:SetPoint("topleft", manage_panel, "topleft", x, y)
+			local newAddonSelectionFrame = CreateFrame("frame", nil, manage_panel, "BackdropTemplate")
+			newAddonSelectionFrame:SetSize(150, 21)
+			newAddonSelectionFrame:SetPoint("topleft", manage_panel, "topleft", x, y)
 
-			local addonAdd = AddonsCheck:CreateButton(f, add_addon, 150, 21, addonName, addonName, _, _, "button_add" .. index, _, 1, AddonsCheck:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), AddonsCheck:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
-			addonAdd:SetPoint("left", f, "left", 2, 0)
-			f.button = addonAdd
+			local addonAdd = AddonsCheck:CreateButton(newAddonSelectionFrame, addAddon, 150, 21, addonName, addonName, _, _, "button_add" .. index, _, 1, AddonsCheck:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE"), AddonsCheck:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE"))
+			addonAdd:SetPoint("left", newAddonSelectionFrame, "left", 2, 0)
+			newAddonSelectionFrame.button = addonAdd
 			addonAdd.textalign = "left"
 			addonAdd.textcolor = "orange"
-			addonAdd.textsize = 13
+			addonAdd.textsize = 11
 			addonAdd.button.text:SetPoint("left", addonAdd.button, "left", 4, 0)
 			DetailsFramework:ApplyStandardBackdrop(addonAdd)
 			addonAdd:SetIcon([[Interface\PaperDollInfoFrame\Character-Plus]], 10, 10, "overlay", nil, "orange", 4)
@@ -357,7 +360,7 @@ function AddonsCheck.BuildOptions (frame)
 			index = index + 1
 		end
 	end
-	
+
 	AddonsCheck.ManageAddOnsFrame = manage_panel
 	AddonsCheck.ManageAddOnsFrame:SetScript ("OnShow", function()
 		manage_panel:UpdateCheckingAddOns()
@@ -367,7 +370,7 @@ function AddonsCheck.BuildOptions (frame)
 		fillPanel:Show()
 		frame.button_add.text = "Addon AddOn"
 	end)
-	
+
 	frame:SetScript ("OnShow", function()
 		AddonsCheck.UpdateFillPanel()
 	end)
@@ -480,7 +483,7 @@ function AddonsCheck.BuildAddonList()
 		local name, title, notes, loadable, reason, security, newVersion = GetAddOnInfo (i)
 		addonsInstalled [name] = loadable and RESPONSE_TYPE_HAVE or RESPONSE_TYPE_NOT_HAVE
 	end
-	
+
 	local returnTable = {}
 	--insere o resultado em uma tabela numera para enviar
 	for index, addonName in ipairs (addonsList) do

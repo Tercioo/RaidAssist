@@ -86,10 +86,15 @@ RA.version = "v1.0"
 
 --store all plugins isntalled
 RA.plugins = {}
+RA.pluginsTrivial = {}
+
 --store plugin Ids
 RA.pluginIds = {}
+RA.pluginsTrivialIds = {}
+
 --plugins that have been schedule to install
 RA.schedule_install = {}
+RA.schedule_install_trivial = {}
 --this is the small frame menu to select an option without using /raa
 RA.default_small_popup_width = 150
 RA.default_small_popup_height = 40
@@ -100,7 +105,7 @@ RA.InstallDir = FOLDERPATH
 
 --plugin database are stored within the raid assist database
 function RA:LoadPluginDB(name, isInstall)
-	local plugin = RA.plugins[name]
+	local plugin = RA.plugins[name] or RA.pluginsTrivial[name]
 	if (not plugin) then
 		return
 	end
@@ -110,21 +115,22 @@ function RA:LoadPluginDB(name, isInstall)
 	if (hasConfig) then
 		RA.table.deploy(hasConfig, plugin.db_default)
 	else
-		RA.db.profile.plugins [name] = RA.table.copy({}, plugin.db_default)
+		RA.db.profile.plugins[name] = RA.table.copy({}, plugin.db_default)
 	end
 
 	if (plugin.db.enabled == nil) then
 		plugin.db.enabled = true
 	end
+
 	if (plugin.db.menu_priority == nil) then
 		plugin.db.menu_priority = 1
 	end
 
-	plugin.db = RA.db.profile.plugins [name]
+	plugin.db = RA.db.profile.plugins[name]
 
 	if (not isInstall) then
 		if (plugin.OnProfileChanged) then
-			xpcall (plugin.OnProfileChanged, geterrorhandler(), plugin)
+			xpcall(plugin.OnProfileChanged, geterrorhandler(), plugin)
 		end
 	end
 end
@@ -160,6 +166,11 @@ function RA.OnInit(self)
 	for _, pluginTable in ipairs (RA.schedule_install) do
 		local name, frameName, pluginObject, defaultConfig = unpack (pluginTable)
 		RA:InstallPlugin (name, frameName, pluginObject, defaultConfig)
+	end
+
+	for _, pluginTable in ipairs(RA.schedule_install_trivial) do
+		local name, frameName, pluginObject, defaultConfig = unpack(pluginTable)
+		RA:InstallTrivialPlugin(name, frameName, pluginObject, defaultConfig)
 	end
 
 	RA.mainAnchor = CreateFrame ("frame", "RaidAssistUIAnchor", UIParent, "BackdropTemplate")
@@ -584,7 +595,7 @@ function RA:CommReceived(commPrefix, data, channel, sourceName)
 		if (values[1]) then
 			tremove(values, 1) --remove the Deserialize state
 
-			local state, errortext = pcall(func, sourceName, unpack(values))
+			local state, errortext = pcall(func, sourceName, unpack(values)) --move to xp call
 			if (not state) then
 				RA:Msg ("error on CommPCall: ".. errortext)
 			end
