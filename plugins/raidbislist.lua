@@ -80,9 +80,56 @@ BisListRaid.menu_on_click = function(plugin)
 	RA.OpenMainOptions(BisListRaid)
 end
 
+local onUpdateCallback = function(self, deltaTime) --õnupdate ~onupdate
+	if (GameTooltip:IsShown()) then
+		local focusedFrame = GetMouseFocus()
+		if (focusedFrame ~= WorldFrame and not focusedFrame.bBisListFrame) then
+			local tooltipData = GameTooltip:GetTooltipData()
+			if (tooltipData) then
+				if ((tooltipData.guid and tooltipData.guid:find("^Item")) or tooltipData.hyperlink) then
+					if (type(tooltipData.id) == "number") then
+						local lootInfo = BisListRaid.AllAvailableRaidLoot[tooltipData.id]
+						if (lootInfo) then
+							if (BisListRaid.main_frame.filter ~= tooltipData.id) then
+								BisListRaid.main_frame.filter = tooltipData.id
+								BisListRaid.main_frame.lootListScrollBox:RefreshMe()
+							end
+							return
+						end
+					end
+				end
+			end
+		end
+	end
+
+	if (BisListRaid.main_frame.filter) then
+		BisListRaid.main_frame.filter = nil
+		BisListRaid.main_frame.lootListScrollBox:RefreshMe()
+	end
+end
+
+local onShowOptionsFrameCallback = function()
+	BisListRaid.QueryData()
+	local openRaidLib = LibStub:GetLibrary("LibOpenRaid-1.0")
+
+	if (time() > BisListRaid.GearRequestCooldown) then
+		--todo: replace this with request all gear data
+		openRaidLib.RequestAllData()
+		BisListRaid.GearRequestCooldown = time() + 10
+	end
+
+	BisListRaid.main_frame:SetScript("OnUpdate", onUpdateCallback)
+end
+
 function BisListRaid.OnShowOnOptionsPanel()
 	local OptionsPanel = BisListRaid.OptionsPanel
 	BisListRaid.BuildOptions(OptionsPanel)
+
+	BisListRaid.main_frame:SetScript("OnShow", onShowOptionsFrameCallback)
+
+	BisListRaid.main_frame:SetScript("OnHide", function()
+		BisListRaid.main_frame:SetScript("OnUpdate", nil)
+	end)
 end
 
 -----------------
@@ -94,10 +141,7 @@ end
 BisListRaid.OnInstall = function(plugin)
 	BisListRaid.db.menu_priority = defaultPriority
 	RA:RegisterForEnterRaidGroup(BisListRaid.OnEnterRaidGroup)
-
-	BisListRaid.main_frame:SetScript("OnShow", function()
-		BisListRaid.QueryData()
-	end)
+	BisListRaid.GearRequestCooldown = 0
 end
 
 function BisListRaid.QueryData()
@@ -122,16 +166,14 @@ local getRaidSelectedLoot = function()
 	return BisListRaid.db.player_loot_selection
 end
 
-function BisListRaid.OnReceiveComm(sourceName, prefix, sourcePluginVersion, data1, data2, data3)
---	print("comm received:", sourceName, prefix, sourcePluginVersion, data1, data2, data3)
-
+function BisListRaid.OnReceiveComm(sourceName, prefix, sourcePluginVersion, data)
 	if (prefix == COMM_RECEIVED_LIST) then
-		--local playerItemLevel = data1.ilvl
-		--local itemList = data1.items
-		--local specId = data1.specId
+		--local playerItemLevel = data.ilvl
+		--local itemList = data.items = map[itemId] = array{encounterId, itemQuality, thisItemAlreadyOwnItemLevel, upgradePercent}
+		--local specId = data.specId
 
 		local raidBisList = getRaidSelectedLoot()
-		raidBisList[sourceName] = data1
+		raidBisList[sourceName] = data
 
 		if (BisListRaid.main_frame and BisListRaid.main_frame.lootListScrollBox) then
 			if (BisListRaid.main_frame.lootListScrollBox:IsShown()) then
@@ -141,14 +183,24 @@ function BisListRaid.OnReceiveComm(sourceName, prefix, sourcePluginVersion, data
 	end
 end
 
+--getRaidSelectedLoot()[PlayerName].items {array indexes}
 local CONST_INDEX_BOSSID = 1
-local CONST_INDEX_PLAYERNAME = 1
 local CONST_INDEX_QUALITYCOLOR = 2
 local CONST_INDEX_ITEMLEVEL = 3
+local CONST_INDEX_UPGRADE_PERCENT = 4
+local CONST_INDEX_IS_OFFSPEC = 5
+local CONST_INDEX_NOTE_TEXT = 6
+
+--array indexes for the data created by getItemListForBossID()
+--non present indexes uses the same as above
+local CONST_INDEX_PLAYERNAME = 1
 local CONST_INDEX_ITEMID = 4
 local CONST_INDEX_PLAYERLIST = 5
 local CONST_INDEX_PLAYERITEMLEVEL = 6
 local CONST_INDEX_PLAYERSPEC = 7
+local CONST_INDEX_UPGRADE_PERCENT2 = 8 --on the table built by getItemListForBossID(), upgrade percent has 8th index
+local CONST_INDEX_IS_OFFSPEC2 = 9 --on the table built by getItemListForBossID(), upgrade percent has 9th index
+local CONST_INDEX_NOTE_TEXT2 = 10
 
 local buildRaidPlayersList = function()
 	local playersTable = {}
@@ -164,15 +216,22 @@ local buildRaidPlayersList = function()
 	return playersTable
 end
 
+--build data to be use when refreshing the item list for the boss
 local getItemListForBossID = function(bossId)
-	local raidBisList = getRaidSelectedLoot()
+	local raidBisList = getRaidSelectedLoot() --map[playerName] = map[playerTable] = map[.items = array{encounterId, itemQuality, thisItemAlreadyOwnItemLevel, upgradePercent}, .specId = number, .ilvl = number]
 	local playerList = buildRaidPlayersList() --map[playerName] = indexed{class, subGroup, isOnline, role}
 	local itemsForBoss = {}
 
 	for playerName, playerTable in pairs(raidBisList) do
 		for itemId, itemTable in pairs(playerTable.items) do
 			if (itemTable[CONST_INDEX_BOSSID] == bossId) then
-				itemsForBoss[#itemsForBoss+1] = {playerName, itemTable[CONST_INDEX_QUALITYCOLOR], itemTable[CONST_INDEX_ITEMLEVEL], itemId, playerList[playerName] or {}, playerTable.ilvl, playerTable.specId}
+				local qualityColor = itemTable[CONST_INDEX_QUALITYCOLOR]
+				local itemLevel = itemTable[CONST_INDEX_ITEMLEVEL] or 0
+				local upgradePercent = itemTable[CONST_INDEX_UPGRADE_PERCENT] or 0
+				local isOffSpec = itemTable[CONST_INDEX_IS_OFFSPEC] == 1
+				local noteText = itemTable[CONST_INDEX_NOTE_TEXT] or false
+
+				itemsForBoss[#itemsForBoss+1] = {playerName, qualityColor, itemLevel, itemId, playerList[playerName] or {}, playerTable.ilvl, playerTable.specId, upgradePercent, isOffSpec, noteText}
 			end
 		end
 	end
@@ -262,7 +321,17 @@ function BisListRaid.BuildOptions(frame)
 	end
 
 	--create the boss selector
-	local arrayOfBosses = RA:GetExpansionBossList()
+	local bUseClassId = false
+	local arrayOfBosses, bossInfoData, lootInfoData = RA:GetExpansionBossList(bUseClassId)
+	BisListRaid.AllAvailableRaidLoot = {}
+
+	--build map[itemId] = lootInfo of all items available in raids
+	for encounterId, lootTable in pairs(lootInfoData) do
+		for i = 1, #lootTable do
+			local lootInfo = lootTable[i]
+			BisListRaid.AllAvailableRaidLoot[lootInfo.itemID] = lootInfo
+		end
+	end
 
 	local bossScrollFrame = DF:CreateScrollBox(mainFrame, "$parentBossScrollBox", refreshBossList, arrayOfBosses, scrollBossWidth, scrollBossHeight, amoutBossLines, bossLinesHeight)
 	mainFrame.bossScrollFrame = bossScrollFrame
@@ -376,20 +445,50 @@ function BisListRaid.BuildOptions(frame)
 	local headerTable = {
 		{text = "", width = 22, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC", selected = true},
 		{text = "Name", width = 80, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
-		{text = "Player Item Level", width = 100, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
+		{text = "Player ILvL", width = 60, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "Item", width = 240, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
-		{text = "Already Have Item Level", width = 140, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
+		{text = "Have The Item", width = 80, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
+		{text = "Upgrade %", width = 70, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
+		{text = "Off Spec", width = 50, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
+		{text = "Note", width = 50, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 	}
 
-	local refreshLootList = function(self, data, offset, totalLines)
+	local refreshLootList = function(self, data, offset, totalLines) --~refresh ~update
 		--update boss scroll
 		local libOpenRaid = LibStub:GetLibrary("LibOpenRaid-1.0")
 
+		--sort by itemId and then sort by upgrade level
+		table.sort(data, function(t1, t2)
+			if (t1[4] ~= t2[4]) then
+				return t1[4] < t2[4]
+			else
+				return t1[8] > t2[8]
+			end
+		end)
+
+		local lastestItemId = 0
+		local alpha1 = 0.3
+		local alpha2 = 0.8
+		local alphaState = true
+
+		local lineIndex = 1
 		for i = 1, totalLines do
 			local index = i + offset
-			local thisData = data[index]
+			local thisData = data[index] --this data is created on getItemListForBossID()
+			local passFilter = true
+
 			if (thisData) then
-				local line = self:GetLine(i)
+				if (BisListRaid.main_frame.filter) then
+					passFilter = false
+					if (thisData[CONST_INDEX_ITEMID] == BisListRaid.main_frame.filter) then
+						passFilter = true
+					end
+				end
+			end
+
+			if (thisData and passFilter) then
+				local line = self:GetLine(lineIndex)
+				lineIndex = lineIndex + 1
 				local playerName = thisData[CONST_INDEX_PLAYERNAME]
 				local playerNameOrig = playerName
 				playerName = DF:RemoveRealmName(playerName)
@@ -400,6 +499,9 @@ function BisListRaid.BuildOptions(frame)
 				local playerInfo = thisData[CONST_INDEX_PLAYERLIST]
 				local playerSpecId = thisData[CONST_INDEX_PLAYERSPEC]
 				local playerItemLevel = thisData[CONST_INDEX_PLAYERITEMLEVEL]
+				local upgradePercent = thisData[CONST_INDEX_UPGRADE_PERCENT2]
+				local isOffSpec = thisData[CONST_INDEX_IS_OFFSPEC2]
+				local noteText = thisData[CONST_INDEX_NOTE_TEXT2]
 
 				local classFileName, subgroup, online, combatRole, unitId = unpack(playerInfo)
 				local unitInfo = libOpenRaid.GetUnitInfo(unitId or playerNameOrig or "none")
@@ -407,7 +509,19 @@ function BisListRaid.BuildOptions(frame)
 
 				local playerGear = libOpenRaid.GetUnitGear(unitId or playerNameOrig or "none")
 				local characterItemLevel = playerItemLevel or (playerGear and playerGear.ilevel) or ""
-				local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType = GetItemInfo(itemId)
+				local itemName, itemLink, itemRarity, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture = GetItemInfo(itemId)
+
+				if (lastestItemId == itemId) then
+					local alphaAmount = alphaState and alpha1 or alpha2
+					line.lineBackground:SetAlpha(alphaAmount)
+					line.lineBackground.defaultAlpha = alphaAmount
+				else
+					alphaState = not alphaState
+					local alphaAmount = alphaState and alpha1 or alpha2
+					line.lineBackground.defaultAlpha = alphaAmount
+					line.lineBackground:SetAlpha(alphaAmount)
+					lastestItemId = itemId
+				end
 
 				if (specId) then
 					local left, right, top, bottom = RA:GetTexCoordForSpecId(specId)
@@ -426,16 +540,48 @@ function BisListRaid.BuildOptions(frame)
 
 				line.playerName:SetText(playerName)
 				line.itemLevel:SetText(format("%.1f", characterItemLevel))
-				line.itemString:SetText(itemLink)
+
+				local equipSlotId = C_Item.GetItemInventoryTypeByID(itemLink) + 1 --return slotId starting from zero
+				local equipSlotIcon = DF:GetArmorIconByArmorSlot(equipSlotId)
+				local slotIconString = "|T" .. equipSlotIcon .. ":" .. (lootLineHeight-4) .. ":" .. (lootLineHeight-4) .. ":0:0:64:64:" .. 0.1*64 .. ":" .. 0.9*64 .. ":" .. 0.1*64 .. ":" .. 0.9*64 .. "|t"
+				local itemIconString = "|T" .. itemTexture .. ":" .. (lootLineHeight-4) .. ":" .. (lootLineHeight-4) .. ":0:0:64:64:" .. 0.1*64 .. ":" .. 0.9*64 .. ":" .. 0.1*64 .. ":" .. 0.9*64 .. "|t"
+
+				local whiteItemLink = itemLink
+				whiteItemLink = whiteItemLink:gsub("|c%x%x%x%x%x%x%x%x", "|cffffffff")
+				line.itemString:SetText(slotIconString .. " " .. itemIconString .. " " .. whiteItemLink)
 
 				line.itemLink = itemLink
 
 				line.alreadyHaveIlevelString:SetText(currentItemLevel)
 				if (currentItemLevel > 0) then
 					line.HasItemIndicator:Show()
+					--check if the item is equipped by the player
+					if (playerGear and playerGear.equippedGear) then
+						for tableIndex = 1, #playerGear.equippedGear do
+							local equippedItemInfo = playerGear.equippedGear[tableIndex]
+							if (equippedItemInfo.itemId == itemId) then
+								line.alreadyHaveIlevelString:SetText(currentItemLevel .. " equipped")
+							end
+						end
+					end
 				else
 					line.HasItemIndicator:Hide()
 				end
+
+				line.upgradePercentString:SetText(upgradePercent and upgradePercent .. "%" or "0%")
+
+				if (upgradePercent < 4) then
+					DF:SetFontColor(line.upgradePercentString, "forestgreen")
+				elseif (upgradePercent < 8) then
+					DF:SetFontColor(line.upgradePercentString, "limegreen")
+				else
+					DF:SetFontColor(line.upgradePercentString, "lawngreen")
+				end
+
+				line.offSpecIndicator:SetShown(isOffSpec)
+
+				line.noteFrame:SetShown(noteText and noteText ~= "" and true)
+				line.noteFrame.Text = noteText
 			end
 		end
 	end
@@ -505,11 +651,22 @@ function BisListRaid.BuildOptions(frame)
 		onLeaveLine(itemFrame:GetParent())
 	end
 
-	local createLineForLootScroll = function(self, index)
+	local noteFrameOnEnter = function(noteFrame)
+		GameCooltip:Preset(2)
+		GameCooltip:AddLine(noteFrame.Text)
+		GameCooltip:Show(noteFrame)
+	end
+
+	local noteFrameOnLeave = function(noteFrame)
+		GameCooltip:Hide()
+	end
+
+	local createLineForLootScroll = function(self, index) --~create
 		local line = CreateFrame("button", "$parentLine" .. index, self, "BackdropTemplate")
+		line.bBisListFrame = true
 
 		line:SetPoint("topleft", self, "topleft", 2, -((index-0) * (lootLineHeight+1)) - 1)
-		line:SetSize(CONST_LOOT_LIST_FRAME_WIDTH-2, lootLineHeight)
+		line:SetSize(CONST_LOOT_LIST_FRAME_WIDTH-3, lootLineHeight)
 		line.id = index
 
 		line:SetScript("OnEnter", onEnterLine)
@@ -519,7 +676,7 @@ function BisListRaid.BuildOptions(frame)
 
 		local lineBackground = line:CreateTexture(nil, "border", nil, -3)
 		lineBackground:SetAllPoints()
-		lineBackground.defaultAlpha = index % 2 == 0 and 0.3 or 0.1
+		lineBackground.defaultAlpha = 0.2
 		lineBackground:SetColorTexture(.2, .2, .2)
 		lineBackground:SetAlpha(lineBackground.defaultAlpha)
 		line.lineBackground = lineBackground
@@ -527,6 +684,7 @@ function BisListRaid.BuildOptions(frame)
 		local playerNameFrame = CreateFrame("frame", nil, line, "BackdropTemplate")
 		playerNameFrame:SetSize(headerTable[1].width + columnAlignOffset, header.options.header_height)
 		playerNameFrame:EnableMouse(false)
+		playerNameFrame.bBisListFrame = true
 
 		--player information
 		--spec icon
@@ -558,6 +716,7 @@ function BisListRaid.BuildOptions(frame)
 		itemFrame:SetScript("OnEnter", itemFrameOnEnter)
 		itemFrame:SetScript("OnLeave", itemFrameOnLeave)
 		itemFrame:SetSize(headerTable[4].width, lootLineHeight - 2)
+		itemFrame.bBisListFrame = true
 
 		local itemString = DF:CreateLabel(itemFrame)
 		itemString:SetPoint("left", itemFrame, "left", 2, 0)
@@ -569,17 +728,49 @@ function BisListRaid.BuildOptions(frame)
 		alreadyHaveIlevelString.fontsize = headerFontSize
 		alreadyHaveIlevelString.alpha = 1
 
+		--upgrade arrow
+		local arrowUp = line:CreateTexture(nil, "artwork")
+		arrowUp:SetTexture([[Interface\BUTTONS\UI-MicroStream-Green]])
+		arrowUp:SetTexCoord(0, 1, 1, 0)
+		arrowUp:SetSize(16, 16)
+
+		--upgrade percent string
+		local upgradePercentString = DF:CreateLabel(line)
+		upgradePercentString.fontsize = headerFontSize
+		upgradePercentString.alpha = 1
+		upgradePercentString:SetPoint("left", arrowUp, "right", -2, 0)
+
+		--offspec checkmask
+		local offSpecIndicator = line:CreateTexture(nil, "artwork")
+		offSpecIndicator:SetTexture([[Interface\BUTTONS\UI-CheckBox-Check]])
+		offSpecIndicator:SetSize(20, 20)
+
+		--note icon
+		local noteFrame = CreateFrame("frame", nil, line)
+		noteFrame:SetSize(20, 20)
+		noteFrame:SetScript("OnEnter", noteFrameOnEnter)
+		noteFrame:SetScript("OnLeave", noteFrameOnLeave)
+		noteFrame.bBisListFrame = true
+
+		local noteIcon = noteFrame:CreateTexture(nil, "artwork")
+		noteIcon:SetPoint("center", 0, 0)
+		noteIcon:SetTexture([[Interface\BUTTONS\UI-GuildButton-OfficerNote-Up]])
+
 		--store the labels into the line object
 		line.specIcon = specIcon
 		line.playerName = playerName
 		line.itemLevel = itemLevel
 		line.itemString = itemString
 		line.alreadyHaveIlevelString = alreadyHaveIlevelString
+		line.upgradePercentString = upgradePercentString
+		line.offSpecIndicator = offSpecIndicator
+		line.noteFrame = noteFrame
 
 		line.playerName.fontcolor = defaultTextColor
 		line.itemLevel.fontcolor = defaultTextColor
 		line.itemString.fontcolor = defaultTextColor
 		line.alreadyHaveIlevelString.fontcolor = defaultTextColor
+		line.upgradePercentString.fontcolor = defaultTextColor
 
 		--align with the header
 		line:AddFrameToHeaderAlignment(specIcon)
@@ -587,6 +778,9 @@ function BisListRaid.BuildOptions(frame)
 		line:AddFrameToHeaderAlignment(itemLevel)
 		line:AddFrameToHeaderAlignment(itemFrame)
 		line:AddFrameToHeaderAlignment(alreadyHaveIlevelString)
+		line:AddFrameToHeaderAlignment(arrowUp)
+		line:AddFrameToHeaderAlignment(offSpecIndicator)
+		line:AddFrameToHeaderAlignment(noteFrame)
 
 		line:AlignWithHeader(header, "left")
 

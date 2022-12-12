@@ -2,11 +2,11 @@
 local RA = _G.RaidAssist
 local L = _G.LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
 local _
-local default_priority = 120
+local default_priority = 8
 local DF = DetailsFramework
 local DetailsFramework = DF
 
-local Notepad = {version = 1, pluginname = "Notes", pluginId = "NOTE", displayName = "Raid Assignments"}
+local Notepad = {version = 1, pluginname = "Notes", pluginId = "NOTE", displayName = "Notes"}
 _G ["RaidAssistNotepad"] = Notepad
 _G ["RANotes"] = Notepad
 
@@ -50,7 +50,7 @@ local allRoles = {"DAMAGER", "TANK", "HEALER"}
 
 local icon_texture
 local icon_texcoord = {l=4/32, r=28/32, t=4/32, b=28/32}
-local text_color_enabled = {r=1, g=1, b=1, a=1}
+local text_color_enabled = {r=1, g=0.7, b=0.0, a=1}
 local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
 
 local COMM_QUERY_SEED = "NOQI"
@@ -83,18 +83,10 @@ local isConnected = function (sourceUnit)
 	end
 end
 
-if (UnitFactionGroup("player") == "Horde") then
-	icon_texture = [[Interface\WorldStateFrame\HordeFlag]]
-else
-	icon_texture = [[Interface\WorldStateFrame\AllianceFlag]]
-end
+icon_texture = [[Interface\AddOns\RaidAssist\media\plugin_icons]]
 
 Notepad.menu_text = function (plugin)
-	if (Notepad.db.enabled) then
-		return icon_texture, icon_texcoord, "Raid Assignments", text_color_enabled
-	else
-		return icon_texture, icon_texcoord, "Raid Assignments", text_color_disabled
-	end
+	return icon_texture, {l=59/512, r=93/512, t=0, b=1}, "Notes", "orange"
 end
 
 Notepad.menu_popup_show = function (plugin, ct_frame, param1, param2)

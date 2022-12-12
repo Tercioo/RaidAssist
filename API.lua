@@ -885,19 +885,14 @@ function RA:GetExpansionBossList(classId) --~bosslist
 	--must be a better way of doing this
 	if (not EncounterJournal) then
 		EncounterJournal_LoadUI()
-		EncounterJournalDungeonTab:Click()
-		EncounterJournal_TierDropDown_Select(_, 10) --dragon isles
-		EncounterJournalRaidTab:Click()
 
-		C_Timer.After(1, function()
-			EncounterJournalDungeonTab:Click()
-			EncounterJournalRaidTab:Click()
-			EncounterJournalDungeonTab:Click()
-		end)
-
-		C_Timer.After(2, function()
-
-		end)
+		--blizz hotfixed the bug
+		--EncounterJournal_TierDropDown_Select(_, 10) --dragon isles
+		--C_Timer.After(1, function() --reset the journal
+			--EncounterJournalDungeonTab:Click()
+			--EncounterJournalRaidTab:Click()
+			--EncounterJournalDungeonTab:Click()
+		--end)
 	end
 
     for instanceIndex = 10, 1, -1 do

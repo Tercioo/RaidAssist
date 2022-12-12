@@ -28,11 +28,7 @@ local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
 
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 PlayerCheck.menu_text = function (plugin)
-	if (PlayerCheck.db.enabled) then
-		return icon_texture, icon_texcoord, "Player Check", text_color_enabled
-	else
-		return icon_texture, icon_texcoord, "Player Check", text_color_disabled
-	end
+	return icon_texture, icon_texcoord, "Player Check", text_color_enabled
 end
 
 PlayerCheck.menu_popup_show = function (plugin, ct_frame, param1, param2)
@@ -420,7 +416,7 @@ function PlayerCheck.BuildOptions(frame)
 	end
 
 	--refresh player list
-	local refreshPlayerInfoScroll = function (self, data, offset, totalLines)
+	local refreshPlayerInfoScroll = function (self, data, offset, totalLines) --~refresh
 		for i = 1, totalLines do
 			local index = i + offset
 			local dataTable = data[index]

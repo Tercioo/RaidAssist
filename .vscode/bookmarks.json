@@ -4,22 +4,22 @@
 			"path": "plugins/playercheck.lua",
 			"bookmarks": [
 				{
-					"line": 121,
+					"line": 117,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 440,
+					"line": 436,
 					"column": 2,
 					"label": ""
 				},
 				{
-					"line": 609,
+					"line": 605,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 700,
+					"line": 696,
 					"column": 2,
 					"label": ""
 				}
@@ -39,32 +39,32 @@
 			"path": "plugins/invite.lua",
 			"bookmarks": [
 				{
-					"line": 164,
+					"line": 160,
 					"column": 32,
 					"label": ""
 				},
 				{
-					"line": 230,
+					"line": 226,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 435,
+					"line": 431,
 					"column": 12,
 					"label": ""
 				},
 				{
-					"line": 504,
+					"line": 500,
 					"column": 38,
 					"label": ""
 				},
 				{
-					"line": 553,
+					"line": 549,
 					"column": 4,
 					"label": ""
 				},
 				{
-					"line": 992,
+					"line": 988,
 					"column": 0,
 					"label": ""
 				}
@@ -129,7 +129,7 @@
 			"path": "plugins/notes.lua",
 			"bookmarks": [
 				{
-					"line": 883,
+					"line": 875,
 					"column": 5,
 					"label": ""
 				}
@@ -224,7 +224,7 @@
 			"path": "plugins/attendance.lua",
 			"bookmarks": [
 				{
-					"line": 329,
+					"line": 325,
 					"column": 41,
 					"label": ""
 				}
@@ -269,17 +269,17 @@
 			"path": "plugins/bislist.lua",
 			"bookmarks": [
 				{
-					"line": 41,
-					"column": 6,
-					"label": ""
-				},
-				{
-					"line": 100,
+					"line": 84,
 					"column": 0,
 					"label": ""
 				},
 				{
-					"line": 537,
+					"line": 435,
+					"column": 0,
+					"label": ""
+				},
+				{
+					"line": 825,
 					"column": 4,
 					"label": ""
 				}
@@ -289,17 +289,12 @@
 			"path": "plugins/raidbislist.lua",
 			"bookmarks": [
 				{
-					"line": 170,
-					"column": 0,
+					"line": 90,
+					"column": 6,
 					"label": ""
 				},
 				{
-					"line": 411,
-					"column": 0,
-					"label": ""
-				},
-				{
-					"line": 518,
+					"line": 673,
 					"column": 0,
 					"label": ""
 				}

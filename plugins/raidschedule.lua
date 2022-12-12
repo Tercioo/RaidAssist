@@ -29,11 +29,7 @@ local text_color_enabled = {r=1, g=1, b=1, a=1}
 local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
 
 RaidSchedule.menu_text = function (plugin)
-	if (RaidSchedule.db.enabled) then
-		return icon_texture, icon_texcoord, "Raid Schedule", text_color_enabled
-	else
-		return icon_texture, icon_texcoord, "Raid Schedule", text_color_disabled
-	end
+	return icon_texture, icon_texcoord, "Raid Schedule", text_color_enabled
 end
 
 RaidSchedule.menu_popup_show = function (plugin, ct_frame, param1, param2)

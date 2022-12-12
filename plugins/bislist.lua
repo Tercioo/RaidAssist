@@ -79,25 +79,11 @@ function BisList.OnShowOnOptionsPanel()
 	BisList.BuildOptions(OptionsPanel)
 end
 
-local buildPlayerItemList = function()
-	local equipmentList = {}
-	for i = 1, 18 do
-		local itemLink = GetInventoryItemLink("player", i)
-		if (itemLink) then
-			local itemName, itemLink, itemQuality, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, sellPrice, classID, subclassID, bindType, expacID, setID, isCraftingReagent = GetItemInfo(itemLink)
-			if (itemName) then
-				local itemId = itemLink:match("|Hitem%:(%d+)%:")
-				print(itemName, itemId, itemLink)
-				equipmentList[i] = {itemId, itemLink}
-			end
-		end
-	end
-	BisList.PlayerEquipmentList = equipmentList
-end
-
 --return the item level of the item the player currently possesses
 local getCurrentOwnItem = function(itemLink)
 	local itemName, itemLink, itemQuality, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, sellPrice, classID, subclassID, bindType, expacID, setID, isCraftingReagent = GetItemInfo(itemLink)
+	local effectiveILvl, isPreview, baseILvl = GetDetailedItemLevelInfo(itemLink)
+	itemLevel = effectiveILvl or itemLevel
 
 	for id = 0, 17 do
 		local hasEquippedItemLink = GetInventoryItemLink("player", id)
@@ -152,10 +138,40 @@ local getBisListForPlayer = function()
 	return bisList
 end
 
+local parseUpgradeString = function(textString)
+
+end
+
+local getUpgradePercentText = function(lootButton)
+	local lootInfo = lootButton.LootInfo
+	local bisList = getBisListForPlayer()
+
+	if (bisList) then
+		if (bisList[lootInfo.itemID]) then
+			return bisList[lootInfo.itemID].upgradePercent or 0
+		end
+	end
+
+	return ""
+end
+
+local getNoteText = function(lootButton)
+	local lootInfo = lootButton.LootInfo
+	local bisList = getBisListForPlayer()
+
+	if (bisList) then
+		if (bisList[lootInfo.itemID]) then
+			return bisList[lootInfo.itemID].noteText or ""
+		end
+	end
+
+	return ""
+end
+
 local sendListScheduled
 
 --send the bis list to raid leader
-function BisList.SendBisList()
+function BisList.SendBisList(isDebug)
 	--get the bis list of the player
 	local bisList = getBisListForPlayer()
 	local maxItemlevel, currentItemLevel = GetAverageItemLevel()
@@ -172,6 +188,9 @@ function BisList.SendBisList()
 				lootInfo.encounterID,
 				lootInfo.itemQuality,
 				getCurrentOwnItem(lootInfo.link) or 0,
+				lootInfo.upgradePercent or 0,
+				lootInfo.offspec and 1 or 0,
+				lootInfo.noteText,
 			}
 			listToSend.items[itemId] = itemTable
 		end
@@ -189,6 +208,11 @@ function BisList.SendBisList()
 		end
 
 		sendListScheduled = DF.Schedules.NewTimer(0.1 + math.random() * 4, callback)
+
+	elseif (isDebug) then
+		if (IsInGroup()) then
+			BisList:SendPluginCommMessage(COMM_RECEIVED_LIST, "PARTY", nil, nil, listToSend)
+		end
 	end
 end
 
@@ -219,6 +243,21 @@ local GetLootTable = function(thisClassId)
 	BisList.main_frame.LootInfoData = lootInfoData --map[journalEncounterID] = lootInfo
 
 	return arrayOfBosses, bossInfoData, lootInfoData
+end
+
+local getItemLootInfo = function(lootInfo)
+	local bisList = getBisListForPlayer()
+	local itemLootInfo = bisList[lootInfo.itemID]
+
+	if (not itemLootInfo) then
+		itemLootInfo = {}
+		itemLootInfo.enabled = false
+		--store the entire lootInfo
+		DF.table.deploy(itemLootInfo, lootInfo)
+		bisList[lootInfo.itemID] = itemLootInfo
+	end
+
+	return itemLootInfo
 end
 
 function BisList.BuildOptions(frame)
@@ -282,7 +321,7 @@ function BisList.BuildOptions(frame)
 	local startOffsetX = 5
 	local startOffsetY = -5
 
-	local lootNameFontSize = 10
+	local lootNameFontSize = 11
 	local lootSlotFontSize = 10
 
 	local className, classFileName, classId = UnitClass("player")
@@ -320,7 +359,19 @@ function BisList.BuildOptions(frame)
 		lootSelectionFrame.NextOffsetY = startOffsetY
 	end
 
+	--ver o que tem equipado (gear inteira) - LibOpenRaid()
+	--adicionar: note para o item
+
 	local lootButtonOnEnter = function(lootButton)
+		if (lootButton.showTooltipCooldown > GetTime()) then
+			C_Timer.After(lootButton.showTooltipCooldown - GetTime() + 0.01, function()
+				if (GetMouseFocus() == lootButton) then
+					lootButton:GetScript("OnEnter")(lootButton)
+				end
+			end)
+			return
+		end
+
 		local lootInfo = lootButton.LootInfo
 		GameTooltip:SetOwner(lootButton, "ANCHOR_TOPRIGHT")
 		GameTooltip:SetHyperlink(lootInfo.link)
@@ -331,52 +382,120 @@ function BisList.BuildOptions(frame)
 		GameTooltip:Hide()
 	end
 
-	local lootButonRefreshBorderColor = function(lootButton)
+	local lootButonRefresh = function(lootButton)
 		local lootInfo = lootButton.LootInfo
 		local bisList = getBisListForPlayer()
 
-		if (bisList[lootInfo.itemID] and bisList[lootInfo.itemID].enabled) then
-			local r, g, b, a = lootButton:GetBackdropColor()
-			local backdropTable = lootButton:GetBackdrop()
-			backdropTable.edgeSize = 3
-			lootButton:SetBackdrop(backdropTable)
-			lootButton:SetBackdropBorderColor(1, 1, 0, 1)
-			lootButton:SetBackdropColor(r, g, b, a)
+		if (bisList[lootInfo.itemID]) then
+			--border color
+			if (bisList[lootInfo.itemID].enabled) then
+				local r, g, b, a = lootButton:GetBackdropColor()
+				local backdropTable = lootButton:GetBackdrop()
+				backdropTable.edgeSize = 3
+				lootButton:SetBackdrop(backdropTable)
+				lootButton:SetBackdropBorderColor(1, 1, 0, 1)
+				lootButton:SetBackdropColor(r, g, b, a)
+			else
+				local r, g, b, a = lootButton:GetBackdropColor()
+				local backdropTable = lootButton:GetBackdrop()
+				backdropTable.edgeSize = 1
+				lootButton:SetBackdrop(backdropTable)
+				lootButton:SetBackdropBorderColor(0, 0, 0, 1)
+				lootButton:SetBackdropColor(r, g, b, a)
+			end
+
+			--is offspec toggle
+			lootButton.IsOffSpecCheckBox:SetValue(bisList[lootInfo.itemID].offspec)
+
+			--percent text
+			if (bisList[lootInfo.itemID].upgradePercent and bisList[lootInfo.itemID].upgradePercent > 0) then
+				lootButton.upgradePercentString:SetText(bisList[lootInfo.itemID].upgradePercent .. "%")
+				DF:SetFontColor(lootButton.upgradePercentString, "limegreen")
+			else
+				lootButton.upgradePercentString:SetText("%")
+				DF:SetFontColor(lootButton.upgradePercentString, "green")
+			end
 		else
-			local r, g, b, a = lootButton:GetBackdropColor()
-			local backdropTable = lootButton:GetBackdrop()
-			backdropTable.edgeSize = 1
-			lootButton:SetBackdrop(backdropTable)
-			lootButton:SetBackdropBorderColor(0, 0, 0, 1)
-			lootButton:SetBackdropColor(r, g, b, a)
+			lootButton.IsOffSpecCheckBox:SetValue(false)
+			lootButton.upgradePercentString:SetText("%")
+			DF:SetFontColor(lootButton.upgradePercentString, "green")
 		end
 	end
 
 	local lootButtonOnClick = function(lootButton)
 		local lootInfo = lootButton.LootInfo
-		local bisList = getBisListForPlayer()
-		local thisLootInfo = bisList[lootInfo.itemID]
+		local itemLootInfo = getItemLootInfo(lootInfo)
 
-		if (not thisLootInfo) then
-			thisLootInfo = {}
-			thisLootInfo.enabled = false
-
-			--store the entire lootInfo
-			DF.table.deploy(thisLootInfo, lootInfo)
-			bisList[lootInfo.itemID] = thisLootInfo
-		end
-
-		thisLootInfo.enabled = not thisLootInfo.enabled
-		lootButonRefreshBorderColor(lootButton)
+		itemLootInfo.enabled = not itemLootInfo.enabled
+		lootButonRefresh(lootButton)
 
 		if (IsInRaid()) then
 			BisList.SendBisList()
 		end
 	end
 
-	local createLootButton = function(buttonIndex)
+	local lootButttonOnToggleIsOffSpec = function(self, FixedValue, value)
+		local lootButton = self:GetParent()
+		local lootInfo = lootButton.LootInfo
+		local itemLootInfo = getItemLootInfo(lootInfo)
+		itemLootInfo.offspec = value
+		lootButonRefresh(lootButton)
+
+		if (IsInRaid()) then
+			BisList.SendBisList()
+		end
+	end
+
+	local lootButtonOnSelectUpgradePercent = function(object, fixedValue, lootButton, upgradePercent)
+		upgradePercent = tonumber(upgradePercent)
+
+		local lootInfo = lootButton.LootInfo
+		local itemLootInfo = getItemLootInfo(lootInfo)
+		itemLootInfo.upgradePercent = upgradePercent
+		lootButonRefresh(lootButton)
+
+		--BisList.SendBisList(true) print("sending (debug)...")
+
+		if (IsInRaid()) then
+			BisList.SendBisList()
+		end
+
+		GameCooltip:Hide()
+	end
+
+	local upgradeFrameOnClick = function(upgradeFrame)
+		local lootButton = upgradeFrame:GetParent()
+		lootButton.PercentTextEntry:Show()
+		lootButton.PercentTextEntry:SetText(getUpgradePercentText(lootButton))
+		lootButton.PercentTextEntry:SetFocus(true)
+		lootButton.PercentTextEntry:HighlightText(0)
+	end
+
+	local lootButtonOnSetNoteText = function(lootButton, text)
+		local lootInfo = lootButton.LootInfo
+		local itemLootInfo = getItemLootInfo(lootInfo)
+		itemLootInfo.noteText = text
+		lootButonRefresh(lootButton)
+
+		--BisList.SendBisList(true) print("sending (debug)...")
+
+		if (IsInRaid()) then
+			BisList.SendBisList()
+		end
+	end
+
+	local noteFrameOnClick = function(noteFrame)
+		local lootButton = noteFrame:GetParent()
+		lootButton.NoteTextEntry:Show()
+		lootButton.NoteTextEntry:SetText(getNoteText(lootButton))
+		lootButton.NoteTextEntry:SetFocus(true)
+		lootButton.NoteTextEntry:HighlightText(0)
+	end
+
+	local createLootButton = function(buttonIndex) --~create
 		local lootButton = CreateFrame("button", nil, lootSelectionFrame, "BackdropTemplate")
 		DF:ApplyStandardBackdrop(lootButton)
+		lootButton.showTooltipCooldown = 0
 
 		lootButton:SetScript("OnEnter", lootButtonOnEnter)
 		lootButton:SetScript("OnLeave", lootButtonOnLeave)
@@ -394,19 +513,133 @@ function BisList.BuildOptions(frame)
 		lootButton.HasItemIndicator:SetPoint("rights", lootButton, -1)
 
 		lootButton.ItemNameString = lootButton:CreateFontString(nil, "artwork", "GameFontNormal")
-		lootButton.ItemNameString:SetPoint("topleft", lootButton.Icon, "topright", 10, -5)
+		lootButton.ItemNameString:SetPoint("topleft", lootButton.Icon, "topright", 5, -1)
 		DF:SetFontSize(lootButton.ItemNameString, lootNameFontSize)
 
 		lootButton.ItemSlotString = lootButton:CreateFontString(nil, "artwork", "GameFontNormal")
-		lootButton.ItemSlotString:SetPoint("bottomleft", lootButton.Icon, "bottomright", 10, 5)
+		lootButton.ItemSlotString:SetPoint("topleft", lootButton.ItemNameString, "bottomleft", 0, -2)
 		DF:SetFontSize(lootButton.ItemSlotString, lootSlotFontSize)
 
 		lootButton.ItemLevelString = lootButton:CreateFontString(nil, "artwork", "GameFontNormal")
 		lootButton.ItemLevelString:SetPoint("bottomright", lootButton, "bottomright", -4, 5)
 		DF:SetFontSize(lootButton.ItemLevelString, lootSlotFontSize)
 
+		local isOffSpecCheckBox, offSpecString = DF:CreateSwitch(lootButton, lootButttonOnToggleIsOffSpec, false, 12, 12, nil, nil, nil, nil, nil, nil, nil, "Off Spec", DF:GetTemplate("switch", "OPTIONS_CHECKBOX_TEMPLATE"), DF:GetTemplate("font", "OPTIONS_FONT_TEMPLATE"))
+		isOffSpecCheckBox:SetAsCheckBox()
+		isOffSpecCheckBox:ClearAllPoints()
+		offSpecString:ClearAllPoints()
+		isOffSpecCheckBox:SetSize(12, 12)
+		isOffSpecCheckBox:SetPoint("bottomleft", lootButton.Icon, "bottomright", 5, 2)
+		offSpecString:SetPoint("left", isOffSpecCheckBox, "right", 2, 0)
+		lootButton.IsOffSpecCheckBox = isOffSpecCheckBox
+
+		--upgrade percent
+			local upgradeFrame = CreateFrame("button", nil, lootButton)
+			upgradeFrame:SetPoint("left", offSpecString.widget, "right", 10, 0)
+			upgradeFrame:SetSize(50, 16)
+			upgradeFrame:SetScript("OnClick", upgradeFrameOnClick)
+
+			local buildPercentMenu = function()
+				GameCooltip:Preset(2)
+				GameCooltip:AddLine("click to set the upgrade %", "", 1, {.4, 1, .4, 0.8})
+			end
+
+			upgradeFrame.CoolTip = {
+				Type = "tooltip",
+				BuildFunc = buildPercentMenu,
+				OnEnterFunc = function()end,
+				OnLeaveFunc = function() lootButton.showTooltipCooldown = GetTime() + 0.097 end,
+				FixedValue = "none",
+				ShowSpeed = 0.05,
+				HideSpeed = 0.0,
+				Options = function()
+					GameCooltip:SetOption("FixedWidth", 175)
+				end,
+			}
+
+			GameCooltip:CoolTipInject(upgradeFrame)
+
+			local arrowUp = upgradeFrame:CreateTexture(nil, "artwork")
+			arrowUp:SetTexture([[Interface\BUTTONS\UI-MicroStream-Green]])
+			arrowUp:SetTexCoord(0, 1, 1, 0)
+			arrowUp:SetPoint("left", offSpecString.widget, "right", 10, 0)
+			arrowUp:SetSize(16, 16)
+
+			local percentString = upgradeFrame:CreateFontString(nil, "artwork", "GameFontNormal")
+			percentString:SetText("%")
+			percentString:SetPoint("left", arrowUp, "right", -2, 0)
+			DF:SetFontSize(percentString, 14)
+			DF:SetFontColor(percentString, "green")
+
+			local flashAnimationTexture = upgradeFrame:CreateTexture(nil, "border")
+			flashAnimationTexture:SetColorTexture(1, 1, 1, 1)
+			flashAnimationTexture:SetAllPoints()
+			flashAnimationTexture:SetAlpha(0)
+
+			flashAnimationTexture.FlashAnimation = DF:CreateAnimationHub(flashAnimationTexture)
+			DF:CreateAnimation(flashAnimationTexture.FlashAnimation, "alpha", 1, 0.1, 0, 1)
+			DF:CreateAnimation(flashAnimationTexture.FlashAnimation, "alpha", 2, 0.4, 1, 0)
+
+			lootButton.upgradePercentString = percentString
+
+			lootButton.PercentTextEntry = DF:CreateTextEntry(upgradeFrame, function(_, _, text) flashAnimationTexture.FlashAnimation:Play() lootButtonOnSelectUpgradePercent(GameCooltip, "none", lootButton, tonumber(text)) end, upgradeFrame:GetWidth(), upgradeFrame:GetHeight() + 5)
+			lootButton.PercentTextEntry:SetAutoFocus(false)
+			lootButton.PercentTextEntry:SetAllPoints()
+			lootButton.PercentTextEntry:Hide()
+			DF:SetFontSize(lootButton.PercentTextEntry, 14)
+			DF:SetFontColor(lootButton.PercentTextEntry, "limegreen")
+			do
+				local left, right, top, bottom = lootButton.PercentTextEntry:GetTextInsets()
+				lootButton.PercentTextEntry:SetTextInsets(left, right, top, bottom + 3)
+			end
+
+			lootButton.PercentTextEntry:SetHook("OnEscapePressed", function()
+				lootButton.PercentTextEntry:Hide()
+			end)
+
+			lootButton.PercentTextEntry:SetHook("OnEditFocusLost", function()
+				lootButton.PercentTextEntry:Hide()
+			end)
+
+		--set note button
+			local noteFrame = CreateFrame("button", nil, lootButton)
+			noteFrame:SetSize(20, 20)
+			noteFrame:SetScript("OnClick", noteFrameOnClick)
+			noteFrame:SetPoint("bottomright", lootButton, "bottomright", -2, 2)
+
+			local noteIcon = noteFrame:CreateTexture(nil, "artwork")
+			noteIcon:SetPoint("center", 0, 0)
+			noteIcon:SetTexture([[Interface\BUTTONS\UI-GuildButton-OfficerNote-Up]])
+
+			lootButton.NoteTextEntry = DF:CreateTextEntry(upgradeFrame, function(_, _, text) end, upgradeFrame:GetWidth(), upgradeFrame:GetHeight() + 5)
+			lootButton.NoteTextEntry:SetAutoFocus(false)
+			lootButton.NoteTextEntry:SetPoint("topleft", lootButton, "topleft", 1, -1)
+			lootButton.NoteTextEntry:SetPoint("bottomright", lootButton, "bottomright", -1, 1)
+			lootButton.NoteTextEntry:SetJustifyH("left")
+			lootButton.NoteTextEntry:Hide()
+			DF:SetFontSize(lootButton.NoteTextEntry, 14)
+			DF:SetFontColor(lootButton.NoteTextEntry, "limegreen")
+			do
+				local left, right, top, bottom = lootButton.NoteTextEntry:GetTextInsets()
+				lootButton.NoteTextEntry:SetTextInsets(left, right, top, bottom)
+			end
+
+			lootButton.NoteTextEntry:SetHook("OnEscapePressed", function()
+				lootButton.NoteTextEntry:Hide()
+			end)
+
+			lootButton.NoteTextEntry:SetHook("OnEditFocusLost", function()
+				lootButton.NoteTextEntry:Hide()
+			end)
+
+			lootButton.NoteTextEntry:SetHook("OnEnterPressed", function(_, _, text)
+				lootButtonOnSetNoteText(lootButton, text)
+				lootButton.NoteTextEntry:Hide()
+			end)
+
 		lootButton.HightlightTexture = lootButton:CreateTexture(nil, "highlight")
-		lootButton.HightlightTexture:SetAllPoints()
+		lootButton.HightlightTexture:SetPoint("topleft", lootButton, "topleft", 1, -1)
+		lootButton.HightlightTexture:SetPoint("bottomright", lootButton, "bottomright", -1, 1)
 		lootButton.HightlightTexture:SetColorTexture(1, 1, 1, .1)
 
 		lootButton:SetSize(CONST_LOOT_BUTTON_WIDTH, CONST_LOOT_BUTTON_HEIGHT)
@@ -424,6 +657,48 @@ function BisList.BuildOptions(frame)
 	for i = 1, 27 do
 		createLootButton(i)
 	end
+
+	local parseImportedUpgradeValues = function(text)
+		local lines = DF:SplitTextInLines(text)
+
+		for i = 1, #lines do
+			--
+		end
+	end
+
+	local importTextField = DF:NewSpecialLuaEditorEntry(lootSelectionFrame, 1, 1, nil, "BisListImportTextEntry", true)
+	importTextField:SetPoint("topleft", lootSelectionFrame, "topleft", 1, -1)
+	importTextField:SetPoint("bottomright", lootSelectionFrame, "bottomright", -1, 25)
+	importTextField:SetFrameLevel(lootSelectionFrame:GetFrameLevel() + 10)
+	_G["BisListImportTextEntryScrollBar"]:Hide()
+	DF:ApplyStandardBackdrop(importTextField)
+	importTextField:Hide()
+
+	importTextField.backgroundTexture = importTextField:CreateTexture(nil, "background")
+	importTextField.backgroundTexture:SetColorTexture(DF:GetDefaultBackdropColor())
+	importTextField.backgroundTexture:SetAllPoints()
+
+	local importButtonCallback = function()
+		if (not importTextField:IsShown()) then
+			importTextField:Show()
+			importTextField:SetText("")
+			importTextField:SetFocus(true)
+			lootSelectionFrame.importPercentButton:SetText("Import!")
+		else
+			importTextField:SetFocus(false)
+			lootSelectionFrame.importPercentButton:SetText("Import Upgrade Percent")
+			importTextField:Hide()
+			local importText = importTextField:GetText()
+			parseImportedUpgradeValues(importText)
+		end
+	end
+
+	local importPercentButton = DF:CreateButton(lootSelectionFrame, importButtonCallback, 120, 20, "Import Upgrade Percent")
+	importPercentButton:SetTemplate(DF:GetTemplate("button", "OPTIONS_BUTTON_TEMPLATE"))
+	importPercentButton:SetIcon([[Interface\BUTTONS\UI-MicroStream-Green]])
+	importPercentButton:SetPoint("bottomright", lootSelectionFrame, "bottomright", -2, 2)
+	lootSelectionFrame.importPercentButton = importPercentButton
+	importPercentButton:Disable()
 
 	function lootSelectionFrame:GetLootButton()
 		local buttonIndex = lootSelectionFrame.NextLootButton
@@ -490,32 +765,45 @@ function BisList.BuildOptions(frame)
 	["itemQuality"] = "ffa335ee",
 ]]
 
-	local selectBoss = function(bossId, bossButton)
+	local selectBoss = function(bossId, bossButton) --~selectedboss ~clickboss
 		--reset loot buttons
 		lootSelectionFrame:ResetLootButtons()
 
+		--get all loot this boss has for the player class
 		local bossLootTable = mainFrame.LootInfoData[bossId] --array
+
+		--store all items available for the player from this boss
+		local availableLootItemsFromBoss = {}
 
 		for i = 1, #bossLootTable do --refresh loot
 			local thisLoot = bossLootTable[i]
-			if (thisLoot.name:find("Dreadful")) then
-				dumpt(thisLoot)
-			end
 
 			if (thisLoot.slot == "") then
 				thisLoot.filterType = 50
 			end
 
+			availableLootItemsFromBoss[thisLoot.itemID] = true
+
 			--thisLoot.weaponTypeError = thisLoot.weaponTypeError and 0 or 1
 			thisLoot.equipSort = IsEquippableItem(thisLoot.link) and thisLoot.filterType or thisLoot.filterType + 25
-			--thisLoot.filterType = thisLoot.filterType or 20
 		end
 
-		--table.sort(bossLootTable, function(t1, t2) return t1.filterType < t2.filterType end) --heads first, trinkets last
+		--if an item gets removed from the player class by a game hotfix, need to remove that item from the player bislist
+		local bisList = getBisListForPlayer()
+		for itemId, lootInfo in pairs(bisList) do
+			if (lootInfo.encounterID == bossId) then
+				if (not availableLootItemsFromBoss[itemId]) then
+					local itemName = GetItemInfo(itemId)
+					print(itemName, "removed from your bis list: the item isn't for your class anymore.")
+					bisList[itemId] = nil
+				end
+			end
+		end
+
 		table.sort(bossLootTable, function(t1, t2) return t1.equipSort < t2.equipSort end)
 
 		--update the loot for this boss
-		for i = 1, #bossLootTable do --refresh loot
+		for i = 1, #bossLootTable do --~refresh ~update loot
 			local thisLoot = bossLootTable[i]
 
 			--need to check if the player can wear the gear
@@ -541,15 +829,14 @@ function BisList.BuildOptions(frame)
 				lootButton.HasItemIndicator:Hide()
 			end
 
-			--dumpt(thisLoot)
-
 			if (thisLoot.displayAsVeryRare) then
 
 			elseif (thisLoot.displayAsExtremelyRare) then
 
 			end
 
-			lootButonRefreshBorderColor(lootButton)
+			--refresh the selected state, note state, offspec state
+			lootButonRefresh(lootButton)
 		end
 
 		--update the boss button selected indicator
@@ -589,7 +876,8 @@ function BisList.BuildOptions(frame)
 		line.index = index
 
 		local selectedInidicator = line:CreateTexture(nil, "border")
-		selectedInidicator:SetAllPoints()
+		selectedInidicator:SetPoint("topleft", line, "topleft", 1, -1)
+		selectedInidicator:SetPoint("bottomright", line, "bottomright", -1, 1)
 		selectedInidicator:SetColorTexture(1, 1, 1, 0.4)
 		selectedInidicator:Hide()
 		line.selectedInidicator = selectedInidicator

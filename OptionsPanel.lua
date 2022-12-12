@@ -178,7 +178,9 @@ function RA.OpenMainOptions(command, value)
 				local pluginObject = data [index]
 				if (pluginObject) then
 					--get the data
-					local iconTexture, iconTexcoord, text, textColor = pluginObject.menu_text(pluginObject)
+					local iconTexture, iconTexcoord, text, overlayColor = pluginObject.menu_text(pluginObject)
+
+					local r, g, b, a = DF:ParseColors(overlayColor or "white")
 
 					--update the line
 					local button = self:GetLine(i)
@@ -190,9 +192,9 @@ function RA.OpenMainOptions(command, value)
 					button:SetClickFunction(onSelectPlugin, pluginObject)
 
 					if (iconTexcoord) then
-						button:SetIcon(iconTexture, 18, 18, "overlay", {iconTexcoord.l, iconTexcoord.r, iconTexcoord.t, iconTexcoord.b}, nil, 5, 2)
+						button:SetIcon(iconTexture, 18, 18, "overlay", {iconTexcoord.l, iconTexcoord.r, iconTexcoord.t, iconTexcoord.b}, {r, g, b, a}, 5, 2)
 					else
-						button:SetIcon(iconTexture, 18, 18, "overlay", {0, 1, 0, 1}, nil, 4, 2)
+						button:SetIcon(iconTexture, 18, 18, "overlay", {0, 1, 0, 1}, {r, g, b, a}, 4, 2)
 					end
 
 					if (pluginObject.IsDisabled) then
@@ -344,8 +346,9 @@ function RA.OpenMainOptions(command, value)
 		end
 
 		--auto open a plugin after /raa
-		allButtons[1]:Click()
-		RA.UpdateKeybindToPlugin(pluginIndexToObject[1])
+		local openAtSection = 1
+		allButtons[openAtSection]:Click()
+		RA.UpdateKeybindToPlugin(pluginIndexToObject[openAtSection])
 end
 
 function RA.CreateHotkeyFrame(f)

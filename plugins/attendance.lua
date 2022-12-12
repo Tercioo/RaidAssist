@@ -30,11 +30,7 @@ local week1, week2, week3, week4, week5, week6, week7 = "Mon", "Tue", "Wed", "Th
 local emptyFunc = function()end
 
 Attendance.menu_text = function (plugin)
-	if (Attendance.db.enabled) then
-		return iconTexture, iconTexCoord, L["S_PLUGIN_ATTENDANCE_NAME"], textColorEnabled
-	else
-		return iconTexture, iconTexCoord, L["S_PLUGIN_ATTENDANCE_NAME"], textColorDisabled
-	end
+	return iconTexture, iconTexCoord, L["S_PLUGIN_ATTENDANCE_NAME"], textColorEnabled
 end
 
 Attendance.menu_popup_hide = function(plugin, ct_frame, param1, param2)

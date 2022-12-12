@@ -26,11 +26,7 @@ local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
 local icon_texture = [[Interface\CURSOR\Cast]]
 
 Invite.menu_text = function (plugin)
-	if (Invite.db.enabled) then
-		return icon_texture, icon_texcoord, "Invites", text_color_enabled
-	else
-		return icon_texture, icon_texcoord, "Invites", text_color_disabled
-	end
+	return icon_texture, icon_texcoord, "Invites", text_color_enabled
 end
 
 Invite.menu_popup_show = function (plugin, ct_frame, param1, param2)
