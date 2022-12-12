@@ -172,6 +172,14 @@ function BisListRaid.OnReceiveComm(sourceName, prefix, sourcePluginVersion, data
 		--local itemList = data.items = map[itemId] = array{encounterId, itemQuality, thisItemAlreadyOwnItemLevel, upgradePercent}
 		--local specId = data.specId
 
+		local myGuildName = GetGuildInfo("player")
+		local sourceGuildName = GetGuildInfo(sourceName)
+
+		--don't accept bis list from players outside the guild
+		if (myGuildName ~= sourceGuildName) then
+			return
+		end
+
 		local raidBisList = getRaidSelectedLoot()
 		raidBisList[sourceName] = data
 
