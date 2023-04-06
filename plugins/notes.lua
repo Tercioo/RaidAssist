@@ -169,7 +169,7 @@ function Notepad.InstallBossModsHandlers()
 		--bigwigs
         function Notepad:BigWigs_SetStage(event, module, phase)
             phase = tonumber(phase)
-			local currentPhase = Notepad.GetCurrentEncounterData().phase
+			local currentPhase = Notepad.GetCurrentEncounterData() and Notepad.GetCurrentEncounterData().phase
 
             if (phase and type(phase) == "number" and currentPhase and currentPhase ~= phase) then
 				--phase has been changed
@@ -196,7 +196,7 @@ function Notepad.InstallBossModsHandlers()
 				local phase = whichStage:match("(%d)")
 				phase = tonumber(phase)
 
-				if (phase) then
+				if (phase and Notepad.GetCurrentEncounterData()) then
 					local currentPhase = Notepad.GetCurrentEncounterData().phase
 					if (phase and type(phase) == "number" and currentPhase and currentPhase ~= phase) then
 						--phase has been changed

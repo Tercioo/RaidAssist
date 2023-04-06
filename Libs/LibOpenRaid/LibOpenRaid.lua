@@ -64,7 +64,7 @@ if (WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE and not isExpansion_Dragonflight()) t
 end
 
 local major = "LibOpenRaid-1.0"
-local CONST_LIB_VERSION = 87
+local CONST_LIB_VERSION = 96
 
 if (not LIB_OPEN_RAID_MAX_VERSION) then
     LIB_OPEN_RAID_MAX_VERSION = CONST_LIB_VERSION
@@ -96,6 +96,11 @@ local unpack = table.unpack or _G.unpack
 
     local CONST_CVAR_TEMPCACHE = "LibOpenRaidTempCache"
     local CONST_CVAR_TEMPCACHE_DEBUG = "LibOpenRaidTempCacheDebug"
+
+    --delay to request all data from other players
+    local CONST_REQUEST_ALL_DATA_COOLDOWN = 30
+    --delay to send all data to other players
+    local CONST_SEND_ALL_DATA_COOLDOWN = 30
 
     --show failures (when the function return an error) results to chat
     local CONST_DIAGNOSTIC_ERRORS = false
@@ -763,7 +768,7 @@ end
         openRaidLib.internalCallback.TriggerEvent("talentUpdate")
     end
     local delayedTalentChange = function()
-        openRaidLib.Schedules.NewUniqueTimer(0.5 + math.random(), talentChangedCallback, "TalentChangeEventGroup", "talentChangedCallback_Schedule")
+        openRaidLib.Schedules.NewUniqueTimer(math.random(3, 6), talentChangedCallback, "TalentChangeEventGroup", "talentChangedCallback_Schedule")
     end
 
     local eventFunctions = {
@@ -788,7 +793,7 @@ end
                 --the group has changed, trigger a long timer to send full data
                 --as the timer is unique, a new change to the group will replace and refresh the time
                 --using random time, players won't trigger all at the same time
-                local randomTime = 0.3 + math.random(0, 0.7)
+                local randomTime = 5 + math.random() + math.random(1, 5)
                 openRaidLib.Schedules.NewUniqueTimer(randomTime, openRaidLib.mainControl.SendFullData, "mainControl", "sendFullData_Schedule")
             end
 
@@ -1123,12 +1128,14 @@ end
 
     --send a request to all players in the group to send their data
     function openRaidLib.RequestAllData()
+        --the the player isn't in group, don't send the request
 		if (not IsInGroup()) then
 			return
 		end
 
         openRaidLib.requestAllInfoCooldown = openRaidLib.requestAllInfoCooldown or 0
 
+        --check if the player can sent another request
         if (openRaidLib.requestAllInfoCooldown > GetTime()) then
             return
         end
@@ -1136,22 +1143,30 @@ end
         openRaidLib.commHandler.SendCommData(CONST_COMM_FULLINFO_PREFIX)
         diagnosticComm("RequestAllInfo| " .. CONST_COMM_FULLINFO_PREFIX) --debug
 
-        openRaidLib.requestAllInfoCooldown = GetTime() + 5
+        openRaidLib.requestAllInfoCooldown = GetTime() + CONST_REQUEST_ALL_DATA_COOLDOWN
         return true
+    end
+
+    --this function handles the request from another player to send all data
+    function openRaidLib.commHandler.SendFullData()
+        openRaidLib.mainControl.SendFullData()
     end
 
     openRaidLib.commHandler.RegisterComm(CONST_COMM_FULLINFO_PREFIX, function(data, sourceName)
         openRaidLib.sendRequestedAllInfoCooldown = openRaidLib.sendRequestedAllInfoCooldown or 0
 
-        --some player in the group requested  all information from all players
+        --check if there's some delay before sending the data
         if (openRaidLib.sendRequestedAllInfoCooldown > GetTime()) then
+            --reschedule the function call
+            openRaidLib.Schedules.NewUniqueTimer(openRaidLib.sendRequestedAllInfoCooldown - GetTime(), openRaidLib.commHandler.SendFullData, "CommHandler", "sendFullData_Schedule")
             return
         end
 
-        openRaidLib.Schedules.NewUniqueTimer(random() + math.random(0, 3), openRaidLib.mainControl.SendFullData, "mainControl", "sendFullData_Schedule")
-        openRaidLib.sendRequestedAllInfoCooldown = GetTime() + 5
-    end)
+        openRaidLib.Schedules.NewUniqueTimer(math.random(1, 6), openRaidLib.commHandler.SendFullData, "CommHandler", "sendFullData_Schedule")
 
+        --set the delay for the next request
+        openRaidLib.sendRequestedAllInfoCooldown = GetTime() + CONST_SEND_ALL_DATA_COOLDOWN
+    end)
 
 --------------------------------------------------------------------------------------------------------------------------------
 --~player general ~info ~unit
@@ -1540,9 +1555,9 @@ openRaidLib.internalCallback.RegisterCallback("onLeaveCombat", openRaidLib.UnitI
     --send only the gear durability
     function openRaidLib.GearManager.SendDurability()
         local dataToSend = "" .. CONST_COMM_GEARINFO_DURABILITY_PREFIX .. ","
-        local playerGearDurability = openRaidLib.GearManager.GetPlayerGearDurability()
+        local averageGearDurability, lowestDurability = openRaidLib.GearManager.GetPlayerGearDurability()
 
-        dataToSend = dataToSend .. playerGearDurability
+        dataToSend = dataToSend .. averageGearDurability
 
         --send the data
         openRaidLib.commHandler.SendCommData(dataToSend)
@@ -1922,13 +1937,22 @@ end
         return calculatePercent(timeOffset, duration, updateTime, charges)
     end
 
-    --return the values to be use on a progress bar or cooldown frame
-    --require the cooldownInfo table
-    --values returned: isReady, timeLeft, charges, normalized percent, minValue, maxValue, currentValue
-    --values are in the GetTime() format
-    --GetPercentFromCooldownInfo
+    ---return the values to be use on a progress bar or cooldown frame
+    ---values returned: bIsReady, percent, timeLeft, charges, minValue, maxValue, currentValue, duration
+    ---@param cooldownInfo table
+    ---@return boolean bIsReady
+    ---@return number percent
+    ---@return number timeLeft
+    ---@return number charges
+    ---@return number minValue
+    ---@return number maxValue
+    ---@return number currentValue
+    ---@return number duration
     function openRaidLib.GetCooldownStatusFromCooldownInfo(cooldownInfo)
         local timeLeft, charges, timeOffset, duration, updateTime, auraDuration = openRaidLib.CooldownManager.GetCooldownInfoValues(cooldownInfo)
+        if (not timeOffset) then
+            return false, 0, 0, 0, 0, 0, 0, 0
+        end
         return calculatePercent(timeOffset, duration, updateTime, charges)
     end
 
@@ -1947,10 +1971,28 @@ end
             --get the cooldown time for this spell
             local timeLeft, charges, startTimeOffset, duration, auraDuration = openRaidLib.CooldownManager.GetPlayerCooldownStatus(spellId) --return 5 values
 
+            --check for shared cooldown time - warning: this block of code is duplicated at "openRaidLib.commHandler.RegisterComm(CONST_COMM_COOLDOWNUPDATE_PREFIX"
+            local spellData = LIB_OPEN_RAID_COOLDOWNS_INFO[spellId]
+            local sharedCooldownId = spellData and spellData.shareid
+            if (sharedCooldownId) then
+                local spellsWithSharedCooldown = LIB_OPEN_RAID_COOLDOWNS_SHARED_ID[sharedCooldownId]
+                for thisSpellId in pairs(spellsWithSharedCooldown) do
+                    --don't run for the spell that triggered the shared cooldown
+                    if (thisSpellId ~= spellId) then
+                        openRaidLib.CooldownManager.CooldownSpellUpdate(playerName, thisSpellId, timeLeft, charges, startTimeOffset, duration, auraDuration)
+
+                        local cooldownInfo = cooldownGetSpellInfo(playerName, thisSpellId)
+                        local unitCooldownTable = openRaidLib.GetUnitCooldowns(playerName)
+
+                        --trigger a public callback
+                        openRaidLib.publicCallback.TriggerCallback("CooldownUpdate", openRaidLib.GetUnitID(playerName), thisSpellId, cooldownInfo, unitCooldownTable, openRaidLib.CooldownManager.UnitData)
+                    end
+                end
+            end
+
             --update the cooldown
             openRaidLib.CooldownManager.CooldownSpellUpdate(playerName, spellId, timeLeft, charges, startTimeOffset, duration, auraDuration) --receive 7 values
             local cooldownInfo = cooldownGetSpellInfo(playerName, spellId)
-
             --trigger a public callback
             local playerCooldownTable = openRaidLib.GetUnitCooldowns(playerName)
             openRaidLib.publicCallback.TriggerCallback("CooldownUpdate", "player", spellId, cooldownInfo, playerCooldownTable, openRaidLib.CooldownManager.UnitData)
@@ -2257,6 +2299,25 @@ openRaidLib.commHandler.RegisterComm(CONST_COMM_COOLDOWNUPDATE_PREFIX, function(
 
     elseif (not auraDuration) then
         return openRaidLib.DiagnosticError("CooldownManager|comm received|auraDuration is invalid")
+    end
+
+    --check for shared cooldown time
+    local spellData = LIB_OPEN_RAID_COOLDOWNS_INFO[spellId] --warning this block of code is duplicated at warning: this block of code is duplicated at "openRaidLib.CooldownManager.OnPlayerCast"
+    local sharedCooldownId = spellData and spellData.shareid
+    if (sharedCooldownId) then
+        local spellsWithSharedCooldown = LIB_OPEN_RAID_COOLDOWNS_SHARED_ID[sharedCooldownId]
+        for thisSpellId in pairs(spellsWithSharedCooldown) do
+            --don't run for the spell that triggered the shared cooldown
+            if (thisSpellId ~= spellId) then
+                openRaidLib.CooldownManager.CooldownSpellUpdate(unitName, thisSpellId, cooldownTimer, charges, startTime, duration, auraDuration)
+
+                local cooldownInfo = cooldownGetSpellInfo(unitName, thisSpellId)
+                local unitCooldownTable = openRaidLib.GetUnitCooldowns(unitName)
+
+                --trigger a public callback
+                openRaidLib.publicCallback.TriggerCallback("CooldownUpdate", openRaidLib.GetUnitID(unitName), thisSpellId, cooldownInfo, unitCooldownTable, openRaidLib.CooldownManager.UnitData)
+            end
+        end
     end
 
     --update
@@ -2615,8 +2676,8 @@ C_Timer.After(0.1, function()
                 if (unitName and not hasLib) then
                     local unitInGroup = UnitInParty(unit) or UnitInRaid(unit)
                     if (unitInGroup) then
-                        local cooldownInfo = allCooldownsFromLib[spellId]
-                        if (cooldownInfo) then -- and not openRaidLib.GetUnitCooldown(unitName)
+                        local spellData = allCooldownsFromLib[spellId]
+                        if (spellData) then -- and not openRaidLib.GetUnitCooldown(unitName)
                             --check for cast_success spam from channel spells
                             local unitCastCooldown = recentCastedSpells[unitName]
                             if (not unitCastCooldown) then
@@ -2628,7 +2689,7 @@ C_Timer.After(0.1, function()
                                 unitCastCooldown[spellId] = GetTime()
 
                                 --trigger a cooldown usage
-                                local duration = cooldownInfo.duration
+                                local duration = spellData.duration
                                 --time left, charges, startTimeOffset, duration
                                 openRaidLib.CooldownManager.CooldownSpellUpdate(unitName, spellId, duration, 0, 0, duration, 0)
                                 local cooldownInfo = cooldownGetSpellInfo(unitName, spellId)
