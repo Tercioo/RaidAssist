@@ -126,16 +126,6 @@
 			]
 		},
 		{
-			"path": "plugins/notes.lua",
-			"bookmarks": [
-				{
-					"line": 875,
-					"column": 5,
-					"label": ""
-				}
-			]
-		},
-		{
 			"path": "plugins/addonscheck.lua",
 			"bookmarks": [
 				{

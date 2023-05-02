@@ -833,51 +833,62 @@ function Notepad:BuildBossList() --~bosslist
 		journalInstanceId = 0,
 	}
 
-	--EJ_SelectTier(7) --for older expansions
-
 	local bFoundResults = false
 
-	--in rare cases, the encounter journal doesn't load, here we load it and reset it
-	if (not EncounterJournal) then
-		EncounterJournal_LoadUI()
-		EncounterJournalDungeonTab:Click()
-		EncounterJournal_TierDropDown_Select(_, 10) --dragon isles
-		EncounterJournalRaidTab:Click()
+	---iterate among all raid instances, by passing true in the second argument of EJ_GetInstanceByIndex, indicates to the API we want to get raid instances
+	---@type boolean
+	local bGetRaidInstances = true
 
-		C_Timer.After(1, function()
-			EncounterJournalDungeonTab:Click()
-			EncounterJournalRaidTab:Click()
-			EncounterJournalDungeonTab:Click()
-		end)
-	end
+	---increment this each expansion
+	---@type number
+	local currentTierId = 10 --maintenance
 
-    for instanceIndex = 10, 1, -1 do
-		local instanceID, zoneName = _G.EJ_GetInstanceByIndex(instanceIndex, true)
-        if (instanceID) then
-			EncounterJournal_DisplayInstance(instanceID)
+	---maximum amount of raid tiers in the expansion
+	---@type number
+	local maxAmountOfRaidTiers = 10
 
-            for i = 20, 1, -1 do
-				local name, description, bossID, rootSectionID, link, journalInstanceID, dungeonEncounterID, UiMapID = _G.EJ_GetEncounterInfoByIndex (i, instanceID)
+	---the index of the first raid tier in the expansion, ignoring the first tier as it is open world bosses
+	---@type number
+	local raidTierStartIndex = 2
+
+	---max amount of bosses which a raid tier can have
+	---@type number
+	local maxRaidBosses = 20
+
+	EJ_SelectTier(currentTierId)
+
+	for instanceIndex = maxAmountOfRaidTiers, raidTierStartIndex, -1 do
+		local journalInstanceID, instanceName, description, bgImage, buttonImage1, loreImage, buttonImage2, dungeonAreaMapID = EJ_GetInstanceByIndex(instanceIndex, bGetRaidInstances)
+
+		if (journalInstanceID) then
+			--tell the encounter journal to display the raid instance by the instanceId
+			--EncounterJournal_DisplayInstance(journalInstanceID)
+			EJ_SelectInstance(journalInstanceID)
+
+			for encounterIndex = 1, maxRaidBosses do
+				local name, description, journalEncounterID, rootSectionID, link, journalInstanceID, dungeonEncounterID, UiMapID = EJ_GetEncounterInfoByIndex(encounterIndex, journalInstanceID)
 				if (name) then
-					local id, creatureName, creatureDescription, displayInfo, iconImage = EJ_GetCreatureInfo(1, bossID)
-					local thisBossTable = {
-						bossName = name,
-						bossId = bossID,
-						bossRaidName = zoneName,
-						bossIcon = iconImage,
-						bossIconCoords = {0, 1, 0, 0.95},
-						bossIconSize = {bossLinesHeight + 30, bossLinesHeight - 4},
-						instanceId = instanceID,
-						uiMapId = UiMapID,
-						instanceIndex = instanceIndex,
-						journalInstanceId = journalInstanceID,
-					}
-					bossTable[#bossTable+1] = thisBossTable
-					Notepad.bossListHashTable[bossID] = thisBossTable
-					bFoundResults = true
-                end
-            end
-        end
+					if (name) then
+						local id, creatureName, creatureDescription, displayInfo, iconImage = EJ_GetCreatureInfo(1, journalEncounterID)
+						local thisBossTable = {
+							bossName = name,
+							bossId = journalEncounterID,
+							bossRaidName = instanceName,
+							bossIcon = iconImage,
+							bossIconCoords = {0, 1, 0, 0.95},
+							bossIconSize = {bossLinesHeight + 30, bossLinesHeight - 4},
+							instanceId = journalInstanceID,
+							uiMapId = UiMapID,
+							instanceIndex = instanceIndex,
+							journalInstanceId = journalInstanceID,
+						}
+						bossTable[#bossTable+1] = thisBossTable
+						Notepad.bossListHashTable[journalEncounterID] = thisBossTable
+						bFoundResults = true
+					end
+				end
+			end
+		end
 	end
 
 	Notepad.bRequireBossListRefresh = not bFoundResults
