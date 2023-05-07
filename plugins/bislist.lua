@@ -82,35 +82,38 @@ end
 --return the item level of the item the player currently possesses
 local getCurrentOwnItem = function(itemLink)
 	local itemName, itemLink, itemQuality, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, sellPrice, classID, subclassID, bindType, expacID, setID, isCraftingReagent = GetItemInfo(itemLink)
-	local effectiveILvl, isPreview, baseILvl = GetDetailedItemLevelInfo(itemLink)
-	itemLevel = effectiveILvl or itemLevel
 
-	for id = 0, 17 do
-		local hasEquippedItemLink = GetInventoryItemLink("player", id)
-		if (hasEquippedItemLink) then
-			local thisItemName, thisItemLink, thisItemQuality, thisItemLevel = GetItemInfo(hasEquippedItemLink)
-			if (thisItemName and thisItemLink and thisItemQuality and thisItemLevel) then
-				if (itemName == thisItemName) then
-					local itemId = itemLink:match("|Hitem%:(%d+)%:")
-					itemId = tonumber(itemId) or 0
-					return itemLevel, itemLink, itemId
+	if (itemName and itemLink) then
+		local effectiveILvl, isPreview, baseILvl = GetDetailedItemLevelInfo(itemLink)
+		itemLevel = effectiveILvl or itemLevel
+
+		for id = 0, 17 do
+			local hasEquippedItemLink = GetInventoryItemLink("player", id)
+			if (hasEquippedItemLink) then
+				local thisItemName, thisItemLink, thisItemQuality, thisItemLevel = GetItemInfo(hasEquippedItemLink)
+				if (thisItemName and thisItemLink and thisItemQuality and thisItemLevel) then
+					if (itemName == thisItemName) then
+						local itemId = itemLink:match("|Hitem%:(%d+)%:")
+						itemId = tonumber(itemId) or 0
+						return itemLevel, itemLink, itemId
+					end
 				end
 			end
 		end
-	end
 
-	for bagId = 1, 6 do
-		local numSlots = C_Container.GetContainerNumSlots(bagId)
-		if (numSlots > 0) then
-			for slotId = 1, numSlots do
-				local itemLink = C_Container.GetContainerItemLink(bagId, slotId)
-				if (itemLink) then
-					local thisItemName, thisItemLink, thisItemQuality, thisItemLevel = GetItemInfo(itemLink)
-					if (thisItemName and thisItemLink and thisItemQuality and thisItemLevel) then
-						if (itemName == thisItemName) then
-							local itemId = itemLink:match("|Hitem%:(%d+)%:")
-							itemId = tonumber(itemId) or 0
-							return itemLevel, itemLink, itemId
+		for bagId = 1, 6 do
+			local numSlots = C_Container.GetContainerNumSlots(bagId)
+			if (numSlots > 0) then
+				for slotId = 1, numSlots do
+					local itemLink = C_Container.GetContainerItemLink(bagId, slotId)
+					if (itemLink) then
+						local thisItemName, thisItemLink, thisItemQuality, thisItemLevel = GetItemInfo(itemLink)
+						if (thisItemName and thisItemLink and thisItemQuality and thisItemLevel) then
+							if (itemName == thisItemName) then
+								local itemId = itemLink:match("|Hitem%:(%d+)%:")
+								itemId = tonumber(itemId) or 0
+								return itemLevel, itemLink, itemId
+							end
 						end
 					end
 				end
