@@ -13,6 +13,7 @@ local unpack = table.unpack or unpack --lua local
 local type = type --lua local
 local floor = math.floor --lua local
 local loadstring = loadstring --lua local
+local CreateFrame = CreateFrame
 
 local IS_WOW_PROJECT_MAINLINE = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 local IS_WOW_PROJECT_NOT_MAINLINE = WOW_PROJECT_ID ~= WOW_PROJECT_MAINLINE
@@ -1879,7 +1880,10 @@ local SimplePanel_frame_backdrop_border_color = {0, 0, 0, 1}
 
 --with_label was making the frame stay in place while its parent moves
 --the slider was anchoring to with_label and here here were anchoring the slider again
+---@class df_scalebar : slider
+---@field thumb texture
 function detailsFramework:CreateScaleBar(frame, config) --~scale
+	---@type df_scalebar
 	local scaleBar, text = detailsFramework:CreateSlider(frame, 120, 14, 0.6, 1.6, 0.1, config.scale, true, "ScaleBar", nil, "Scale:", detailsFramework:GetTemplate("slider", "OPTIONS_SLIDER_TEMPLATE"), detailsFramework:GetTemplate("font", "ORANGE_FONT_TEMPLATE"))
 	scaleBar.thumb:SetWidth(24)
 	scaleBar:SetValueStep(0.1)
@@ -1976,37 +1980,50 @@ local no_options = {}
 ---UseStatusBar = false, --if true, creates a status bar at the bottom of the frame (frame.StatusBar)
 ---NoCloseButton = false, --if true, won't show the close button
 ---NoTitleBar = false, --if true, don't create the title bar
----@param parent table
----@param width number|nil
----@param height number|nil
----@param title string|nil
----@param frameName string|nil
----@param panelOptions table|nil
----@param savedVariableTable table|nil
----@return table
+---@class simplepanel
+---@field TitleBar frame
+---@field Title fontstring
+---@field Close button
+---@field SetTitle fun(self: simplepanel, title: string)
+---@param parent frame the parent frame
+---@param width number|nil the width of the panel
+---@param height number|nil the height of the panel
+---@param title string|nil a string to show in the title bar
+---@param frameName string|nil the name of the frame
+---@param panelOptions table|nil a table with options described above
+---@param savedVariableTable table|nil a table to save the scale of the panel
+---@return frame
 function detailsFramework:CreateSimplePanel(parent, width, height, title, frameName, panelOptions, savedVariableTable)
+	--create a saved variable table if the savedVariableTable has been not passed within the function call
 	if (savedVariableTable and frameName and not savedVariableTable[frameName]) then
 		savedVariableTable[frameName] = {
 			scale = 1
 		}
 	end
 
+	--create a frame name if the frameName has been not passed within the function call
 	if (not frameName) then
 		frameName = "DetailsFrameworkSimplePanel" .. detailsFramework.SimplePanelCounter
 		detailsFramework.SimplePanelCounter = detailsFramework.SimplePanelCounter + 1
 	end
+
+	--default parent is UIParent
 	if (not parent) then
-		parent = UIParent
+		parent = _G["UIParent"]
 	end
 
+	--default options
 	panelOptions = panelOptions or no_options
 
-	local simplePanel = CreateFrame("frame", frameName, UIParent,"BackdropTemplate")
+	--create the frame
+	local simplePanel = CreateFrame("frame", frameName, _G["UIParent"],"BackdropTemplate")
 	simplePanel:SetSize(width or 400, height or 250)
-	simplePanel:SetPoint("center", UIParent, "center", 0, 0)
+	simplePanel:SetPoint("center", _G["UIParent"], "center", 0, 0)
 	simplePanel:SetFrameStrata("FULLSCREEN")
 	simplePanel:EnableMouse()
 	simplePanel:SetMovable(true)
+
+	--set the backdrop
 	simplePanel:SetBackdrop(SimplePanel_frame_backdrop)
 	simplePanel:SetBackdropColor(unpack(SimplePanel_frame_backdrop_color))
 	simplePanel:SetBackdropBorderColor(unpack(SimplePanel_frame_backdrop_border_color))
@@ -2045,6 +2062,7 @@ function detailsFramework:CreateSimplePanel(parent, width, height, title, frameN
 	close:SetAlpha(0.7)
 	close:SetScript("OnClick", simple_panel_close_click)
 	simplePanel.Close = close
+	simplePanel.closeButton = close
 
 	local titleText = titleBar:CreateFontString(frameName and frameName .. "Title", "overlay", "GameFontNormal")
 	titleText:SetTextColor(.8, .8, .8, 1)
@@ -2273,15 +2291,35 @@ end
 
 ------------------------------------------------------------------------------------------------------------------------------------------------
 -- ~prompt
---@dontOverride: won't show another prompt if theres already a shown prompt
-function detailsFramework:ShowPromptPanel(message, trueCallback, falseCallback, dontOverride, width)
+function detailsFramework:HidePromptPanel(promptName)
+	if (detailsFramework.promtp_panel) then
+		if (promptName) then
+			if (detailsFramework.promtp_panel.promptName == promptName) then
+				detailsFramework.promtp_panel:Hide()
+				detailsFramework.promtp_panel.promptName = nil
+			end
+		else
+			detailsFramework.promtp_panel:Hide()
+			detailsFramework.promtp_panel.promptName = nil
+		end
+	end
+end
+
+---show a prompt to the player with a question (message) and two buttons "yes" and "no"
+---@param message string the question to show to the player
+---@param trueCallback function if the player clicks on "yes"
+---@param falseCallback function if the player clicks on "no"
+---@param dontOverride boolean|nil if true, won't show another prompt if theres already a shown prompt
+---@param width number|nil width of the prompt frame, if ommited, will use the default width 400
+---@param promptName string|nil set a name to the prompt, used on HidePromptPanel(promptName)
+function detailsFramework:ShowPromptPanel(message, trueCallback, falseCallback, dontOverride, width, promptName)
 	if (not DetailsFrameworkPromptSimple) then
 		local promptFrame = CreateFrame("frame", "DetailsFrameworkPromptSimple", UIParent, "BackdropTemplate")
 		promptFrame:SetSize(400, 80)
 		promptFrame:SetFrameStrata("DIALOG")
 		promptFrame:SetPoint("center", UIParent, "center", 0, 300)
 		detailsFramework:ApplyStandardBackdrop(promptFrame)
-		tinsert(UISpecialFrames, "DetailsFrameworkPromptSimple")
+		table.insert(UISpecialFrames, "DetailsFrameworkPromptSimple")
 
 		detailsFramework:CreateTitleBar(promptFrame, "Prompt!")
 		detailsFramework:ApplyStandardBackdrop(promptFrame)
@@ -2361,6 +2399,8 @@ function detailsFramework:ShowPromptPanel(message, trueCallback, falseCallback, 
 	else
 		detailsFramework.promtp_panel:SetWidth(400)
 	end
+
+	detailsFramework.promtp_panel.promptName = promptName
 
 	detailsFramework.promtp_panel.prompt:SetText(message)
 	detailsFramework.promtp_panel.button_true.true_function = trueCallback
@@ -3418,232 +3458,6 @@ function detailsFramework:FindHighestParent(self)
 	return highestParent
 end
 
-detailsFramework.TabContainerFunctions = {}
-
-local button_tab_template = detailsFramework.table.copy({}, detailsFramework:GetTemplate("button", "OPTIONS_BUTTON_TEMPLATE"))
-button_tab_template.backdropbordercolor = nil
-
-detailsFramework.TabContainerFunctions.CreateUnderlineGlow = function(button)
-	local selectedGlow = button:CreateTexture(nil, "background", nil, -4)
-	selectedGlow:SetPoint("topleft", button.widget, "bottomleft", -7, 0)
-	selectedGlow:SetPoint("topright", button.widget, "bottomright", 7, 0)
-	selectedGlow:SetTexture([[Interface\BUTTONS\UI-Panel-Button-Glow]])
-	selectedGlow:SetTexCoord(0, 95/128, 30/64, 38/64)
-	selectedGlow:SetBlendMode("ADD")
-	selectedGlow:SetHeight(8)
-	selectedGlow:SetAlpha(.75)
-	selectedGlow:Hide()
-	button.selectedUnderlineGlow = selectedGlow
-end
-
-detailsFramework.TabContainerFunctions.OnMouseDown = function(self, button)
-	--search for UIParent
-	local f = detailsFramework:FindHighestParent (self)
-	local container = self:GetParent()
-
-	if (button == "LeftButton") then
-		if (not f.IsMoving and f:IsMovable()) then
-			f:StartMoving()
-			f.IsMoving = true
-		end
-	elseif (button == "RightButton") then
-		if (not f.IsMoving and container.IsContainer) then
-			if (self.IsFrontPage) then
-				if (container.CanCloseWithRightClick) then
-					if (f.CloseFunction) then
-						f:CloseFunction()
-					else
-						f:Hide()
-					end
-				end
-			else
-				--goes back to front page
-				detailsFramework.TabContainerFunctions.SelectIndex (self, _, 1)
-			end
-		end
-	end
-end
-
-detailsFramework.TabContainerFunctions.OnMouseUp = function(self, button)
-	local f = detailsFramework:FindHighestParent (self)
-	if (f.IsMoving) then
-		f:StopMovingOrSizing()
-		f.IsMoving = false
-	end
-end
-
-detailsFramework.TabContainerFunctions.SelectIndex = function(self, fixedParam, menuIndex)
-	local mainFrame = self.AllFrames and self or self.mainFrame or self:GetParent()
-
-	for i = 1, #mainFrame.AllFrames do
-		mainFrame.AllFrames[i]:Hide()
-		if (mainFrame.ButtonNotSelectedBorderColor) then
-			mainFrame.AllButtons[i]:SetBackdropBorderColor(unpack(mainFrame.ButtonNotSelectedBorderColor))
-		end
-		if (mainFrame.AllButtons[i].selectedUnderlineGlow) then
-			mainFrame.AllButtons[i].selectedUnderlineGlow:Hide()
-		end
-	end
-
-	mainFrame.AllFrames[menuIndex]:Show()
-	if mainFrame.AllFrames[menuIndex].RefreshOptions then
-		mainFrame.AllFrames[menuIndex]:RefreshOptions()
-	end
-	if (mainFrame.ButtonSelectedBorderColor) then
-		mainFrame.AllButtons[menuIndex]:SetBackdropBorderColor(unpack(mainFrame.ButtonSelectedBorderColor))
-	end
-	if (mainFrame.AllButtons[menuIndex].selectedUnderlineGlow) then
-		mainFrame.AllButtons[menuIndex].selectedUnderlineGlow:Show()
-	end
-	mainFrame.CurrentIndex = menuIndex
-
-	if (mainFrame.hookList.OnSelectIndex) then
-		detailsFramework:QuickDispatch(mainFrame.hookList.OnSelectIndex, mainFrame, mainFrame.AllButtons[menuIndex])
-	end
-end
-
-detailsFramework.TabContainerFunctions.SetIndex = function(self, index)
-	self.CurrentIndex = index
-end
-
-local tab_container_on_show = function(self)
-	local index = self.CurrentIndex
-	self.SelectIndex (self.AllButtons[index], nil, index)
-end
-
-function detailsFramework:CreateTabContainer (parent, title, frameName, frameList, optionsTable, hookList, languageInfo)
-	local options_text_template = detailsFramework:GetTemplate("font", "OPTIONS_FONT_TEMPLATE")
-	local options_dropdown_template = detailsFramework:GetTemplate("dropdown", "OPTIONS_DROPDOWN_TEMPLATE")
-	local options_switch_template = detailsFramework:GetTemplate("switch", "OPTIONS_CHECKBOX_TEMPLATE")
-	local options_slider_template = detailsFramework:GetTemplate("slider", "OPTIONS_SLIDER_TEMPLATE")
-	local options_button_template = detailsFramework:GetTemplate("button", "OPTIONS_BUTTON_TEMPLATE")
-
-	optionsTable = optionsTable or {}
-	local parentFrameWidth = parent:GetWidth()
-	local y_offset = optionsTable.y_offset or 0
-	local buttonWidth = optionsTable.button_width or 160
-	local buttonHeight = optionsTable.button_height or 20
-	local buttonAnchorX = optionsTable.button_x or 230
-	local buttonAnchorY = optionsTable.button_y or -32
-	local button_text_size = optionsTable.button_text_size or 10
-	local containerWidthOffset = optionsTable.container_width_offset or 0
-
-	local mainFrame = CreateFrame("frame", frameName, parent.widget or parent, "BackdropTemplate")
-	mainFrame:SetAllPoints()
-	detailsFramework:Mixin(mainFrame, detailsFramework.TabContainerFunctions)
-	mainFrame.hookList = hookList or {}
-
-	local mainTitle = detailsFramework:CreateLabel(mainFrame, title, 24, "white")
-	mainTitle:SetPoint("topleft", mainFrame, "topleft", 10, -30 + y_offset)
-
-	mainFrame:SetFrameLevel(200)
-
-	mainFrame.AllFrames = {}
-	mainFrame.AllButtons = {}
-	mainFrame.CurrentIndex = 1
-	mainFrame.IsContainer = true
-	mainFrame.ButtonSelectedBorderColor = optionsTable.button_selected_border_color or {1, 1, 0, 1}
-	mainFrame.ButtonNotSelectedBorderColor = optionsTable.button_border_color or {0, 0, 0, 0}
-
-	if (optionsTable.right_click_interact ~= nil) then
-		mainFrame.CanCloseWithRightClick = optionsTable.right_click_interact
-	else
-		mainFrame.CanCloseWithRightClick = true
-	end
-
-	--languageInfo
-	local addonId = languageInfo and languageInfo.language_addonId or "none"
-
-	for i, frameInfo in ipairs(frameList) do
-		local f = CreateFrame("frame", "$parent" .. frameInfo.name, mainFrame, "BackdropTemplate")
-		f:SetAllPoints()
-		f:SetFrameLevel(210)
-		f:Hide()
-
-		--attempt to get the localized text from the language system using the addonId and the frameInfo.title
-		local phraseId = frameInfo.title
-		local bIsLanguagePrahseID = detailsFramework.Language.DoesPhraseIDExistsInDefaultLanguage(addonId, phraseId)
-
-		local title = detailsFramework:CreateLabel(f, "", 16, "silver")
-		if (bIsLanguagePrahseID) then
-			DetailsFramework.Language.RegisterObjectWithDefault(addonId, title.widget, frameInfo.title, frameInfo.title)
-		else
-			title:SetText(frameInfo.title)
-		end
-
-		title:SetPoint("topleft", mainTitle, "bottomleft", 0, 0)
-		f.titleText = title
-
-		local tabButton = detailsFramework:CreateButton(mainFrame, detailsFramework.TabContainerFunctions.SelectIndex, buttonWidth, buttonHeight, frameInfo.title, i, nil, nil, nil, "$parentTabButton" .. frameInfo.name, false, button_tab_template)
-
-		if (bIsLanguagePrahseID) then
-			DetailsFramework.Language.RegisterObjectWithDefault(addonId, tabButton.widget, frameInfo.title, frameInfo.title)
-		end
-
-		PixelUtil.SetSize(tabButton, buttonWidth, buttonHeight)
-		tabButton:SetFrameLevel(220)
-		tabButton.textsize = button_text_size
-		tabButton.mainFrame = mainFrame
-		detailsFramework.TabContainerFunctions.CreateUnderlineGlow(tabButton)
-
-		local rightClickToBack
-		if (i == 1 or optionsTable.rightbutton_always_close) then
-			rightClickToBack = detailsFramework:CreateLabel(f, "right click to close", 10, "gray")
-			rightClickToBack:SetPoint("bottomright", f, "bottomright", -1, optionsTable.right_click_y or 0)
-			if (optionsTable.close_text_alpha) then
-				rightClickToBack:SetAlpha(optionsTable.close_text_alpha)
-			end
-			f.IsFrontPage = true
-		else
-			rightClickToBack = detailsFramework:CreateLabel(f, "right click to go back to main menu", 10, "gray")
-			rightClickToBack:SetPoint("bottomright", f, "bottomright", -1, optionsTable.right_click_y or 0)
-			if (optionsTable.close_text_alpha) then
-				rightClickToBack:SetAlpha(optionsTable.close_text_alpha)
-			end
-		end
-
-		if (optionsTable.hide_click_label) then
-			rightClickToBack:Hide()
-		end
-
-		f:SetScript("OnMouseDown", detailsFramework.TabContainerFunctions.OnMouseDown)
-		f:SetScript("OnMouseUp", detailsFramework.TabContainerFunctions.OnMouseUp)
-
-		tinsert(mainFrame.AllFrames, f)
-		tinsert(mainFrame.AllButtons, tabButton)
-	end
-
-	--order buttons
-	local x = buttonAnchorX
-	local y = buttonAnchorY
-	local spaceBetweenButtons = 3
-
-	local allocatedSpaceForButtons = parentFrameWidth - ((#frameList - 2) * spaceBetweenButtons) - buttonAnchorX + containerWidthOffset
-	local amountButtonsPerRow = floor(allocatedSpaceForButtons / buttonWidth)
-
-	mainFrame.AllButtons[1]:SetPoint("topleft", mainTitle, "topleft", x, y)
-	x = x + buttonWidth + 2
-
-	for i = 2, #mainFrame.AllButtons do
-		local button = mainFrame.AllButtons[i]
-		PixelUtil.SetPoint(button, "topleft", mainTitle, "topleft", x, y)
-		x = x + buttonWidth + 2
-
-		if (i % amountButtonsPerRow == 0) then
-			x = buttonAnchorX
-			y = y - buttonHeight - 1
-		end
-	end
-
-	--when show the frame, reset to the current internal index
-	mainFrame:SetScript("OnShow", tab_container_on_show)
-	--select the first frame
-	mainFrame.SelectIndex (mainFrame.AllButtons[1], nil, 1)
-
-	print()
-	return mainFrame
-end
-
 ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 -- ~right ~click to ~close
 
@@ -4549,7 +4363,7 @@ function detailsFramework:ApplyStandardBackdrop(frame, bUseSolidColor, alphaScal
 	end
 
 	if (not frame.__background) then
-		frame.__background = frame:CreateTexture(nil, "background")
+		frame.__background = frame:CreateTexture(nil, "border", nil, -6)
 		frame.__background:SetColorTexture(red, green, blue)
 		frame.__background:SetAllPoints()
 	end
@@ -4561,32 +4375,40 @@ end
 -- ~title bar
 
 detailsFramework.TitleFunctions = {
-
 	SetTitle = function(self, titleText, titleColor, font, size)
-		self.TitleLabel:SetText(titleText or self.TitleLabel:GetText())
+		local titleLabel = self.TitleLabel or self.Text
+
+		titleLabel:SetText(titleText or titleLabel:GetText())
 
 		if (titleColor) then
 			local r, g, b, a = detailsFramework:ParseColors(titleColor)
-			self.TitleLabel:SetTextColor(r, g, b, a)
+			titleLabel:SetTextColor(r, g, b, a)
 		end
 
 		if (font) then
-			detailsFramework:SetFontFace (self.TitleLabel, font)
+			detailsFramework:SetFontFace (titleLabel, font)
 		end
 
 		if (size) then
-			detailsFramework:SetFontSize(self.TitleLabel, size)
+			detailsFramework:SetFontSize(titleLabel, size)
 		end
 	end
-
-
 }
 
-function detailsFramework:CreateTitleBar (f, titleText)
+---@class df_titlebar : frame
+---@field TitleBar frame
+---@field TitleLabel fontstring
+---@field CloseButton button
+---@field SetTitle fun(self:df_titlebar, titleText:string, titleColor:any, font:string, size:number)
 
-	local titleBar = CreateFrame("frame", f:GetName() and f:GetName() .. "TitleBar" or nil, f,"BackdropTemplate")
-	titleBar:SetPoint("topleft", f, "topleft", 2, -3)
-	titleBar:SetPoint("topright", f, "topright", -2, -3)
+---create a title bar with a font string in the center and a close button in the right side
+---@param parent frame
+---@param titleText string
+---@return df_titlebar
+function detailsFramework:CreateTitleBar(parent, titleText)
+	local titleBar = CreateFrame("frame", parent:GetName() and parent:GetName() .. "TitleBar" or nil, parent, "BackdropTemplate")
+	titleBar:SetPoint("topleft", parent, "topleft", 2, -3)
+	titleBar:SetPoint("topright", parent, "topright", -2, -3)
 	titleBar:SetHeight(20)
 	titleBar:SetBackdrop(SimplePanel_frame_backdrop) --it's an upload from this file
 	titleBar:SetBackdropColor(.2, .2, .2, 1)
@@ -4606,7 +4428,7 @@ function detailsFramework:CreateTitleBar (f, titleText)
 	closeButton:SetScript("OnClick", simple_panel_close_click) --upvalue from this file
 
 	local titleLabel = titleBar:CreateFontString(titleBar:GetName() and titleBar:GetName() .. "TitleText" or nil, "overlay", "GameFontNormal")
-	titleLabel:SetTextColor(.8, .8, .8, 1)
+	titleLabel:SetTextColor(detailsFramework:ParseColors("gold"))
 	titleLabel:SetText(titleText or "")
 
 	--anchors
@@ -4614,483 +4436,18 @@ function detailsFramework:CreateTitleBar (f, titleText)
 	titleLabel:SetPoint("center", titleBar, "center")
 
 	--members
-	f.TitleBar = titleBar
-	f.CloseButton = closeButton
-	f.TitleLabel = titleLabel
+	parent.TitleBar = titleBar
+	parent.CloseButton = closeButton
+	parent.TitleLabel = titleLabel
+	parent.SetTitle = titleBar.SetTitle
 
+	titleBar.TitleBar = titleBar --to fit documentation
 	titleBar.CloseButton = closeButton
 	titleBar.Text = titleLabel
 
-	detailsFramework:Mixin(f, detailsFramework.TitleFunctions)
+	detailsFramework:Mixin(parent, detailsFramework.TitleFunctions)
 
 	return titleBar
-end
-
-
-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
--- ~icon row
-
-detailsFramework.IconRowFunctions = {
-
-	GetIcon = function(self)
-		local iconFrame = self.IconPool [self.NextIcon]
-
-		if (not iconFrame) then
-			local newIconFrame = CreateFrame("frame", "$parentIcon" .. self.NextIcon, self, "BackdropTemplate")
-			newIconFrame.parentIconRow = self
-
-			newIconFrame.Texture = newIconFrame:CreateTexture(nil, "artwork")
-			PixelUtil.SetPoint(newIconFrame.Texture, "topleft", newIconFrame, "topleft", 1, -1)
-			PixelUtil.SetPoint(newIconFrame.Texture, "bottomright", newIconFrame, "bottomright", -1, 1)
-
-			newIconFrame.Border = newIconFrame:CreateTexture(nil, "background")
-			newIconFrame.Border:SetAllPoints()
-			newIconFrame.Border:SetColorTexture(0, 0, 0)
-
-			newIconFrame:SetBackdrop({edgeFile = [[Interface\Buttons\WHITE8X8]], edgeSize = 1})
-			newIconFrame:SetBackdropBorderColor(0, 0, 0, 0)
-			newIconFrame:EnableMouse(false)
-
-			local cooldownFrame = CreateFrame("cooldown", "$parentIconCooldown" .. self.NextIcon, newIconFrame, "CooldownFrameTemplate, BackdropTemplate")
-			cooldownFrame:SetAllPoints()
-			cooldownFrame:EnableMouse(false)
-			cooldownFrame:SetFrameLevel(newIconFrame:GetFrameLevel()+1)
-			cooldownFrame:SetHideCountdownNumbers (self.options.surpress_blizzard_cd_timer)
-			cooldownFrame.noCooldownCount = self.options.surpress_tulla_omni_cc
-
-			newIconFrame.CountdownText = cooldownFrame:CreateFontString(nil, "overlay", "GameFontNormal")
-			--newIconFrame.CountdownText:SetPoint("center")
-			newIconFrame.CountdownText:SetPoint(self.options.text_anchor or "center", newIconFrame, self.options.text_rel_anchor or "center", self.options.text_x_offset or 0, self.options.text_y_offset or 0)
-			newIconFrame.CountdownText:Hide()
-
-			newIconFrame.StackText = newIconFrame:CreateFontString(nil, "overlay", "GameFontNormal")
-			--newIconFrame.StackText:SetPoint("bottomright")
-			newIconFrame.StackText:SetPoint(self.options.stack_text_anchor or "center", newIconFrame, self.options.stack_text_rel_anchor or "bottomright", self.options.stack_text_x_offset or 0, self.options.stack_text_y_offset or 0)
-			newIconFrame.StackText:Hide()
-
-			newIconFrame.Desc = newIconFrame:CreateFontString(nil, "overlay", "GameFontNormal")
-			--newIconFrame.Desc:SetPoint("bottom", newIconFrame, "top", 0, 2)
-			newIconFrame.Desc:SetPoint(self.options.desc_text_anchor or "bottom", newIconFrame, self.options.desc_text_rel_anchor or "top", self.options.desc_text_x_offset or 0, self.options.desc_text_y_offset or 2)
-			newIconFrame.Desc:Hide()
-
-			newIconFrame.Cooldown = cooldownFrame
-
-			self.IconPool [self.NextIcon] = newIconFrame
-			iconFrame = newIconFrame
-		end
-
-		iconFrame:ClearAllPoints()
-
-		local anchor = self.options.anchor
-		local anchorTo = self.NextIcon == 1 and self or self.IconPool [self.NextIcon - 1]
-		local xPadding = self.NextIcon == 1 and self.options.left_padding or self.options.icon_padding or 1
-		local growDirection = self.options.grow_direction
-
-		if (growDirection == 1) then --grow to right
-			if (self.NextIcon == 1) then
-				PixelUtil.SetPoint(iconFrame, "left", anchorTo, "left", xPadding, 0)
-			else
-				PixelUtil.SetPoint(iconFrame, "left", anchorTo, "right", xPadding, 0)
-			end
-
-		elseif (growDirection == 2) then --grow to left
-			if (self.NextIcon == 1) then
-				PixelUtil.SetPoint(iconFrame, "right", anchorTo, "right", xPadding, 0)
-			else
-				PixelUtil.SetPoint(iconFrame, "right", anchorTo, "left", xPadding, 0)
-			end
-
-		end
-
-		detailsFramework:SetFontColor(iconFrame.CountdownText, self.options.text_color)
-
-		self.NextIcon = self.NextIcon + 1
-		return iconFrame
-	end,
-
-	--adds only if not existing already in the cache
-	AddSpecificIcon = function(self, identifierKey, spellId, borderColor, startTime, duration, forceTexture, descText, count, debuffType, caster, canStealOrPurge, spellName, isBuff)
-		if not identifierKey or identifierKey == "" then
-			return
-		end
-
-		if not self.AuraCache[identifierKey] then
-			local icon = self:SetIcon (spellId, borderColor, startTime, duration, forceTexture, descText, count, debuffType, caster, canStealOrPurge, spellName, isBuff or false)
-			icon.identifierKey = identifierKey
-			self.AuraCache[identifierKey] = true
-		end
-	end,
-
-	SetIcon = function(self, spellId, borderColor, startTime, duration, forceTexture, descText, count, debuffType, caster, canStealOrPurge, spellName, isBuff, modRate)
-
-		local actualSpellName, _, spellIcon = GetSpellInfo(spellId)
-
-		if forceTexture then
-			spellIcon = forceTexture
-		end
-
-		spellName = spellName or actualSpellName or "unknown_aura"
-		modRate = modRate or 1
-
-		if (spellIcon) then
-			local iconFrame = self:GetIcon()
-			iconFrame.Texture:SetTexture(spellIcon)
-			iconFrame.Texture:SetTexCoord(unpack(self.options.texcoord))
-
-			if (borderColor) then
-				iconFrame:SetBackdropBorderColor(Plater:ParseColors(borderColor))
-			else
-				iconFrame:SetBackdropBorderColor(0, 0, 0 ,0)
-			end
-
-			if (startTime) then
-				CooldownFrame_Set (iconFrame.Cooldown, startTime, duration, true, true, modRate)
-
-				if (self.options.show_text) then
-					iconFrame.CountdownText:Show()
-
-					local now = GetTime()
-
-					iconFrame.timeRemaining = (startTime + duration - now) / modRate
-					iconFrame.expirationTime = startTime + duration
-
-					local formattedTime = (iconFrame.timeRemaining > 0) and self.options.decimal_timer and iconFrame.parentIconRow.FormatCooldownTimeDecimal(iconFrame.timeRemaining) or iconFrame.parentIconRow.FormatCooldownTime(iconFrame.timeRemaining) or ""
-					iconFrame.CountdownText:SetText(formattedTime)
-
-					iconFrame.CountdownText:SetPoint(self.options.text_anchor or "center", iconFrame, self.options.text_rel_anchor or "center", self.options.text_x_offset or 0, self.options.text_y_offset or 0)
-					detailsFramework:SetFontSize(iconFrame.CountdownText, self.options.text_size)
-					detailsFramework:SetFontFace (iconFrame.CountdownText, self.options.text_font)
-					detailsFramework:SetFontOutline (iconFrame.CountdownText, self.options.text_outline)
-
-					if self.options.on_tick_cooldown_update then
-						iconFrame.lastUpdateCooldown = now
-						iconFrame:SetScript("OnUpdate", self.OnIconTick)
-					else
-						iconFrame:SetScript("OnUpdate", nil)
-					end
-
-				else
-					iconFrame:SetScript("OnUpdate", nil)
-					iconFrame.CountdownText:Hide()
-				end
-
-				iconFrame.Cooldown:SetReverse (self.options.cooldown_reverse)
-				iconFrame.Cooldown:SetDrawSwipe (self.options.cooldown_swipe_enabled)
-				iconFrame.Cooldown:SetEdgeTexture (self.options.cooldown_edge_texture)
-				iconFrame.Cooldown:SetHideCountdownNumbers (self.options.surpress_blizzard_cd_timer)
-			else
-				iconFrame.timeRemaining = nil
-				iconFrame.expirationTime = nil
-				iconFrame:SetScript("OnUpdate", nil)
-				iconFrame.CountdownText:Hide()
-			end
-
-			if (descText and self.options.desc_text) then
-				iconFrame.Desc:Show()
-				iconFrame.Desc:SetText(descText.text)
-				iconFrame.Desc:SetTextColor(detailsFramework:ParseColors(descText.text_color or self.options.desc_text_color))
-				iconFrame.Desc:SetPoint(self.options.desc_text_anchor or "bottom", iconFrame, self.options.desc_text_rel_anchor or "top", self.options.desc_text_x_offset or 0, self.options.desc_text_y_offset or 2)
-				detailsFramework:SetFontSize(iconFrame.Desc, descText.text_size or self.options.desc_text_size)
-				detailsFramework:SetFontFace (iconFrame.Desc, self.options.desc_text_font)
-				detailsFramework:SetFontOutline (iconFrame.Desc, self.options.desc_text_outline)
-			else
-				iconFrame.Desc:Hide()
-			end
-
-			if (count and count > 1 and self.options.stack_text) then
-				iconFrame.StackText:Show()
-				iconFrame.StackText:SetText(count)
-				iconFrame.StackText:SetTextColor(detailsFramework:ParseColors(self.options.desc_text_color))
-				iconFrame.StackText:SetPoint(self.options.stack_text_anchor or "center", iconFrame, self.options.stack_text_rel_anchor or "bottomright", self.options.stack_text_x_offset or 0, self.options.stack_text_y_offset or 0)
-				detailsFramework:SetFontSize(iconFrame.StackText, self.options.stack_text_size)
-				detailsFramework:SetFontFace (iconFrame.StackText, self.options.stack_text_font)
-				detailsFramework:SetFontOutline (iconFrame.StackText, self.options.stack_text_outline)
-			else
-				iconFrame.StackText:Hide()
-			end
-
-			PixelUtil.SetSize(iconFrame, self.options.icon_width, self.options.icon_height)
-			iconFrame:Show()
-
-			--update the size of the frame
-			self:SetWidth((self.options.left_padding * 2) + (self.options.icon_padding * (self.NextIcon-2)) + (self.options.icon_width * (self.NextIcon - 1)))
-			self:SetHeight(self.options.icon_height + (self.options.top_padding * 2))
-
-			--make information available
-			iconFrame.spellId = spellId
-			iconFrame.startTime = startTime
-			iconFrame.duration = duration
-			iconFrame.count = count
-			iconFrame.debuffType = debuffType
-			iconFrame.caster = caster
-			iconFrame.canStealOrPurge = canStealOrPurge
-			iconFrame.isBuff = isBuff
-			iconFrame.spellName = spellName
-
-			iconFrame.identifierKey = nil -- only used for "specific" add/remove
-
-			--add the spell into the cache
-			self.AuraCache [spellId or -1] = true
-			self.AuraCache [spellName] = true
-			self.AuraCache.canStealOrPurge = self.AuraCache.canStealOrPurge or canStealOrPurge
-			self.AuraCache.hasEnrage = self.AuraCache.hasEnrage or debuffType == "" --yes, enrages are empty-string...
-
-			--show the frame
-			self:Show()
-
-			return iconFrame
-		end
-	end,
-
-	OnIconTick = function(self, deltaTime)
-		local now = GetTime()
-		if (self.lastUpdateCooldown + 0.05) <= now then
-			self.timeRemaining = self.expirationTime - now
-			if self.timeRemaining > 0 then
-				if self.parentIconRow.options.decimal_timer then
-					self.CountdownText:SetText(self.parentIconRow.FormatCooldownTimeDecimal(self.timeRemaining))
-				else
-					self.CountdownText:SetText(self.parentIconRow.FormatCooldownTime(self.timeRemaining))
-				end
-			else
-				self.CountdownText:SetText("")
-			end
-			self.lastUpdateCooldown = now
-		end
-	end,
-
-	FormatCooldownTime = function(formattedTime)
-		if (formattedTime >= 3600) then
-			formattedTime = floor(formattedTime / 3600) .. "h"
-
-		elseif (formattedTime >= 60) then
-			formattedTime = floor(formattedTime / 60) .. "m"
-
-		else
-			formattedTime = floor(formattedTime)
-		end
-		return formattedTime
-	end,
-
-	FormatCooldownTimeDecimal = function(formattedTime)
-        if formattedTime < 10 then
-            return ("%.1f"):format(formattedTime)
-        elseif formattedTime < 60 then
-            return ("%d"):format(formattedTime)
-        elseif formattedTime < 3600 then
-            return ("%d:%02d"):format(formattedTime/60%60, formattedTime%60)
-        elseif formattedTime < 86400 then
-            return ("%dh %02dm"):format(formattedTime/(3600), formattedTime/60%60)
-        else
-            return ("%dd %02dh"):format(formattedTime/86400, (formattedTime/3600) - (floor(formattedTime/86400) * 24))
-        end
-	end,
-
-	RemoveSpecificIcon = function(self, identifierKey)
-		if not identifierKey or identifierKey == "" then
-			return
-		end
-
-		table.wipe(self.AuraCache)
-
-		local iconPool = self.IconPool
-		local countStillShown = 0
-		for i = 1, self.NextIcon -1 do
-			local iconFrame = iconPool[i]
-			if iconFrame.identifierKey and iconFrame.identifierKey == identifierKey then
-				iconFrame:Hide()
-				iconFrame:ClearAllPoints()
-				iconFrame.identifierKey = nil
-			else
-				self.AuraCache [iconFrame.spellId] = true
-				self.AuraCache [iconFrame.spellName] = true
-				self.AuraCache.canStealOrPurge = self.AuraCache.canStealOrPurge or iconFrame.canStealOrPurge
-				self.AuraCache.hasEnrage = self.AuraCache.hasEnrage or iconFrame.debuffType == "" --yes, enrages are empty-string...
-				countStillShown = countStillShown + 1
-			end
-		end
-
-		self:AlignAuraIcons()
-
-	end,
-
-	ClearIcons = function(self, resetBuffs, resetDebuffs)
-		resetBuffs = resetBuffs ~= false
-		resetDebuffs = resetDebuffs ~= false
-		table.wipe(self.AuraCache)
-
-		local iconPool = self.IconPool
-		for i = 1, self.NextIcon -1 do
-			local iconFrame = iconPool[i]
-			if iconFrame.isBuff == nil then
-				iconFrame:Hide()
-				iconFrame:ClearAllPoints()
-			elseif resetBuffs and iconFrame.isBuff then
-				iconFrame:Hide()
-				iconFrame:ClearAllPoints()
-			elseif resetDebuffs and not iconFrame.isBuff then
-				iconFrame:Hide()
-				iconFrame:ClearAllPoints()
-			else
-				self.AuraCache [iconFrame.spellId] = true
-				self.AuraCache [iconFrame.spellName] = true
-				self.AuraCache.canStealOrPurge = self.AuraCache.canStealOrPurge or iconFrame.canStealOrPurge
-				self.AuraCache.hasEnrage = self.AuraCache.hasEnrage or iconFrame.debuffType == "" --yes, enrages are empty-string...
-			end
-		end
-
-		self:AlignAuraIcons()
-
-	end,
-
-	AlignAuraIcons = function(self)
-
-		local iconPool = self.IconPool
-		local iconAmount = #iconPool
-		local countStillShown = 0
-
-		table.sort (iconPool, function(i1, i2) return i1:IsShown() and not i2:IsShown() end)
-
-		if iconAmount == 0 then
-			self:Hide()
-		else
-			-- re-anchor not hidden
-			for i = 1, iconAmount do
-				local iconFrame = iconPool[i]
-				local anchor = self.options.anchor
-				local anchorTo = i == 1 and self or self.IconPool [i - 1]
-				local xPadding = i == 1 and self.options.left_padding or self.options.icon_padding or 1
-				local growDirection = self.options.grow_direction
-
-				countStillShown = countStillShown + (iconFrame:IsShown() and 1 or 0)
-
-				iconFrame:ClearAllPoints()
-				if (growDirection == 1) then --grow to right
-					if (i == 1) then
-						PixelUtil.SetPoint(iconFrame, "left", anchorTo, "left", xPadding, 0)
-					else
-						PixelUtil.SetPoint(iconFrame, "left", anchorTo, "right", xPadding, 0)
-					end
-
-				elseif (growDirection == 2) then --grow to left
-					if (i == 1) then
-						PixelUtil.SetPoint(iconFrame, "right", anchorTo, "right", xPadding, 0)
-					else
-						PixelUtil.SetPoint(iconFrame, "right", anchorTo, "left", xPadding, 0)
-					end
-
-				end
-			end
-		end
-
-		self.NextIcon = countStillShown + 1
-
-	end,
-
-	GetIconGrowDirection = function(self)
-		local side = self.options.anchor.side
-
-		if (side == 1) then
-			return 1
-		elseif (side == 2) then
-			return 2
-		elseif (side == 3) then
-			return 1
-		elseif (side == 4) then
-			return 1
-		elseif (side == 5) then
-			return 2
-		elseif (side == 6) then
-			return 1
-		elseif (side == 7) then
-			return 2
-		elseif (side == 8) then
-			return 1
-		elseif (side == 9) then
-			return 1
-		elseif (side == 10) then
-			return 1
-		elseif (side == 11) then
-			return 2
-		elseif (side == 12) then
-			return 1
-		elseif (side == 13) then
-			return 1
-		end
-	end,
-
-	OnOptionChanged = function(self, optionName)
-		self:SetBackdropColor(unpack(self.options.backdrop_color))
-		self:SetBackdropBorderColor(unpack(self.options.backdrop_border_color))
-	end,
-}
-
-local default_icon_row_options = {
-	icon_width = 20,
-	icon_height = 20,
-	texcoord = {.1, .9, .1, .9},
-	show_text = true,
-	text_color = {1, 1, 1, 1},
-	text_size = 12,
-	text_font = "Arial Narrow",
-	text_outline = "NONE",
-	text_anchor = "center",
-	text_rel_anchor = "center",
-	text_x_offset = 0,
-	text_y_offset = 0,
-	desc_text = true,
-	desc_text_color = {1, 1, 1, 1},
-	desc_text_size = 7,
-	desc_text_font = "Arial Narrow",
-	desc_text_outline = "NONE",
-	desc_text_anchor = "bottom",
-	desc_text_rel_anchor = "top",
-	desc_text_x_offset = 0,
-	desc_text_y_offset = 2,
-	stack_text = true,
-	stack_text_color = {1, 1, 1, 1},
-	stack_text_size = 10,
-	stack_text_font = "Arial Narrow",
-	stack_text_outline = "NONE",
-	stack_text_anchor = "center",
-	stack_text_rel_anchor = "bottomright",
-	stack_text_x_offset = 0,
-	stack_text_y_offset = 0,
-	left_padding = 1, --distance between right and left
-	top_padding = 1, --distance between top and bottom
-	icon_padding = 1, --distance between each icon
-	backdrop = {},
-	backdrop_color = {0, 0, 0, 0.5},
-	backdrop_border_color = {0, 0, 0, 1},
-	anchor = {side = 6, x = 2, y = 0},
-	grow_direction = 1, --1 = to right 2 = to left
-	surpress_blizzard_cd_timer = false,
-	surpress_tulla_omni_cc = false,
-	on_tick_cooldown_update = true,
-	decimal_timer = false,
-	cooldown_reverse = false,
-	cooldown_swipe_enabled = true,
-	cooldown_edge_texture = "Interface\\Cooldown\\edge",
-}
-
-function detailsFramework:CreateIconRow (parent, name, options)
-	local f = _G.CreateFrame("frame", name, parent, "BackdropTemplate")
-	f.IconPool = {}
-	f.NextIcon = 1
-	f.AuraCache = {}
-
-	detailsFramework:Mixin(f, detailsFramework.IconRowFunctions)
-	detailsFramework:Mixin(f, detailsFramework.OptionsFunctions)
-
-	f:BuildOptionsTable (default_icon_row_options, options)
-
-	f:SetSize(f.options.icon_width, f.options.icon_height + (f.options.top_padding * 2))
-
-	f:SetBackdrop(f.options.backdrop)
-	f:SetBackdropColor(unpack(f.options.backdrop_color))
-	f:SetBackdropBorderColor(unpack(f.options.backdrop_border_color))
-
-	return f
 end
 
 -----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -5973,7 +5330,7 @@ function detailsFramework:OpenLoadConditionsPanel(optionsTable, callback, frameO
 
 		function loadConditionsFrame.Refresh (self)
 			if IS_WOW_PROJECT_MAINLINE then
-				--update the talents (might have changed if the player changed its specialization)
+				--update the talents (might have changed if the player changed its specializationid)
 				local talentList = {}
 				for _, talentTable in ipairs(detailsFramework:GetCharacterTalents()) do
 					if talentTable.ID then
