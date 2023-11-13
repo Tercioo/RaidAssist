@@ -569,12 +569,22 @@ local getSpellListAsHashTableFromSpellBook = function()
                 spellId = C_SpellBook.GetOverrideSpell(spellId)
                 local spellName = GetSpellInfo(spellId)
                 local bIsPassive = IsPassiveSpell(spellId, "player")
+
                 if LIB_OPEN_RAID_MULTI_OVERRIDE_SPELLS[spellId] then
                     for _, overrideSpellId in pairs(LIB_OPEN_RAID_MULTI_OVERRIDE_SPELLS[spellId]) do
                         completeListOfSpells[overrideSpellId] = true
                     end
                 elseif (spellName and not bIsPassive) then
                     completeListOfSpells[spellId] = true
+
+                else
+                    if (not spellName) then
+                        --print("no spellname")
+                        --print(GetSpellInfo(spellId))
+                    elseif (bIsPassive) then
+                        --print("is passive")
+                        --print(GetSpellInfo(spellId))
+                    end
                 end
             end
         end
@@ -915,5 +925,6 @@ openRaidLib.specAttribute = {
     ["EVOKER"] = {
         [1467] = 1, --Devastation
         [1468] = 1, --Preservation
+        [1473] = 1, --Augmentation
     },
 }
