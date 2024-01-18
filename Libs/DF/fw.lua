@@ -1,6 +1,6 @@
 
 
-local dversion = 482
+local dversion = 502
 local major, minor = "DetailsFramework-1.0", dversion
 local DF, oldminor = LibStub:NewLibrary(major, minor)
 
@@ -313,23 +313,51 @@ function DF.GetSpecializationRole(...)
 	return nil
 end
 
+--[=[ dump of C_EncounterJournal
+	["GetEncountersOnMap"] = function,
+	["SetPreviewMythicPlusLevel"] = function,
+	["GetLootInfoByIndex"] = function,
+	["GetSlotFilter"] = function,
+	["IsEncounterComplete"] = function,
+	["SetTab"] = function,
+	["ResetSlotFilter"] = function,
+	["OnOpen"] = function,
+	["InstanceHasLoot"] = function,
+	["GetSectionIconFlags"] = function,
+	["SetPreviewPvpTier"] = function,
+	["GetEncounterJournalLink"] = function,
+	["GetInstanceForGameMap"] = function,
+	["GetSectionInfo"] = function,
+	["GetLootInfo"] = function,
+	["GetDungeonEntrancesForMap"] = function,
+	["OnClose"] = function,
+	["SetSlotFilter"] = function,
+--]=]
+
 --build dummy encounter journal functions if they doesn't exists
 --this is done for compatibility with classic and if in the future EJ_ functions are moved to C_
+---@class EncounterJournal : table
+---@field EJ_GetInstanceForMap fun(mapId: number)
+---@field EJ_GetInstanceInfo fun(journalInstanceID: number)
+---@field EJ_SelectInstance fun(journalInstanceID: number)
+---@field EJ_GetEncounterInfoByIndex fun(index: number, journalInstanceID: number?)
+---@field EJ_GetEncounterInfo fun(journalEncounterID: number)
+---@field EJ_SelectEncounter fun(journalEncounterID: number)
+---@field EJ_GetSectionInfo fun(sectionID: number)
+---@field EJ_GetCreatureInfo fun(index: number, journalEncounterID: number?)
+---@field EJ_SetDifficulty fun(difficultyID: number)
+---@field EJ_GetNumLoot fun(): number
 DF.EncounterJournal = {
-	EJ_GetCurrentInstance = EJ_GetCurrentInstance or function() return nil end,
 	EJ_GetInstanceForMap = EJ_GetInstanceForMap or function() return nil end,
 	EJ_GetInstanceInfo = EJ_GetInstanceInfo or function() return nil end,
 	EJ_SelectInstance = EJ_SelectInstance or function() return nil end,
-
 	EJ_GetEncounterInfoByIndex = EJ_GetEncounterInfoByIndex or function() return nil end,
 	EJ_GetEncounterInfo = EJ_GetEncounterInfo or function() return nil end,
 	EJ_SelectEncounter = EJ_SelectEncounter or function() return nil end,
-
 	EJ_GetSectionInfo = EJ_GetSectionInfo or function() return nil end,
 	EJ_GetCreatureInfo = EJ_GetCreatureInfo or function() return nil end,
 	EJ_SetDifficulty = EJ_SetDifficulty or function() return nil end,
 	EJ_GetNumLoot = EJ_GetNumLoot or function() return 0 end,
-	EJ_GetLootInfoByIndex = EJ_GetLootInfoByIndex or function() return nil end,
 }
 
 --will always give a very random name for our widgets
@@ -495,13 +523,84 @@ function DF.table.find(t, value)
 	end
 end
 
+---find a value inside a sub table
+---@param index number
+---@param value any
+---@return integer|nil
+function DF.table.findsubtable(t, index, value)
+	for i = 1, #t do
+		if (type(t[i]) == "table") then
+			if (t[i][index] == value) then
+				return i
+			end
+		end
+	end
+end
+
+
+function DF:GetParentKeyPath(object)
+	local parentKey = object:GetParentKey()
+	if (not parentKey) then
+		return ""
+	end
+
+	local path = "" .. parentKey
+	local parent = object:GetParent()
+
+	while (parent) do
+		parentKey = parent:GetParentKey()
+
+		if (parentKey) then
+			path = parentKey .. "." .. path
+		else
+			return path
+		end
+
+		parent = parent:GetParent()
+	end
+
+	return path
+end
+
+function DF:GetParentNamePath(object)
+	local parent = object
+	local path = ""
+	while (parent) do
+		local parentName = parent:GetName()
+
+		if (not parentName) then
+			local parentOfParent = parent:GetParent()
+			if (parentOfParent) then
+				local parentKey = parentOfParent:GetParentKey()
+				if (parentKey) then
+					parentName = parentKey
+				else
+					return path:gsub("%.$", "")
+				end
+			end
+		end
+
+		if (parentName) then
+			path = parentName .. "." .. path
+		else
+			return path:gsub("%.$", "")
+		end
+
+		parent = parent:GetParent()
+	end
+
+	return path:gsub("%.$", "")
+end
+
 ---get a value from a table using a path, e.g. getfrompath(tbl, "a.b.c") is the same as tbl.a.b.c
 ---@param t table
 ---@param path string
+---@param subOffset number?
 ---@return any
-function DF.table.getfrompath(t, path)
+function DF.table.getfrompath(t, path, subOffset)
 	if (path:match("%.") or path:match("%[")) then
 		local value
+		local offset = 0
 
 		for key in path:gmatch("[%w_]+") do
 			value = t[key] or t[tonumber(key)]
@@ -513,6 +612,11 @@ function DF.table.getfrompath(t, path)
 
 			--update t for the next iteration
 			t = value
+			offset = offset + 1
+
+			if (subOffset == offset) then
+				return value
+			end
 		end
 
 		return value
@@ -592,7 +696,7 @@ end
 function DF.table.duplicate(t1, t2)
 	for key, value in pairs(t2) do
 		if (key ~= "__index" and key ~= "__newindex") then
-			--preserve a wowObject passing it to the new table with copying it
+			--preserve a UIObject passing it to the new table with copying it
 			if (type(value) == "table" and table.GetObjectType and table:GetObjectType()) then
 				t1[key] = value
 
@@ -1329,7 +1433,7 @@ function DF:SetFontOutline(fontString, outline)
 			outline = "OUTLINE"
 
 		elseif (type(outline) == "boolean" and not outline) then
-			outline = "NONE"
+			outline = "" --"NONE"
 
 		elseif (outline == 1) then
 			outline = "OUTLINE"
@@ -1338,6 +1442,7 @@ function DF:SetFontOutline(fontString, outline)
 			outline = "THICKOUTLINE"
 		end
 	end
+	outline = (not outline or outline == "NONE") and "" or outline
 
 	fontString:SetFont(font, fontSize, outline)
 end
@@ -1897,7 +2002,7 @@ local anchoringFunctions = {
 ---set the anchor point using a df_anchor table
 ---@param widget uiobject
 ---@param anchorTable df_anchor
----@param anchorTo uiobject
+---@param anchorTo uiobject?
 function DF:SetAnchor(widget, anchorTable, anchorTo)
 	anchorTo = anchorTo or widget:GetParent()
 	anchoringFunctions[anchorTable.side](widget, anchorTo, anchorTable.x, anchorTable.y)
@@ -1935,7 +2040,16 @@ end
 		IsColorTable = true,
 	}
 
-	---convert a any format of color to any other format of color
+	--takes in a color in one format and converts it to another specified format.
+	--here are the parameters it accepts:
+	--newFormat (string): The format to convert the color to. It can be one of the following: "commastring", "tablestring", "table", "tablemembers", "numbers", "hex".
+	--r (number|string): The red component of the color or a string representing the color.
+	--g (number|nil): The green component of the color. This is optional if r is a string.
+	--b (number|nil): The blue component of the color. This is optional if r is a string.
+	--a (number|nil): The alpha component of the color. This is optional and defaults to 1 if not provided.
+	--decimalsAmount (number|nil): The number of decimal places to round the color components to. This is optional and defaults to 4 if not provided.
+	--The function returns the color in the new format. The return type depends on the newFormat parameter. It can be a string, a table, or four separate number values (for the "numbers" format). 
+	--For the "hex" format, it returns a string representing the color in hexadecimal format.	
 	---@param newFormat string
 	---@param r number|string
 	---@param g number|nil
@@ -1993,6 +2107,40 @@ end
 	---@return unknown
 	function DF:IsHtmlColor(colorName)
 		return DF.alias_text_colors[colorName]
+	end
+
+	---return the brightness of a color from zero to one
+	---@param r number
+	---@param g number
+	---@param b number
+	---@return number
+	function DF:GetColorBrightness(r, g, b)
+		r, g, b = DF:ParseColors(r, g, b)
+		return 0.2134 * r + 0.7152 * g + 0.0721 * b
+	end
+
+	---return the hue of a color from red to blue to green to  yellow and back to red
+	---@param r number
+	---@param g number
+	---@param b number
+	---@return number
+	function DF:GetColorHue(r, g, b)
+		r, g, b = DF:ParseColors(r, g, b)
+
+		local minValue, maxValue = math.min(r, g, b), math.max(r, g, b)
+
+		if (maxValue == minValue) then
+			return 0
+
+		elseif (maxValue == r) then
+			return (g - b) / (maxValue - minValue) % 6
+
+		elseif (maxValue == g) then
+			return (b - r) / (maxValue - minValue) + 2
+
+		else
+			return (r - g) / (maxValue - minValue) + 4
+		end
 	end
 
 	---get the values passed and return r g b a color values

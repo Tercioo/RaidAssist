@@ -2691,6 +2691,7 @@ function Notepad:ENCOUNTER_START(event, ...) --~encounterstart ~start
 		if (bestMap) then
 			local instanceId = EJ_GetInstanceForMap(bestMap)
 			if (instanceId) then
+				--EJ_SelectInstance(instanceId)
 				EJ_SelectInstance(instanceId)
 			end
 		end
