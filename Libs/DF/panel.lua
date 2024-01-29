@@ -87,9 +87,9 @@ local default_framelayout_options = {
 	offset_x = 100,
 	use__width = false, --__width from the widget
 	offset_y = 20,
-	width = 0, --if bigger than 0, it will set the value
+	width = 1,
 	min_width = 0,
-	height = 0,
+	height = 1,
 	break_if_hidden = true, --stop if encounters a hidden frame
 }
 
@@ -1483,40 +1483,97 @@ end
 
 
 ------------color pick
-local color_pick_func = function()
-	local r, g, b = ColorPickerFrame:GetColorRGB()
-	local a = OpacitySliderFrame:GetValue()
-	ColorPickerFrame:dcallback (r, g, b, a, ColorPickerFrame.dframe)
+local _, _, _, toc = GetBuildInfo()
+if ((ColorPickerFrame and ColorPickerFrame.SetupColorPickerAndShow) or toc >= 100205) then -- maybe fallback to only check CPF in the future
+	local color_pick_func = function(...)
+		local r, g, b = ColorPickerFrame:GetColorRGB()
+		local a = ColorPickerFrame:GetColorAlpha()
+		ColorPickerFrame:dcallback (r, g, b, a, ColorPickerFrame.dframe)
+	end
+
+	local color_pick_func_cancel = function()
+		local r, g, b, a = ColorPickerFrame.previousValues.r, ColorPickerFrame.previousValues.g, ColorPickerFrame.previousValues.b, ColorPickerFrame.previousValues.a
+		ColorPickerFrame.Content.ColorPicker:SetColorRGB(r, g, b)
+		ColorPickerFrame:dcallback (r, g, b, a, ColorPickerFrame.dframe)
+	end
+
+	function detailsFramework:ColorPick(frame, r, g, b, alpha, callback)
+
+		ColorPickerFrame:ClearAllPoints()
+		ColorPickerFrame:SetPoint("bottomleft", frame, "topright", 0, 0)
+
+		ColorPickerFrame.dcallback = callback
+		ColorPickerFrame.dframe = frame
+
+		ColorPickerFrame.func = color_pick_func
+		ColorPickerFrame.opacityFunc = color_pick_func
+		ColorPickerFrame.cancelFunc = color_pick_func_cancel
+
+		ColorPickerFrame.opacity = alpha
+		ColorPickerFrame.hasOpacity = alpha and true
+
+		ColorPickerFrame.previousValues = {r, g, b}
+		ColorPickerFrame.previousAlpha = alpha
+		ColorPickerFrame:SetParent(UIParent)
+		ColorPickerFrame:SetFrameStrata("tooltip")
+
+		local info = {
+			swatchFunc = color_pick_func,
+			hasOpacity = alpha and true,
+			opacityFunc = color_pick_func,
+			opacity = alpha,
+			previousValues = {r = r, g = g, b = b, a = alpha},
+			cancelFunc = color_pick_func_cancel,
+			r = r,
+			g = g,
+			b = b,
+		}
+		--OpenColorPicker(info)
+		ColorPickerFrame:SetupColorPickerAndShow(info)
+
+	end
+else
+	local color_pick_func = function()
+		local r, g, b = ColorPickerFrame:GetColorRGB()
+		local a = OpacitySliderFrame:GetValue()
+		a = math.abs(a - 1)
+		ColorPickerFrame:dcallback (r, g, b, a, ColorPickerFrame.dframe)
+	end
+	local color_pick_func_cancel = function()
+		ColorPickerFrame:SetColorRGB (unpack(ColorPickerFrame.previousValues))
+		local r, g, b = ColorPickerFrame:GetColorRGB()
+		local a = OpacitySliderFrame:GetValue()
+		a = math.abs(a - 1)
+		ColorPickerFrame:dcallback (r, g, b, a, ColorPickerFrame.dframe)
+	end
+
+	function detailsFramework:ColorPick (frame, r, g, b, alpha, callback)
+
+		ColorPickerFrame:ClearAllPoints()
+		ColorPickerFrame:SetPoint("bottomleft", frame, "topright", 0, 0)
+
+		ColorPickerFrame.dcallback = callback
+		ColorPickerFrame.dframe = frame
+
+		ColorPickerFrame.func = color_pick_func
+		ColorPickerFrame.opacityFunc = color_pick_func
+		ColorPickerFrame.cancelFunc = color_pick_func_cancel
+
+		alpha = math.abs(alpha - 1)
+		ColorPickerFrame.opacity = alpha
+		ColorPickerFrame.hasOpacity = alpha and true
+
+		ColorPickerFrame.previousValues = {r, g, b}
+		ColorPickerFrame:SetParent(UIParent)
+		ColorPickerFrame:SetFrameStrata("tooltip")
+		ColorPickerFrame:SetColorRGB (r, g, b)
+		ColorPickerFrame:Show()
+	end
 end
-local color_pick_func_cancel = function()
-	ColorPickerFrame:SetColorRGB (unpack(ColorPickerFrame.previousValues))
-	local r, g, b = ColorPickerFrame:GetColorRGB()
-	local a = OpacitySliderFrame:GetValue()
-	ColorPickerFrame:dcallback (r, g, b, a, ColorPickerFrame.dframe)
-end
 
-function detailsFramework:ColorPick (frame, r, g, b, alpha, callback)
 
-	ColorPickerFrame:ClearAllPoints()
-	ColorPickerFrame:SetPoint("bottomleft", frame, "topright", 0, 0)
 
-	ColorPickerFrame.dcallback = callback
-	ColorPickerFrame.dframe = frame
 
-	ColorPickerFrame.func = color_pick_func
-	ColorPickerFrame.opacityFunc = color_pick_func
-	ColorPickerFrame.cancelFunc = color_pick_func_cancel
-
-	ColorPickerFrame.opacity = alpha
-	ColorPickerFrame.hasOpacity = alpha and true
-
-	ColorPickerFrame.previousValues = {r, g, b}
-	ColorPickerFrame:SetParent(UIParent)
-	ColorPickerFrame:SetFrameStrata("tooltip")
-	ColorPickerFrame:SetColorRGB (r, g, b)
-	ColorPickerFrame:Show()
-
-end
 
 ------------icon pick
 function detailsFramework:IconPick (callback, close_when_select, param1, param2)
@@ -2028,7 +2085,7 @@ local no_options = {}
 ---NoCloseButton = false, --if true, won't show the close button
 ---NoTitleBar = false, --if true, don't create the title bar
 ---RoundedCorners = false, --use rounded corners if true
----@class simplepanel
+---@class simplepanel : frame
 ---@field TitleBar frame
 ---@field Title fontstring
 ---@field Close button
@@ -4167,7 +4224,7 @@ detailsFramework.RadioGroupCoreFunctions = {
 			if (optionTable.mask) then
 				checkbox.Icon:SetMask(optionTable.mask)
 			else
-				checkbox.Icon:SetMask(nil)
+				checkbox.Icon:SetMask("")
 			end
 		else
 			checkbox.Icon:SetTexture("")
