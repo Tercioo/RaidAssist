@@ -1,8 +1,9 @@
 
---data for wrath of the lich king expansion
+--data for cataclysm expansion
+--ToDo: Cata Data needed
 
 local versionString, revision, launchDate, gameVersion = GetBuildInfo()
-if (gameVersion >= 40000 or gameVersion < 30000) then
+if (gameVersion >= 50000 or gameVersion < 30000) then
     return
 end
 
@@ -605,6 +606,9 @@ elseif (GetBuildInfo():match ("%d") == "2") then
 	LIB_OPEN_RAID_SPELL_CUSTOM_NAMES = {}
 
 elseif (GetBuildInfo():match ("%d") == "3") then
+	LIB_OPEN_RAID_SPELL_CUSTOM_NAMES = {}
+
+elseif (GetBuildInfo():match ("%d") == "4") then
 	LIB_OPEN_RAID_SPELL_CUSTOM_NAMES = {}
 
 else
