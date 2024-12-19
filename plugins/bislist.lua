@@ -81,16 +81,16 @@ end
 
 --return the item level of the item the player currently possesses
 local getCurrentOwnItem = function(itemLink)
-	local itemName, itemLink, itemQuality, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, sellPrice, classID, subclassID, bindType, expacID, setID, isCraftingReagent = GetItemInfo(itemLink)
+	local itemName, itemLink, itemQuality, itemLevel, itemMinLevel, itemType, itemSubType, itemStackCount, itemEquipLoc, itemTexture, sellPrice, classID, subclassID, bindType, expacID, setID, isCraftingReagent = C_Item.GetItemInfo(itemLink)
 
 	if (itemName and itemLink) then
-		local effectiveILvl, isPreview, baseILvl = GetDetailedItemLevelInfo(itemLink)
+		local effectiveILvl, isPreview, baseILvl = C_Item.GetDetailedItemLevelInfo(itemLink)
 		itemLevel = effectiveILvl or itemLevel
 
 		for id = 0, 17 do
 			local hasEquippedItemLink = GetInventoryItemLink("player", id)
 			if (hasEquippedItemLink) then
-				local thisItemName, thisItemLink, thisItemQuality, thisItemLevel = GetItemInfo(hasEquippedItemLink)
+				local thisItemName, thisItemLink, thisItemQuality, thisItemLevel = C_Item.GetItemInfo(hasEquippedItemLink)
 				if (thisItemName and thisItemLink and thisItemQuality and thisItemLevel) then
 					if (itemName == thisItemName) then
 						local itemId = itemLink:match("|Hitem%:(%d+)%:")
@@ -107,7 +107,7 @@ local getCurrentOwnItem = function(itemLink)
 				for slotId = 1, numSlots do
 					local itemLink = C_Container.GetContainerItemLink(bagId, slotId)
 					if (itemLink) then
-						local thisItemName, thisItemLink, thisItemQuality, thisItemLevel = GetItemInfo(itemLink)
+						local thisItemName, thisItemLink, thisItemQuality, thisItemLevel = C_Item.GetItemInfo(itemLink)
 						if (thisItemName and thisItemLink and thisItemQuality and thisItemLevel) then
 							if (itemName == thisItemName) then
 								local itemId = itemLink:match("|Hitem%:(%d+)%:")
@@ -368,7 +368,8 @@ function BisList.BuildOptions(frame)
 	local lootButtonOnEnter = function(lootButton)
 		if (lootButton.showTooltipCooldown > GetTime()) then
 			C_Timer.After(lootButton.showTooltipCooldown - GetTime() + 0.01, function()
-				if (GetMouseFocus() == lootButton) then
+				local framesUnderMouse = GetMouseFoci()
+				if (framesUnderMouse[1] == lootButton) then
 					lootButton:GetScript("OnEnter")(lootButton)
 				end
 			end)
@@ -788,7 +789,7 @@ function BisList.BuildOptions(frame)
 			availableLootItemsFromBoss[thisLoot.itemID] = true
 
 			--thisLoot.weaponTypeError = thisLoot.weaponTypeError and 0 or 1
-			thisLoot.equipSort = IsEquippableItem(thisLoot.link) and thisLoot.filterType or thisLoot.filterType + 25
+			thisLoot.equipSort = C_Item.IsEquippableItem(thisLoot.link) and thisLoot.filterType or thisLoot.filterType + 25
 		end
 
 		--if an item gets removed from the player class by a game hotfix, need to remove that item from the player bislist
@@ -796,7 +797,7 @@ function BisList.BuildOptions(frame)
 		for itemId, lootInfo in pairs(bisList) do
 			if (lootInfo.encounterID == bossId) then
 				if (not availableLootItemsFromBoss[itemId]) then
-					local itemName = GetItemInfo(itemId)
+					local itemName = C_Item.GetItemInfo(itemId)
 					print(itemName, "removed from your bis list: the item isn't for your class anymore.")
 					bisList[itemId] = nil
 				end

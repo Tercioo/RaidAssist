@@ -10,6 +10,17 @@ local Notepad = {version = 1, pluginname = "Notes", pluginId = "NOTE", displayNa
 _G ["RaidAssistNotepad"] = Notepad
 _G ["RANotes"] = Notepad
 
+local GetSpellInfo = GetSpellInfo
+
+if (C_Spell and C_Spell.GetSpellInfo) then
+    GetSpellInfo = function(...)
+        local result = C_Spell.GetSpellInfo(...)
+        if result then
+            return result.name, 1, result.iconID
+        end
+    end
+end
+
 local default_config = {
 	notes = {},
 	currently_shown = false,
@@ -4463,7 +4474,7 @@ function Notepad.BuildOptions(frame) --~options õptions
 					spellButton:SetHook("OnLeave", on_leave_cooldown)
 
 					local spellTexture = spellButton:CreateTexture (nil, "background")
-					spellTexture:SetTexture(spellIcon)
+					spellTexture:SetTexture(spellIcon) --green icon
 					spellTexture:SetTexCoord(5/65, 59/64, 5/65, 59/64)
 					spellTexture:SetAlpha(0.85)
 					spellTexture:SetAllPoints()

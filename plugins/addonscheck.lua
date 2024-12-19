@@ -322,8 +322,8 @@ function AddonsCheck.BuildOptions (frame)
 	local lastAddon2 = "NOADDONNAME"
 	local index = 1
 
-	for i = 1, GetNumAddOns() do
-		local addonName = GetAddOnInfo(i)
+	for i = 1, C_AddOns.GetNumAddOns() do
+		local addonName = C_AddOns.GetAddOnInfo(i)
 
 		--> check for not addin plugins of the same addon
 		if ((not addonName:lower():find(lastAddon)) and (not addonName:lower():find(lastAddon2))) then
@@ -479,8 +479,8 @@ end
 function AddonsCheck.BuildAddonList()
 	local addonsList = AddonsCheck.LatestSyncAddonNames --tabela numerica com os nomes dos addons
 	local addonsInstalled = {} --tabela hash com os nomes dos addons e se esta instalado ou n�o
-	for i = 1, GetNumAddOns() do
-		local name, title, notes, loadable, reason, security, newVersion = GetAddOnInfo (i)
+	for i = 1, C_AddOns.GetNumAddOns() do
+		local name, title, notes, loadable, reason, security, newVersion = C_AddOns.GetAddOnInfo(i)
 		addonsInstalled [name] = loadable and RESPONSE_TYPE_HAVE or RESPONSE_TYPE_NOT_HAVE
 	end
 

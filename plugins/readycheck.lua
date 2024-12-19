@@ -1,12 +1,13 @@
 
 local RA = _G.RaidAssist
 local L = LibStub ("AceLocale-3.0"):GetLocale ("RaidAssistAddon")
+---@type detailsframework
 local DF = DetailsFramework
 local _
 
 local default_priority = 1
 local default_config = {
-	enabled = true,
+	enabled = false,
 	menu_priority = 1,
 
 	show_window_after = 0.9,
@@ -25,7 +26,16 @@ local default_config = {
 	buff_indicator_food = true,
 }
 
-local UnitAura = UnitAura
+local GetSpellInfo = GetSpellInfo
+
+if (C_Spell and C_Spell.GetSpellInfo) then
+    GetSpellInfo = function(...)
+        local result = C_Spell.GetSpellInfo(...)
+        if result then
+            return result.name, 1, result.iconID
+        end
+    end
+end
 
 local icon_texcoord = {l=0.078125, r=0.921875, t=0.078125, b=0.921875}
 local text_color_enabled = {r=1, g=1, b=1, a=1}
@@ -36,7 +46,7 @@ local raidBuffs = {
 	{name = "Stamina", spellId = {[21562] = true}, texture = "spell_holy_wordfortitude", class = "PRIEST", enabled = true, db = "buff_indicator_stamina"},
 	{name = "Intellect", spellId = {[1459] = true}, texture = "spell_holy_magicalsentry", class = "MAGE", enabled = true, db = "buff_indicator_intellect"},
 	{name = "Attack Power", spellId = {[6673] = true}, texture = "ability_warrior_battleshout", class = "WARRIOR", enabled = true, db = "buff_indicator_attackpower"},
-	{name = "Flask", spellId = DetailsFramework.FlaskIDs, texture = "inv_alchemy_90_flask_green", enabled = true, db = "buff_indicator_flask"},
+	{name = "Flask", spellId = LIB_OPEN_RAID_FLASK_BUFF, texture = "inv_alchemy_90_flask_green", enabled = true, db = "buff_indicator_flask"},
 	{name = "Oil", spellId = DetailsFramework.WeaponEnchantIds, texture = "inv_misc_potionseta", enabled = true, db = "buff_indicator_oil", weaponEnchant = true},
 	{name = "Rune", spellId = DetailsFramework.RuneIDs, texture = "inv_misc_gem_azuredraenite_01", enabled = true, db = "buff_indicator_rune"},
 	{name = "Food", spellId = DetailsFramework.FoodIDs, texture = "INV_Misc_Food_100_HardCheese", enabled = true, db = "buff_indicator_food"},
@@ -254,8 +264,8 @@ function ReadyCheck.UpdateIndicators()
 				indicatorFrame.texture:SetTexture("Interface\\ICONS\\" .. raidBuff.texture)
 				indicatorFrame.texture:SetTexCoord(.1, .9, .1, .9)
 
-				indicatorFrame.spellName = GetSpellInfo(raidBuffs.spellId)
-				indicatorFrame.class = raidBuffs.class
+				indicatorFrame.spellName = raidBuff.name
+				indicatorFrame.class = raidBuff.class
 
 				indicatorFrame:SetSize(ReadyCheck.db.buff_indicator_size, ReadyCheck.db.buff_indicator_size)
 				indicatorFrame.redBackground:SetSize(ReadyCheck.db.buff_indicator_size*0.3, ReadyCheck.db.buff_indicator_size*0.3) --30% of the indicator size
@@ -301,19 +311,6 @@ local hideScreenPanel = function()
 	end
 end
 
-local playerHasAura = function(unitId, spellId)
-	for buffIndex = 1, 40 do
-		local name, texture, count, debuffType, duration, expirationTime, caster, canStealOrPurge, nameplateShowPersonal, buffSpellId = UnitAura(unitId, buffIndex, "HELPFUL")
-		if (name) then
-			if (spellId == buffSpellId) then
-				return true
-			end
-		else
-			return false
-		end
-	end
-end
-
 local timeToScamBuffs = 0
 local playerTotal = 0
 local intervalToCheckBuffs = 0.8
@@ -338,7 +335,7 @@ local onUpdate = function(self, deltaTime) --~update ~onupdate õnupdate
 	if (timeToScamBuffs < 0) then
 		timeToScamBuffs = intervalToCheckBuffs
 		playerTotal = 0
-		ReadyCheck.ScreenPanel.titleBar.Title.text = ReadyCheck.ScreenPanel.titleBar.Title.originalText .. " | " .. max(floor(ReadyCheck.timeout), 0)
+		ReadyCheck.ScreenPanel.titleBar.Title.text = ReadyCheck.ScreenPanel.titleBar.Title.originalText .. " | " .. math.max(math.floor(ReadyCheck.timeout), 0)
 
 		for _, Player in ipairs(ReadyCheck.PlayerList) do
 			Player:Hide()
@@ -357,10 +354,11 @@ local onUpdate = function(self, deltaTime) --~update ~onupdate õnupdate
 			playerBuffsSpellIds[player] = {}
 			local playerBuffTable = playerBuffsSpellIds[player]
 
-			for buffIndex = 1, 40 do
-				local name, texture, count, debuffType, duration, expirationTime, caster, canStealOrPurge, nameplateShowPersonal, buffSpellId = UnitAura(player, buffIndex, "HELPFUL")
-				if (name) then
-					playerBuffTable[buffSpellId] = true
+			for buffIndex = 1, 41 do
+				---@type aurainfo
+				local auraInfo = C_UnitAuras.GetAuraDataByIndex(player, buffIndex, "HELPFUL")
+				if (auraInfo.name) then
+					playerBuffTable[auraInfo.spellId] = true
 				else
 					break
 				end

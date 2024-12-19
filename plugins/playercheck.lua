@@ -26,6 +26,17 @@ local icon_texture = [[Interface\CURSOR\thumbsup]]
 local text_color_enabled = {r=1, g=1, b=1, a=1}
 local text_color_disabled = {r=0.5, g=0.5, b=0.5, a=1}
 
+local GetSpellInfo = GetSpellInfo
+
+if (C_Spell and C_Spell.GetSpellInfo) then
+    GetSpellInfo = function(...)
+        local result = C_Spell.GetSpellInfo(...)
+        if result then
+            return result.name, 1, result.iconID
+        end
+    end
+end
+
 ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 PlayerCheck.menu_text = function (plugin)
 	return icon_texture, icon_texcoord, "Player Check", text_color_enabled
@@ -128,8 +139,10 @@ function PlayerCheck.BuildOptions(frame)
 
 	--> register callback on lib Open Raid
 		function PlayerCheck.RefreshScrollData()
-			if (frame.playerInfoScroll:IsShown()) then
-				frame.playerInfoScroll.RefreshData()
+			if (frame.playerInfoScroll) then
+				if (frame.playerInfoScroll:IsShown()) then
+					frame.playerInfoScroll.RefreshData()
+				end
 			end
 		end
 		openRaidLib.RegisterCallback(PlayerCheck, "PlayerUpdate", "RefreshScrollData")
@@ -139,12 +152,7 @@ function PlayerCheck.BuildOptions(frame)
 		openRaidLib.RegisterCallback(PlayerCheck, "GearUpdate", "RefreshScrollData")
 		openRaidLib.RegisterCallback(PlayerCheck, "GearDurabilityUpdate", "RefreshScrollData")
 
-	--talent frame
-	TalentFrame_LoadUI()
-	ClassTalentFrame_LoadUI()
-
-	RaidAssistClassTalentFrame = CreateFrame("frame", "RaidAssistClassTalentFrame", frame, "ClassTalentFrameTemplate")
-
+	RaidAssistClassTalentFrame = CreateFrame("frame", "RaidAssistClassTalentFrame", frame)
 	RaidAssistClassTalentFrame:ClearAllPoints()
 	RaidAssistClassTalentFrame:SetParent(frame)
 	RaidAssistClassTalentFrame:SetPoint("topleft", frame, "topleft", 450, -20)
@@ -185,7 +193,7 @@ function PlayerCheck.BuildOptions(frame)
 		{text = "Repair", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "No Enchant", width = headerSizeBig, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		{text = "No Gems", width = headerSizeMedium, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
-		{text = "Talents", width = headerSizeTalents, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
+		--{text = "Talents", width = headerSizeTalents, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
 		--{text = "Renown", width = headerSizeSmall, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = true, order = "DESC"},
 		--{text = "Conduit", width = 195, align = columnAlign, offset = columnAlignOffset, dataType = "number", canSort = false, order = "DESC"},
 	}
