@@ -1,13 +1,14 @@
 
 local RA = _G.RaidAssist
 local L = LibStub("AceLocale-3.0"):GetLocale("RaidAssistAddon")
-local LibGroupInSpecT = LibStub:GetLibrary("LibGroupInSpecT-1.1")
 local default_priority = 9
 local _
 
 local LibWindow = LibStub("LibWindow-1.1")
 local SharedMedia = _G.LibStub:GetLibrary("LibSharedMedia-3.0")
 local debugMode = false
+
+local openRaidLib = LibStub:GetLibrary("LibOpenRaid-1.0", true)
 
 local GetUnitName = GetUnitName
 local Ambiguate = Ambiguate
@@ -121,10 +122,10 @@ for specId, cooldowns in pairs (LIB_OPEN_RAID_COOLDOWNS_BY_SPEC) do
 			if (cooldownInfo) then
 				local classTable = spellList[cooldownInfo.class] or {}
 				spellList[cooldownInfo.class] = classTable
-				
+
 				local specTable = classTable[specId] or {}
 				classTable [specId] = specTable
-			
+
 				specTable[spellId] = {
 					cooldown = cooldownInfo.cooldown,
 					need_talent = cooldownInfo.talent,
@@ -174,7 +175,7 @@ Cooldowns.OnProfileChanged = function (plugin)
 	else
 		Cooldowns.OnDisable (plugin)
 	end
-	
+
 	if (plugin.options_built) then
 		--plugin.main_frame:RefreshOptions()
 	end
@@ -369,7 +370,7 @@ function Cooldowns.CheckValues (panel)
 	Cooldowns.table.deploy (panel, panel_prototype)
 end
 
-function Cooldowns:LibGroupInSpecT_UpdateReceived()
+function Cooldowns.OnReceiveCooldownListUpdate(unitId, unitCooldowns, allUnitsCooldowns)
 	Cooldowns.RosterUpdate()
 end
 
@@ -419,7 +420,8 @@ end
 
 function Cooldowns.CheckUnitCooldowns (unitID, groupType, groupIndex)
 	local guid = UnitGUID(unitID)
-	local info = LibGroupInSpecT:GetCachedInfo (guid)
+	local info = openRaidLib.GetUnitInfo(unitID)
+
 
 	if (not info and guid) then
 		--get information from Details!
@@ -433,17 +435,17 @@ function Cooldowns.CheckUnitCooldowns (unitID, groupType, groupIndex)
 				for i, talentId in ipairs(talents) do
 					talents2[talentId] = true
 				end
-				info = {class_id = classId, global_spec_id = specId, class = class, talents = talents2}
+				info = {classId = classId, specId = specId, class = class, talents = talents2}
 			end
 		end
 	end
 
-	if (info and info.class_id and info.global_spec_id and info.global_spec_id > 0) then
+	if (info and info.classId and info.specId and info.specId > 0) then
 		local name = getUnitName(unitID)
-		local unitTable = Cooldowns.Roster [info.class_id] [name]
+		local unitTable = Cooldowns.Roster [info.classId] [name]
 		local _, class = UnitClass(unitID)
-		local unitSpells = spellList [info.class or class] and spellList [info.class or class] [info.global_spec_id]
-		
+		local unitSpells = spellList [info.class or class] and spellList [info.class or class] [info.specId]
+
 		local spellsAdded = {}
 
 		for spellId, spelltable in pairs (unitSpells or {}) do
@@ -456,8 +458,8 @@ function Cooldowns.CheckUnitCooldowns (unitID, groupType, groupIndex)
 
 			if (canAdd) then
 				if (not unitTable) then
-					Cooldowns.Roster [info.class_id] [name] = {}
-					unitTable = Cooldowns.Roster [info.class_id] [name]
+					Cooldowns.Roster [info.classId] [name] = {}
+					unitTable = Cooldowns.Roster [info.classId] [name]
 				end
 
 				unitTable.spells = unitTable.spells or {}
@@ -471,10 +473,10 @@ function Cooldowns.CheckUnitCooldowns (unitID, groupType, groupIndex)
 				unitTable.spells[spellId].charges_amt = unitTable.spells [spellId].charges_amt or amtCharges
 				unitTable.spells[spellId].charges_max = unitTable.spells [spellId].charges_max or amtCharges
 				unitTable.spells[spellId].charges_next = unitTable.spells [spellId].charges_next or 0
-				
+
 				unitTable.spells[spellId].type = spelltable.type
 				unitTable.spells[spellId].spellid = spellId
-				
+
 				spellsAdded [spellId] = true
 				trackingSpells [spellId] = true
 			end
@@ -482,7 +484,7 @@ function Cooldowns.CheckUnitCooldowns (unitID, groupType, groupIndex)
 
 		if (unitTable and next (unitTable.spells)) then
 			unitTable.class = info.class
-			unitTable.spec = info.global_spec_id
+			unitTable.spec = info.specId
 			unitTable.connected = UnitIsConnected (unitID)
 			unitTable.alive = UnitHealth (unitID) > 1
 
@@ -696,7 +698,7 @@ local refreshBarSettings = function(self)
 	if (not Cooldowns.db.bar_class_color) then
 		self.color = Cooldowns.db.bar_fixed_color
 	end
-	
+
 	self:SetIconSize(height-1, height-1)
 	self.icon_death:SetSize (height, height)
 	self.icon_offline:SetSize (height, height)
@@ -706,7 +708,7 @@ local refreshBarSettings = function(self)
 
 	PixelUtil.SetPoint (self, "topleft", self:GetParent(), "topleft", 2, (-(self.MyIndex-1)*(Cooldowns.db.bar_height+1)) + (-2))
 	PixelUtil.SetPoint (self, "topright", self:GetParent(), "topright", -2, (-(self.MyIndex-1)*(Cooldowns.db.bar_height+1)) + (-2))
-	
+
 	self:EnableMouse (false)
 end
 
@@ -836,7 +838,7 @@ function Cooldowns.GetPanelInScreen (id)
 		Cooldowns.ScreenPanels [id] = newScreenPanel
 		Cooldowns.UpdatePanels()
 	end
-	
+
 	return Cooldowns.ScreenPanels [id]
 end
 
@@ -994,7 +996,8 @@ function Cooldowns.ShowPanelInScreen (panel, show, event)
 		if (not Cooldowns.RosterIsEnabled) then
 			Cooldowns.RosterIsEnabled = true
 
-			LibGroupInSpecT.RegisterCallback(Cooldowns, "GroupInSpecT_Update", "LibGroupInSpecT_UpdateReceived")
+			openRaidLib.RegisterCallback(Cooldowns, "CooldownListUpdate", "OnReceiveCooldownListUpdate")
+
 			Cooldowns:RegisterEvent("GROUP_ROSTER_UPDATE", receivedRosterEvent)
 			Cooldowns:RegisterEvent("PARTY_MEMBER_DISABLE", playerConnectedEvent)
 			Cooldowns:RegisterEvent("PARTY_MEMBER_ENABLE", playerConnectedEvent)
@@ -1036,7 +1039,6 @@ function Cooldowns.ShowPanelInScreen (panel, show, event)
 			end
 			if (canTurnOff) then
 				Cooldowns:UnregisterEvent("GROUP_ROSTER_UPDATE")
-				LibGroupInSpecT.UnregisterCallback (Cooldowns, "GroupInSpecT_Update")
 				Cooldowns.RosterIsEnabled = false
 				if (Cooldowns.HealthCheck) then
 					Cooldowns.HealthCheck:Cancel()
@@ -1458,21 +1460,21 @@ function Cooldowns.BuildOptions (frame)
 			name = L["S_PLUGIN_COOLDOWNS_EXTERNAL_CDS"],
 		},
 	}
-	
+
 	local options_text_template = Cooldowns:GetTemplate ("font", "OPTIONS_FONT_TEMPLATE")
 	local options_dropdown_template = Cooldowns:GetTemplate ("dropdown", "OPTIONS_DROPDOWN_TEMPLATE")
 	local options_switch_template = Cooldowns:GetTemplate ("switch", "OPTIONS_CHECKBOX_TEMPLATE")
 	local options_slider_template = Cooldowns:GetTemplate ("slider", "OPTIONS_SLIDER_TEMPLATE")
 	local options_button_template = Cooldowns:GetTemplate ("button", "OPTIONS_BUTTON_TEMPLATE")
-	
-	RA:BuildMenu (f, singleOptions, 0, -25, 480, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)	
+
+	RA:BuildMenu (f, singleOptions, 0, -25, 480, true, options_text_template, options_dropdown_template, options_switch_template, true, options_slider_template, options_button_template)
 
 	local on_select_text_font = function (self, fixed_value, value)
 		Cooldowns.db.text_font = value
 		Cooldowns.UpdatePanels()
 	end
 
-	local set_bar_texture = function (_, _, value) 
+	local set_bar_texture = function (_, _, value)
 		Cooldowns.db.bar_texture = value
 		Cooldowns.UpdatePanels()
 		update_panels_config()
@@ -1481,7 +1483,7 @@ function Cooldowns.BuildOptions (frame)
 	local SharedMedia = LibStub:GetLibrary ("LibSharedMedia-3.0")
 	local textures = SharedMedia:HashTable ("statusbar")
 	local texTable = {}
-	for name, texturePath in pairs (textures) do 
+	for name, texturePath in pairs (textures) do
 		texTable[#texTable+1] = {value = name, label = name, statusbar = texturePath, onclick = set_bar_texture}
 	end
 	table.sort (texTable, function (t1, t2) return t1.label < t2.label end)
@@ -1505,7 +1507,7 @@ function Cooldowns.BuildOptions (frame)
 		{
 			type = "color",
 			get = function() local color = Cooldowns.db.panel_background_color; return {color.r, color.g, color.b, color.a} end,
-			set = function (self, r, g, b, a) 	
+			set = function (self, r, g, b, a)
 				local color = Cooldowns.db.panel_background_color
 				color.r, color.g, color.b, color.a = r, g, b, a
 				Cooldowns.UpdatePanels()
@@ -1521,7 +1523,7 @@ function Cooldowns.BuildOptions (frame)
 		{
 			type = "range",
 			get = function() return Cooldowns.db.panel_width end,
-			set = function (self, fixedparam, value) 
+			set = function (self, fixedparam, value)
 				Cooldowns.db.panel_width = value
 				Cooldowns.UpdatePanels()
 			end,
@@ -1564,9 +1566,9 @@ function Cooldowns.BuildOptions (frame)
 			set = function (self, fixedparam, value) Cooldowns.db.only_in_raid_encounter = value; Cooldowns.CheckForShowPanels ("TOGGLE_OPTIONS") end,
 			name = L["S_ANCHOR_ONLY_IN_ENCOUNTER"],
 		},
-		
+
 		{type = "label", get = function() return "Text:" end, text_template = Cooldowns:GetTemplate ("font", "ORANGE_FONT_TEMPLATE")},
-		
+
 		{
 			type = "select",
 			get = function() return Cooldowns.db.text_font end,
@@ -1576,7 +1578,7 @@ function Cooldowns.BuildOptions (frame)
 		{
 			type = "range",
 			get = function() return Cooldowns.db.text_size end,
-			set = function (self, fixedparam, value) 
+			set = function (self, fixedparam, value)
 				Cooldowns.db.text_size = value
 				Cooldowns.UpdatePanels()
 			end,
@@ -1587,10 +1589,10 @@ function Cooldowns.BuildOptions (frame)
 		},
 		{
 			type = "color",
-			get = function() 
-				return {Cooldowns.db.text_color.r, Cooldowns.db.text_color.g, Cooldowns.db.text_color.b, Cooldowns.db.text_color.a} 
+			get = function()
+				return {Cooldowns.db.text_color.r, Cooldowns.db.text_color.g, Cooldowns.db.text_color.b, Cooldowns.db.text_color.a}
 			end,
-			set = function (self, r, g, b, a) 
+			set = function (self, r, g, b, a)
 				local color = Cooldowns.db.text_color
 				color.r, color.g, color.b, color.a = r, g, b, a
 				Cooldowns.UpdatePanels()
@@ -1600,7 +1602,7 @@ function Cooldowns.BuildOptions (frame)
 		{
 			type = "toggle",
 			get = function() return Cooldowns.db.text_shadow end,
-			set = function (self, fixedparam, value) 
+			set = function (self, fixedparam, value)
 				Cooldowns.db.text_shadow = value
 				Cooldowns.UpdatePanels()
 			end,
@@ -1612,7 +1614,7 @@ function Cooldowns.BuildOptions (frame)
 		{
 			type = "toggle",
 			get = function() return Cooldowns.db.bar_grow_inverse end,
-			set = function (self, fixedparam, value) 
+			set = function (self, fixedparam, value)
 				Cooldowns.db.bar_grow_inverse = value
 				Cooldowns.UpdatePanels()
 				update_panels_config()
@@ -1622,7 +1624,7 @@ function Cooldowns.BuildOptions (frame)
 		{
 			type = "range",
 			get = function() return Cooldowns.db.bar_height end,
-			set = function (self, fixedparam, value) 
+			set = function (self, fixedparam, value)
 				Cooldowns.db.bar_height = value
 				Cooldowns.UpdatePanels()
 				update_panels_config()
@@ -1642,7 +1644,7 @@ function Cooldowns.BuildOptions (frame)
 		{
 			type = "toggle",
 			get = function() return Cooldowns.db.bar_class_color end,
-			set = function (self, fixedparam, value) 
+			set = function (self, fixedparam, value)
 				Cooldowns.db.bar_class_color = value
 				Cooldowns.UpdatePanels()
 				update_panels_config()
@@ -1651,10 +1653,10 @@ function Cooldowns.BuildOptions (frame)
 		},
 		{
 			type = "color",
-			get = function() 
-				return {Cooldowns.db.bar_fixed_color.r, Cooldowns.db.bar_fixed_color.g, Cooldowns.db.bar_fixed_color.b, Cooldowns.db.bar_fixed_color.a} 
+			get = function()
+				return {Cooldowns.db.bar_fixed_color.r, Cooldowns.db.bar_fixed_color.g, Cooldowns.db.bar_fixed_color.b, Cooldowns.db.bar_fixed_color.a}
 			end,
-			set = function (self, r, g, b, a) 
+			set = function (self, r, g, b, a)
 				local color = Cooldowns.db.bar_fixed_color
 				color.r, color.g, color.b, color.a = r, g, b, a
 				Cooldowns.UpdatePanels()
@@ -1702,14 +1704,14 @@ function Cooldowns.BuildOptions (frame)
 	local backdrop_table = {bgFile = [[Interface\Tooltips\UI-Tooltip-Background]], tileSize = 64, tile = true}
 	local frame_level = main_frame:GetFrameLevel()
 
-	local on_enter = function (self) 
-		self:SetBackdropColor (.3, .3, .3, 0.5) 
+	local on_enter = function (self)
+		self:SetBackdropColor (.3, .3, .3, 0.5)
 		GameTooltip:SetOwner (self, "ANCHOR_RIGHT")
 		GameTooltip:SetSpellByID (self.spellid)
 		GameTooltip:Show()
 	end
 
-	local on_leave = function (self) 
+	local on_leave = function (self)
 		if (self.BackgroundColor) then
 			local r, g, b = unpack (self.BackgroundColor)
 			self:SetBackdropColor (r, g, b, 0.4)

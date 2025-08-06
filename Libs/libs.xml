@@ -13,7 +13,6 @@
 	<Include file="AceComm-3.0\AceComm-3.0.xml" />
 	<Include file="AceTimer-3.0\AceTimer-3.0.xml" />
 	<Include file="AceLocale-3.0\AceLocale-3.0.xml" />
-	<Include file="LibGroupInSpecT-1.1\lib.xml"/>
 	<Script file="LibDataBroker-1.1\LibDataBroker-1.1.lua"/>
 	<Script file="LibDBIcon-1.0\LibDBIcon-1.0.lua"/>
 	<Script file="LibWindow-1.1\LibWindow-1.1.lua" />
