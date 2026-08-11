@@ -25,6 +25,7 @@ function LibStub:GetLibrary(major, silent)end
 function LibStub:IterateLibraries()end
 
 CLASS_ICON_TCOORDS = {}
+MAX_NUM_TALENTS = 0
 
 --uiobject: is an object that represents a UI element, such as a frame, a texture, or a button. UIObjects are the base class for all UI elements in the WoW API.
 --3D World: is an object which is placed behind|below all UI elements, cannot be parent of any object, in the 3D World object is where the game world is rendered
@@ -243,6 +244,22 @@ CLASS_ICON_TCOORDS = {}
 ---| "Minimap"
 ---| "GameTooltip"
 
+---objects that can be created with CreateFrame
+---@alias frameobjects
+---| "Frame"
+---| "Button"
+---| "StatusBar"
+---| "EditBox"
+---| "CheckButton"
+---| "Slider"
+---| "Model"
+---| "PlayerModel"
+---| "DressUpModel"
+---| "TabardModel"
+---| "Cooldown"
+---| "Minimap"
+---| "GameTooltip"
+
 ---@alias audiochannels
 ---| "Master"
 ---| "SFX"
@@ -428,6 +445,623 @@ CLASS_ICON_TCOORDS = {}
 ---@field memberGUID guid
 ---@field name string
 
+---@class addons : table
+---@field DisableAddOn fun(name: string, character: string?)
+---@field DisableAllAddOns fun(character: string?)
+---@field DoesAddOnExist fun(name: string) : boolean
+---@field DoesAddOnHaveLoadError fun(name: string) : boolean
+---@field EnableAddOn fun(name: string, character: string?)
+---@field EnableAllAddOns fun(character: string?)
+---@field GetAddOnDependencies fun(name: string) : ...
+---@field GetAddOnEnableState fun(name: string, character: string?) : number
+---@field GetAddOnInfo fun(name: string) : string, string, string, boolean, string, string
+---@field GetAddOnInterfaceVersion fun(name: string) : number
+---@field GetAddOnLocalTable fun(name: string) : any
+---@field GetAddOnMetadata fun(name: string, variable: string) : string
+---@field GetAddOnName fun(index: number) : string
+---@field GetAddOnNotes fun(name: string) : string
+---@field GetAddOnOptionalDependencies fun(name: string) : ...
+---@field GetAddOnSecurity fun(name: string) : number
+---@field GetAddOnTitle fun(name: string) : string
+---@field GetNumAddOns fun() : number
+---@field GetScriptsDisallowedForBeta fun() : boolean
+---@field IsAddOnDefaultEnabled fun(name: string) : boolean
+---@field IsAddOnLoadOnDemand fun(name: string) : boolean
+---@field IsAddOnLoadable fun(name: string, character: string?, demandLoaded: boolean?) : boolean, string
+---@field IsAddOnLoaded fun(name: string) : boolean, boolean
+---@field IsAddonVersionCheckEnabled fun() : boolean
+---@field LoadAddOn fun(name: string) : boolean?, string?
+---@field ResetAddOns fun()
+---@field ResetDisabledAddOns fun()
+---@field SaveAddOns fun()
+---@field SetAddonVersionCheck fun(enabled: boolean)
+
+---@type addons
+C_AddOns = {
+    DisableAddOn = function(name, character) end,
+    DisableAllAddOns = function(character) end,
+    DoesAddOnExist = function(name) return false end,
+    DoesAddOnHaveLoadError = function(name) return false end,
+    EnableAddOn = function(name, character) end,
+    EnableAllAddOns = function(character) end,
+    GetAddOnDependencies = function(name) return nil end,
+    GetAddOnEnableState = function(name, character) return 0 end,
+    GetAddOnInfo = function(name) return "", "", "", false, "", "" end,
+    GetAddOnInterfaceVersion = function(name) return 0 end,
+    GetAddOnLocalTable = function(name) return nil end,
+    GetAddOnMetadata = function(name, variable) return "" end,
+    GetAddOnName = function(index) return "" end,
+    GetAddOnNotes = function(name) return "" end,
+    GetAddOnOptionalDependencies = function(name) return nil end,
+    GetAddOnSecurity = function(name) return 0 end,
+    GetAddOnTitle = function(name) return "" end,
+    GetNumAddOns = function() return 0 end,
+    GetScriptsDisallowedForBeta = function() return false end,
+    IsAddOnDefaultEnabled = function(name) return false end,
+    IsAddOnLoadOnDemand = function(name) return false end,
+    IsAddOnLoadable = function(name, character, demandLoaded) return false, "" end,
+    IsAddOnLoaded = function(name) return false, false end,
+    IsAddonVersionCheckEnabled = function() return false end,
+    LoadAddOn = function(name) return false, "" end,
+    ResetAddOns = function() end,
+    ResetDisabledAddOns = function() end,
+    SaveAddOns = function() end,
+    SetAddonVersionCheck = function(enabled) end,
+}
+
+---@alias addonevents
+---| "ADDON_LOADED" arguments: addOnName:string, containsBindings:bool
+---| "ADDONS_UNLOADING" arguments: closingClient:bool
+---| "SAVED_VARIABLES_TOO_LARGE" arguments: addOnName:string
+
+---@class addonenabledstate : number
+---@field None 0
+---@field Some 1
+---@field All 2
+
+---@class addonsecuritystatus : number
+---@field Secure 0
+---@field Insecure 1
+---@field Banned 2
+---@field NotAvailable 3
+
+---@class addoninfo : table
+---@field name string
+---@field title string
+---@field notes string
+---@field loadable boolean
+---@field reason string
+---@field security string
+
+---@class cvar : table
+---@field GetCVar fun(name: string): string|nil
+---@field GetCVarBitfield fun(name: string, index: number): boolean|nil
+---@field GetCVarBool fun(name: string): boolean|nil
+---@field GetCVarDefault fun(name: string): string|nil
+---@field SetCVar fun(name: string, value: string|number|boolean): boolean
+---@field SetCVarBitfield fun(name: string, index: number, value: boolean): boolean
+---@field ResetCVar fun(name: string): boolean
+---@field GetCVarInfo fun(name: string): cvarinfo|nil
+---@field RegisterCVar fun(name: string, value: string|nil): boolean
+
+---@class cvarinfo : table
+---@field value string
+---@field defaultValue string
+---@field isStoredServerAccount boolean
+---@field isStoredServerCharacter boolean
+---@field isLockedFromUser boolean
+---@field isSecure boolean
+---@field isReadOnly boolean
+
+---@type cvar
+C_CVar = {
+    GetCVar = function(name) return "" end,
+    GetCVarBitfield = function(name, index) return false end,
+    GetCVarBool = function(name) return false end,
+    GetCVarDefault = function(name) return "" end,
+    SetCVar = function(name, value) return false end,
+    SetCVarBitfield = function(name, index, value) return false end,
+    ResetCVar = function(name) return false end,
+    GetCVarInfo = function(name) return {} end,
+    RegisterCVar = function(name, value) return false end,
+}
+
+
+--C_ClassTalents
+
+---@class c_classtalents : table
+---@field CanChangeTalents fun(): boolean, boolean, string?
+---@field CanCreateNewConfig fun(): boolean
+---@field CanEditTalents fun(): boolean, cstring
+---@field CommitConfig fun(savedConfigID: number?): boolean
+---@field DeleteConfig fun(configID: number): boolean
+---@field GetActiveConfigID fun(): number?
+---@field GetActiveHeroTalentSpec fun(): number?
+---@field GetConfigIDsBySpecID fun(specID: number?): number[]
+---@field GetHasStarterBuild fun(): boolean
+---@field GetHeroTalentSpecsForClassSpec fun(configID: number?, classSpecID: number?): number[]?, number?
+---@field GetLastSelectedSavedConfigID fun(specID: number): number?
+---@field GetNextStarterBuildPurchase fun(): number?, number?
+---@field GetStarterBuildActive fun(): boolean
+---@field GetTraitTreeForSpec fun(specID: number): number?
+---@field HasUnspentHeroTalentPoints fun(): boolean, number
+---@field HasUnspentTalentPoints fun(): boolean, number, number
+---@field ImportLoadout fun(configID: number, entries: importloadoutentryinfo[], name: string, importString: string?): boolean, cstring
+---@field InitializeViewLoadout fun(specID: number, level: number)
+---@field IsConfigPopulated fun(configID: number): boolean
+---@field LoadConfig fun(configID: number, autoApply: boolean): loadconfigresult, string?, number[]
+---@field RenameConfig fun(configID: number, name: string): boolean
+---@field RequestNewConfig fun(name: string): boolean
+---@field SaveConfig fun(configID: number): boolean
+---@field SetStarterBuildActive fun(active: boolean): loadconfigresult
+---@field SetUsesSharedActionBars fun(configID: number, usesShared: boolean)
+---@field UpdateLastSelectedSavedConfigID fun(specID: number, configID: number?)
+---@field ViewLoadout fun(entries: importloadoutentryinfo[], importString: string?): boolean
+
+---@type c_classtalents
+C_ClassTalents = {
+    CanChangeTalents = function() return false, false, nil end,
+    CanCreateNewConfig = function() return false end,
+    CanEditTalents = function() return false, "" end,
+    CommitConfig = function(savedConfigID) return false end,
+    DeleteConfig = function(configID) return false end,
+    GetActiveConfigID = function() return nil end,
+    GetActiveHeroTalentSpec = function() return nil end,
+    GetConfigIDsBySpecID = function(specID) return {} end,
+    GetHasStarterBuild = function() return false end,
+    GetHeroTalentSpecsForClassSpec = function(configID, classSpecID) return nil, nil end,
+    GetLastSelectedSavedConfigID = function(specID) return nil end,
+    GetNextStarterBuildPurchase = function() return nil, nil end,
+    GetStarterBuildActive = function() return false end,
+    GetTraitTreeForSpec = function(specID) return nil end,
+    HasUnspentHeroTalentPoints = function() return false, 0 end,
+    HasUnspentTalentPoints = function() return false, 0, 0 end,
+    ImportLoadout = function(configID, entries, name, importString) return false, "" end,
+    InitializeViewLoadout = function(specID, level) end,
+    IsConfigPopulated = function(configID) return false end,
+    LoadConfig = function(configID, autoApply) return {}, nil, {} end,
+    RenameConfig = function(configID, name) return false end,
+    RequestNewConfig = function(name) return false end,
+    SaveConfig = function(configID) return false end,
+    SetStarterBuildActive = function(active) return {} end,
+    SetUsesSharedActionBars = function(configID, usesShared) end,
+    UpdateLastSelectedSavedConfigID = function(specID, configID) end,
+    ViewLoadout = function(entries, importString) return false end,
+}
+
+---@alias classtalentsevents
+---| "ACTIVE_COMBAT_CONFIG_CHANGED" arguments: configID:number
+---| "SELECTED_LOADOUT_CHANGED"
+---| "SPECIALIZATION_CHANGE_CAST_FAILED"
+---| "STARTER_BUILD_ACTIVATION_FAILED"
+
+---@class loadconfigresult : number
+---@field Error 0
+---@field NoChangesNecessary 1
+---@field LoadInProgress 2
+---@field Ready 3
+
+---@class importloadoutentryinfo : table
+---@field nodeID number
+---@field ranksGranted number
+---@field ranksPurchased number
+---@field selectionEntryID number
+
+
+---@class talenttraits : table C_Traits namespace functions
+---@field CanEditConfig fun(configID: number): boolean, cstring
+---@field CanPurchaseRank fun(configID: number, nodeID: number, nodeEntryID: number): boolean
+---@field CanRefundRank fun(configID: number, nodeID: number): boolean
+---@field CascadeRepurchaseRanks fun(configID: number, nodeID: number, entryID: number?): boolean
+---@field ClearCascadeRepurchaseHistory fun(configID: number)
+---@field CloseTraitSystemInteraction fun()
+---@field CommitConfig fun(configID: number): boolean
+---@field ConfigHasStagedChanges fun(configID: number): boolean
+---@field GenerateImportString fun(configID: number): string
+---@field GenerateInspectImportString fun(target: cstring): string
+---@field GetConditionInfo fun(configID: number, condID: number): traitcondinfo?
+---@field GetConfigIDBySystemID fun(systemID: number): number?
+---@field GetConfigIDByTreeID fun(treeID: number): number?
+---@field GetConfigInfo fun(configID: number): traitconfiginfo?
+---@field GetConfigVariationID fun(systemID: number): number?
+---@field GetConfigsByType fun(configType: traitconfigtype): number[]
+---@field GetDefinitionInfo fun(definitionID: number): traitdefinitioninfo?
+---@field GetEntryInfo fun(configID: number, entryID: number): traitentryinfo?
+---@field GetNodeInfo fun(configID: number, nodeID: number): traitnodeinfo?
+---@field PurchaseRank fun(configID: number, nodeID: number, nodeEntryID: number): boolean
+---@field RefundRank fun(configID: number, nodeID: number): boolean
+---@field GetIncreasedTraitData fun(nodeID: number, entryID: number): increasedtraitdata[]?
+---@field GetLoadoutSerializationVersion fun(): number
+---@field GetNodeCost fun(configID: number, nodeID: number): traitcurrencycost[]
+---@field GetStagedChanges fun(configID: number): number[]?, number[]?, number[]?
+---@field GetStagedChangesCost fun(configID: number): traitcurrencycost[]
+---@field GetSubTreeInfo fun(configID: number, subTreeID: number): traitsubtreeinfo?
+---@field GetSystemIDByTreeID fun(treeID: number): number?
+---@field GetTraitCurrencyInfo fun(traitCurrencyID: number): flags:number, type:number, currencyTypesID:number?, icon:number?
+---@field GetTraitDescription fun(nodeID: number, entryID: number): string
+---@field GetTraitSystemFlags fun(configID: number): number
+---@field GetTraitSystemWidgetSetID fun(configID: number): number?
+---@field GetTreeCurrencyInfo fun(configID: number, treeID: number, excludeStagedChanges: boolean): treecurrencyinfo
+---@field GetTreeHash fun(treeID: number): number[]
+---@field GetTreeInfo fun(configID: number, treeID: number): traittreeinfo?
+---@field GetTreeNodes fun(treeID: number): number[]?
+---@field HasValidInspectData fun(): boolean
+---@field IsReadyForCommit fun(): boolean
+---@field PurchaseAllRanks fun(configID: number, nodeID: number, ignoreCost: boolean): boolean
+---@field RefundAllRanks fun(configID: number, nodeID: number): boolean
+---@field ResetTree fun(configID: number, treeID: number): boolean
+---@field ResetTreeByCurrency fun(configID: number, treeID: number, traitCurrencyID: number): boolean
+---@field RollbackConfig fun(configID: number): boolean
+---@field SetSelection fun(configID: number, nodeID: number, nodeEntryID: number?, clearEdges: boolean?): boolean
+---@field StageConfig fun(configID: number): boolean
+---@field TalentTestUnlearnSpells fun()
+---@field TryPurchaseAllRanks fun(configID: number, nodeID: number): boolean
+---@field TryPurchaseToNode fun(configID: number, nodeID: number): boolean
+---@field TryRefundToNode fun(configID: number, nodeID: number, entryID: number): boolean
+
+---@type talenttraits
+C_Traits = {
+    CanEditConfig = function(configID) return false, "" end,
+    CanPurchaseRank = function(configID, nodeID, nodeEntryID) return false end,
+    CanRefundRank = function(configID, nodeID) return false end,
+    CascadeRepurchaseRanks = function(configID, nodeID, entryID) return false end,
+    ClearCascadeRepurchaseHistory = function(configID) end,
+    CloseTraitSystemInteraction = function() end,
+    CommitConfig = function(configID) return false end,
+    ConfigHasStagedChanges = function(configID) return false end,
+    GenerateImportString = function(configID) return "" end,
+    GenerateInspectImportString = function(target) return "" end,
+    GetConditionInfo = function(configID, condID) return nil end,
+    GetConfigIDBySystemID = function(systemID) return nil end,
+    GetConfigIDByTreeID = function(treeID) return nil end,
+    GetConfigInfo = function(configID) return nil end,
+    GetConfigVariationID = function(systemID) return nil end,
+    GetConfigsByType = function(configType) return {} end,
+    GetEntryInfo = function(configID, entryID) return nil end,
+    GetNodeInfo = function(configID, nodeID) return nil end,
+    PurchaseRank = function(configID, nodeID, nodeEntryID) return false end,
+    RefundRank = function(configID, nodeID) return false end,
+    GetIncreasedTraitData = function(nodeID, entryID) return nil end,
+    GetLoadoutSerializationVersion = function() return 0 end,
+    GetNodeCost = function(configID, nodeID) return {} end,
+    GetStagedChanges = function(configID) return nil, nil, nil end,
+    GetStagedChangesCost = function(configID) return {} end,
+    GetSubTreeInfo = function(configID, subTreeID) return nil end,
+    GetSystemIDByTreeID = function(treeID) return nil end,
+    GetTraitCurrencyInfo = function(traitCurrencyID) return 0, 0, nil, nil end,
+    GetTraitDescription = function(nodeID, entryID) return "" end,
+    GetDefinitionInfo = function(definitionID) return  end,
+    GetTraitSystemFlags = function(configID) return 0 end,
+    GetTraitSystemWidgetSetID = function(configID) return nil end,
+    GetTreeCurrencyInfo = function(configID, treeID, excludeStagedChanges) return {} end,
+    GetTreeHash = function(treeID) return {} end,
+    GetTreeInfo = function(configID, treeID) return nil end,
+    GetTreeNodes = function(treeID) return nil end,
+    HasValidInspectData = function() return false end,
+    IsReadyForCommit = function() return false end,
+    PurchaseAllRanks = function(configID, nodeID, ignoreCost) return false end,
+    RefundAllRanks = function(configID, nodeID) return false end,
+    ResetTree = function(configID, treeID) return false end,
+    ResetTreeByCurrency = function(configID, treeID, traitCurrencyID) return false end,
+    RollbackConfig = function(configID) return false end,
+    SetSelection = function(configID, nodeID, nodeEntryID, clearEdges) return false end,
+    StageConfig = function(configID) return false end,
+    TalentTestUnlearnSpells = function() end,
+    TryPurchaseAllRanks = function(configID, nodeID) return false end,
+    TryPurchaseToNode = function(configID, nodeID) return false end,
+    TryRefundToNode = function(configID, nodeID, entryID) return false end
+}
+
+---@alias talenttraistevents
+---| "CONFIG_COMMIT_FAILED" arguments: configID:number
+---| "TRAIT_COND_INFO_CHANGED" arguments: condID:number
+---| "TRAIT_CONFIG_CREATED" arguments: configInfo:TraitConfigInfo
+---| "TRAIT_CONFIG_DELETED" arguments: configID:number
+---| "TRAIT_CONFIG_LIST_UPDATED"
+---| "TRAIT_CONFIG_UPDATED" arguments: configID:number
+---| "TRAIT_NODE_CHANGED" arguments: nodeID:number
+---| "TRAIT_NODE_CHANGED_PARTIAL" arguments: ID:number, info:TraitNodeInfoPartial
+---| "TRAIT_NODE_ENTRY_UPDATED" arguments: nodeEntryID:number
+---| "TRAIT_SUB_TREE_CHANGED" arguments: subTreeID:number
+---| "TRAIT_SYSTEM_INTERACTION_STARTED" arguments: treeID:number
+---| "TRAIT_SYSTEM_NPC_CLOSED"
+---| "TRAIT_TREE_CHANGED" arguments: treeID:number
+---| "TRAIT_TREE_CURRENCY_INFO_UPDATED" arguments: treeID:number
+---| "TRY_PURCHASE_TO_NODE_PARTIAL_SUCCESS" arguments: nodeFinishedOn:number
+
+---@class increasedtraitdata : table
+---@field itemNameIncreasing string
+---@field itemQualityIncreasing ItemQuality
+---@field numPointsIncreased number
+
+---@class traitcondinfo : table
+---@field condID number
+---@field ranksGranted number|nil
+---@field isAlwaysMet boolean
+---@field isMet boolean True if the source for the condition has been fulfilled.
+---@field isGate boolean
+---@field isSufficient boolean True if meeting the requirements for the condition means any nodes using this
+---@field type number The value from the TraitConditionType enum the condition uses.
+---@field questID number|nil
+---@field achievementID number|nil
+---@field specSetID number|nil
+---@field playerLevel number|nil
+---@field traitCurrencyID number|nil
+---@field spentAmountRequired number|nil
+---@field tooltipFormat string|nil
+---@field traitCondAccountElementID number|nil
+
+---@class traitconfiginfo : table
+---@field ID number
+---@field type traitconfigtype
+---@field name string
+---@field treeIDs number[]
+---@field usesSharedActionBars boolean
+
+---@class traitcurrencycost : table
+---@field ID number
+---@field amount number
+
+---@class traitdefinitioninfo : table
+---@field spellID number|nil
+---@field overrideName string|nil
+---@field overrideSubtext string|nil
+---@field overrideDescription string|nil
+---@field overrideIcon number|nil
+---@field overriddenSpellID number|nil
+---@field subType traitdefinitionsubtype|nil
+
+---@class traitentryinfo : table
+---@field definitionID number|nil Nil on SubTreeSelection Node Entries
+---@field subTreeID number|nil Populated only on SubTreeSelection Node Entries; This
+---@field type traitnodeentrytype
+---@field maxRanks number
+---@field isAvailable boolean
+---@field isDisplayError boolean True if this entry fails the TRAIT_CONDITION_TYPE_DISPLAY_ERROR
+---@field conditionIDs number[]
+
+---@class traitentryrankinfo : table
+---@field entryID number
+---@field rank number
+---@class traitgateinfo : table
+---@field topLeftNodeID number
+---@field conditionID number
+---@class traitnodeinfo : table
+---@field ID number
+---@field posX number
+---@field posY number
+---@field flags number
+---@field entryIDs number[]
+---@field entryIDsWithCommittedRanks number[]
+---@field canPurchaseRank boolean
+---@field canRefundRank boolean
+---@field isAvailable boolean
+---@field isVisible boolean
+---@field isDisplayError boolean True if this node fails the TRAIT_CONDITION_TYPE_DISPLAY_ERROR condition check. Used to communicate a problem with the node to the player (e.g. A prerequisite node has not been purchased.) but will not prevent the player from spending points on the node.
+---@field ranksPurchased number
+---@field ranksIncreased number
+---@field entryIDToRanksIncreased LuaValueVariant A map of the entry IDs on this
+---@field activeRank number
+---@field currentRank number
+---@field activeEntry traitentryrankinfo|nil
+---@field nextEntry traitentryrankinfo|nil
+---@field maxRanks number
+---@field type traitnodetype
+---@field visibleEdges traitoutedgeinfo[]
+---@field meetsEdgeRequirements boolean
+---@field groupIDs number[]
+---@field conditionIDs number[]
+---@field isCascadeRepurchasable boolean
+---@field cascadeRepurchaseEntryID number|nil
+---@field subTreeID number|nil The SubTree this Node belongs to; Nil if it is not part of a SubTree
+---@field subTreeActive boolean|nil True if this node has a SubTreeID, and
+
+---@class traitnodeinfopartial : table
+---@field canPurchaseRank boolean|nil
+---@field canRefundRank boolean|nil
+---@field isAvailable boolean|nil
+---@field isVisible boolean|nil
+---@field ranksPurchased number|nil
+---@field activeRank number|nil
+---@field currentRank number|nil
+---@field meetsEdgeRequirements boolean|nil
+---@field isCascadeRepurchasable boolean|nil
+---@field activeEntryID number|nil
+---@field subTreeActive boolean|nil
+
+---@class traitoutedgeinfo : table
+---@field targetNode number
+---@field type number
+---@field visualStyle number
+---@field isActive boolean
+---@class traitsubtreeinfo : table
+---@field ID number
+---@field name string|nil
+---@field description string|nil
+---@field iconElementID textureAtlas|nil
+---@field traitCurrencyID number|nil
+---@field isActive boolean
+---@field subTreeSelectionNodeIDs number[] SubTreeSelectionNodes whose choice entries include this Sub
+---@field posX number Center X node position calculated from the posX values of all of this subTree's nodes
+---@field posY number Topmost Y node position taken from the posY values of all of this subTree's nodes
+---@class traittreeinfo : table
+---@field ID number
+---@field gates traitgateinfo[]
+---@field hideSingleRankNumbers boolean
+---@field rootNodeID number|nil
+---@class treecurrencyinfo : table
+---@field traitCurrencyID number
+---@field quantity number
+---@field maxQuantity number|nil
+---@field spent number
+
+---@class nodeopfailurereason : number
+---@field None 0
+---@field MissingEdgeConnection 1
+---@field RequiredForEdge 2
+---@field MissingRequiredEdge 3
+---@field HasMutuallyExclusiveEdge 4
+---@field NotEnoughSourcedCurrencySpent 5
+---@field NotEnoughCurrencySpent 6
+---@field NotEnoughGoldSpent 7
+---@field MissingAchievement 8
+---@field MissingQuest 9
+---@field WrongSpec 10
+---@field WrongSelection 11
+---@field MaxRank 12
+---@field DataError 13
+---@field NotEnoughSourcedCurrency 14
+---@field NotEnoughCurrency 15
+---@field NotEnoughGold 16
+---@field SameSelection 17
+---@field NodeNotFound 18
+---@field EntryNotFound 19
+---@field RequiredForCondition 20
+---@field WrongTreeID 21
+---@field LevelTooLow 22
+---@field TreeFlaggedNoRefund 23
+---@field NodeNeverPurchasable 24
+---@field AccountDataNoMatch 25
+
+---@class sharedstringflag : number
+---@field InternalOnly 1
+
+---@class traitcombatconfigflags : number
+---@field ActiveForSpec 1
+---@field StarterBuild 2
+---@field SharedActionBars 4
+
+---@class traitcondflag : number
+---@field IsGate 1
+---@field IsAlwaysMet 2
+---@field IsSufficient 4
+
+---@class traitconditiontype : number
+---@field Available 0
+---@field Visible 1
+---@field Granted 2
+---@field Increased 3
+---@field DisplayError 4
+
+---@class traitconfigdbstate : number
+---@field Ready 0
+---@field Created 1
+---@field Removed 2
+---@field Deleted 3
+
+---@class traitconfigtype : number
+---@field Invalid 0
+---@field Combat 1
+---@field Profession 2
+---@field Generic 3
+
+---@class traitcurrencyflag : number
+---@field ShowQuantityAsSpent 1
+---@field TraitSourcedShowMax 2
+---@field UseClassIcon 4
+---@field UseSpecIcon 8
+
+---@class traitcurrencytype : number
+---@field Gold 0
+---@field CurrencyTypesBased 1
+---@field TraitSourced 2
+---@field TraitSourcedPlayerDataElement 3
+
+---@class traitdefinitionsubtype : number
+---@field DragonflightRed 0
+---@field DragonflightBlue 1
+---@field DragonflightGreen 2
+---@field DragonflightBronze 3
+---@field DragonflightBlack 4
+
+---@class traitedgetype : number
+---@field VisualOnly 0
+---@field DeprecatedRankConnection 1
+---@field SufficientForAvailability 2
+---@field RequiredForAvailability 3
+---@field MutuallyExclusive 4
+---@field DeprecatedSelectionOption 5
+
+---@class traitedgevisualstyle : number
+---@field None 0
+---@field Straight 1
+
+---@class traitnodeentrytype : number
+---@field SpendHex 0
+---@field SpendSquare 1
+---@field SpendCircle 2
+---@field SpendSmallCircle 3
+---@field DeprecatedSelect 4
+---@field DragAndDrop 5
+---@field SpendDiamond 6
+---@field ProfPath 7
+---@field ProfPerk 8
+---@field ProfPathUnlock 9
+---@field SpendInfinite 10
+
+---@class traitnodeflag : number
+---@field ShowMultipleIcons 1
+---@field NeverPurchasable 2
+---@field TestPositionLocked 4
+---@field TestGridPositioned 8
+---@field ActiveAtFirstRank 16
+---@field ShowExpandedSelection 32
+---@field HideMaxRank 64
+
+---@class traitnodegroupflag : number
+---@field AvailableByDefault 1
+
+---@class traitnodetype : number
+---@field Single 0
+---@field Tiered 1
+---@field Selection 2
+---@field SubTreeSelection 3
+
+---@class traitpointsoperationtype : number
+---@field None -1
+---@field Set 0
+---@field Multiply 1
+
+---@class traitsystemflag : number
+---@field AllowMultipleLoadoutsPerTree 1
+---@field ShowSpendConfirmation 2
+---@field AllowEditInCombat 4
+---@field AllowEditInChallengeMode 8
+
+---@class traitsystemvariationtype : number
+---@field None 0
+---@field Spec 1
+
+---@class traittreeflag : number
+---@field CannotRefund 1
+---@field HideSingleRankNumbers 2
+
+---@class traitconsts : table
+---@field MAX_COMBAT_TRAIT_CONFIGS number
+---@field COMMIT_COMBAT_TRAIT_CONFIG_CHANGES_SPELL_ID number
+---@field INSPECT_TRAIT_CONFIG_ID number
+---@field STARTER_BUILD_TRAIT_CONFIG_ID number
+---@field VIEW_TRAIT_CONFIG_ID number
+
+TraitConsts = {
+    MAX_COMBAT_TRAIT_CONFIGS = 40,
+    COMMIT_COMBAT_TRAIT_CONFIG_CHANGES_SPELL_ID = 384255,
+    INSPECT_TRAIT_CONFIG_ID = -1,
+    STARTER_BUILD_TRAIT_CONFIG_ID = -2,
+    VIEW_TRAIT_CONFIG_ID = -3,
+}
+
+---@class numberabbreviation_data : table
+---@field breakpoint number
+---@field abbreviation string
+---@field significandDivisor number
+---@field fractionDivisor number
+---@field abbreviationIsGlobal boolean?
+
+---@class numberabbreviation_options : table
+---@field breakpointData table[]?
+---@field locale string?
+---@field config table?
 
 ---@alias spellid number integer each spell in the game has a unique spell id, this id can be used to identify a spell.
 ---@alias unitname string name of a unit
@@ -516,6 +1150,7 @@ BackdropTemplateMixin = {}
 ---@class objectsize : {height: number, width: number}
 ---@class texturetable : {texture: string, coords: texturecoords, size: objectsize}
 
+---all ui objects inherit from this base class
 ---@class uiobject
 ---@field GetObjectType fun(self: uiobject) : objecttype
 ---@field IsObjectType fun(self: uiobject, objectType: string) : boolean
@@ -548,6 +1183,7 @@ BackdropTemplateMixin = {}
 ---@field CreateAnimationGroup fun(self: uiobject, name: string|nil, templateName: string|nil) : animationgroup
 ---@field SetIgnoreParentAlpha fun(self: region, ignore: boolean)
 
+---created by frame:CreateAnimationGroup()
 ---@class animationgroup : uiobject
 ---@field CreateAnimation fun(self: animationgroup, animationType: animationtype, name: string|nil, inheritsFrom: string|nil) : animation
 ---@field GetAnimation fun(self: animationgroup, name: string) : animation
@@ -570,6 +1206,7 @@ BackdropTemplateMixin = {}
 ---@field SetSmoothProgress fun(self: animationgroup, smooth: animsmoothing)
 ---@field Stop fun(self: animationgroup)
 
+---created by animationgroup:CreateAnimation()
 ---@class animation : uiobject
 ---@field GetDuration fun(self: animation) : number
 ---@field GetEndDelay fun(self: animation) : number
@@ -812,6 +1449,7 @@ BackdropTemplateMixin = {}
 
 ---@class region : uiobject
 
+---created by frame:CreateFontString()
 ---@class fontstring : region
 ---@field SetDrawLayer fun(self: fontstring, layer: drawlayer, subLayer: number?)
 ---@field SetFont fun(self: fontstring, font: string, size: number, flags: string)
@@ -860,6 +1498,7 @@ BackdropTemplateMixin = {}
 ---@field SetTextTruncateLines fun(self: fontstring, lines: number)
 ---@field GetTextTruncateLines fun(self: fontstring) : number
 
+---created by frame:CreateTexture()
 ---@class texture : region
 ---@field AddMaskTexture fun(self: texture, maskTexture: texture)
 ---@field GetDrawLayer  fun(self: texture) : drawlayer, number
@@ -944,14 +1583,15 @@ BackdropTemplateMixin = {}
 ---@field SetStepsPerPage fun(self: slider, steps: number)
 
 ---@class damagemetertype : table
----@field DamageDone number
----@field Dps number
----@field HealingDone number
----@field Hps number
----@field Absorbs number
----@field Interrupts number
----@field Dispels number
----@field DamageTaken number
+---@field DamageDone number 0
+---@field Dps number 1 
+---@field HealingDone number 2
+---@field Hps number 3
+---@field Absorbs number 4
+---@field Interrupts number 5
+---@field Dispels number 6
+---@field DamageTaken number 7
+---@field AvoidableDamageTaken number 8
 
 ---return is the value passed is a secret
 ---@param value any
@@ -965,6 +1605,18 @@ function issecrettable(value) return false end
 
 ---@class enum : table
 ---@field DamageMeterType damagemetertype
+---@field CompressionMethod compressionmethod
+---@field DamageMeterSessionType damagemetersessiontype
+
+---@class damagemetersessiontype : table
+---@field Overall number 0
+---@field Current number 1
+---@field Expired number 2
+
+---@class compressionmethod : table
+---@field Deflate number 0
+---@field Zlib number 1
+---@field Gzip number 2
 
 ---@type enum
 ---@diagnostic disable-next-line: missing-fields
@@ -978,8 +1630,394 @@ Enum = {
         Interrupts = 5,
         Dispels = 6,
         DamageTaken = 7,
+        AvoidableDamageTaken = 8,
+    },
+    CompressionMethod = {
+        Deflate = 0,
+        Zlib = 1,
+        Gzip = 2,
+    },
+    DamageMeterSessionType = {
+        Overall = 0,
+        Current = 1,
+        Expired = 2,
     },
 }
+
+
+---@class encounterwarning_payload : table
+---@field shouldShowChatMessage boolean
+---@field shouldShowWarning boolean
+---@field shouldPlaySound boolean
+---@field severity number
+---@field duration number
+---@field color string
+---@field text string secret
+---@field isDeadly boolean secret
+---@field iconFileID number secret
+---@field targetName string  secret
+---@field targetGUID string secret
+---@field casterName string  secret
+---@field casterGUID string secret
+---@field tooltipSpellID number secret
+
+
+EncounterTimelineEventConstants = {
+    ENCOUNTER_TIMELINE_INVALID_EVENT = 0,
+    ENCOUNTER_TIMELINE_RESERVED_EVENT_COUNT = 40,
+}
+
+EncounterTimelineIconMasks = {
+    EncounterTimelineTankAlertIcons = TankRole,
+    EncounterTimelineHealerAlertIcons = HealerRole,
+    EncounterTimelineDamageAlertIcons = DpsRole,
+    EncounterTimelineDeadlyIcons = DeadlyEffect,
+    EncounterTimelineDispelIcons = 124,
+    EncounterTimelineEnrageIcons = EnrageEffect,
+    EncounterTimelineAllIcons = 1023,
+    EncounterTimelineRoleIcons = 896,
+    EncounterTimelineOtherIcons = 127,
+    EncounterTimelineNoIcons = 0,
+}
+
+---@alias DurationSeconds number
+---@alias EncounterTimelineEventID number
+---@alias fileID number
+---@alias stringView string
+---@alias EncounterEventIconmask string|number
+
+---@class C_EncounterTimeline : table
+C_EncounterTimeline = {}
+
+--- Adds a predefined set of events to the timeline for display in Edit Mode.
+--- @param loopTimerDuration DurationSeconds
+--- @return DurationSeconds loopTimerDuration
+function C_EncounterTimeline.AddEditModeEvents(loopTimerDuration) return loopTimerDuration end
+
+--- Adds a custom event to the timeline.
+--- @param eventInfo EncounterTimelineScriptEventRequest
+--- @return EncounterTimelineEventID eventID
+function C_EncounterTimeline.AddScriptEvent(eventInfo) return 0 end
+
+--- Cancels all custom timeline events, removing them from the timeline.
+function C_EncounterTimeline.CancelAllScriptEvents() end
+
+--- Removes all Edit Mode events from the timeline.
+function C_EncounterTimeline.CancelEditModeEvents() end
+
+--- Cancels a custom timeline event, removing it from the timeline.
+--- @param eventID EncounterTimelineEventID
+function C_EncounterTimeline.CancelScriptEvent(eventID) end
+
+--- Finishes a custom timeline event, removing it from the timeline.
+--- @param eventID EncounterTimelineEventID
+function C_EncounterTimeline.FinishScriptEvent(eventID) end
+
+--- Returns the current timestamp used for rendering the timeline display.
+--- @return DurationSeconds currentTime
+function C_EncounterTimeline.GetCurrentTime() return 0 end
+
+--- Returns the number of present events in the timeline by their source type.
+--- @param source EncounterTimelineEventSource
+--- @return number count
+function C_EncounterTimeline.GetEventCountBySource(source) return 0 end
+
+--- Returns the duration at which timeline events will be highlighted for imminency.
+--- @return DurationSeconds highlightTime
+function C_EncounterTimeline.GetEventHighlightTime() return 0 end
+
+--- Returns information about a timeline event. This data is generally expected to be static for the lifetime of an event.
+--- @param eventID EncounterTimelineEventID
+--- @return EncounterTimelineEventInfo info
+function C_EncounterTimeline.GetEventInfo(eventID) return {} end
+
+--- Returns an unsorted list of event IDs present in the timeline.
+--- @return table events
+function C_EncounterTimeline.GetEventList() return {} end
+
+--- Returns the current state of a timeline event.
+--- @param eventID EncounterTimelineEventID
+--- @return EncounterTimelineEventState state
+function C_EncounterTimeline.GetEventState(eventID) return 0 end
+
+--- Returns the elapsed duration of a timeline event.
+--- @param eventID EncounterTimelineEventID
+--- @return DurationSeconds timeElapsed
+function C_EncounterTimeline.GetEventTimeElapsed(eventID) return 0 end
+
+--- Returns the remaining duration of a timeline event.
+--- @param eventID EncounterTimelineEventID
+--- @return DurationSeconds timeRemaining
+function C_EncounterTimeline.GetEventTimeRemaining(eventID) return 0 end
+
+--- Returns a Duration object that tracks the elapsed duration of a timeline event. This object tracks the range [0, duration] of the event and automatically pauses its progression based on event state.
+--- @param eventID EncounterTimelineEventID
+--- @return LuaDurationObject duration
+function C_EncounterTimeline.GetEventTimer(eventID) return nil end
+
+--- Returns information about the position of an event on the timeline.
+--- @param eventID EncounterTimelineEventID
+--- @return EncounterTimelineTrack track
+--- @return luaIndex trackSortIndex
+function C_EncounterTimeline.GetEventTrack(eventID) return 0, nil end
+
+--- Returns a sorted list of event IDs present in the timeline from shortest to longest remaining durations, meeting the requirements of the specified filters.
+--- @param maxEventCount number
+--- @param maxEventDuration DurationSeconds
+--- @param excludeTerminalStates boolean
+--- @param excludeHiddenEvents boolean
+--- @return table events
+function C_EncounterTimeline.GetSortedEventList(maxEventCount, maxEventDuration, excludeTerminalStates, excludeHiddenEvents) return {} end
+
+--- Returns information for a single timeline track.
+--- @param track EncounterTimelineTrack
+--- @return EncounterTimelineTrackInfo trackInfo
+function C_EncounterTimeline.GetTrackInfo(track) return {} end
+
+--- Returns information about all timeline tracks.
+--- @return table tracks
+function C_EncounterTimeline.GetTrackList() return {} end
+
+--- Returns the maximum permitted event duration on a single timeline track.
+--- @param track EncounterTimelineTrack
+--- @return DurationSeconds maxEventDuration
+function C_EncounterTimeline.GetTrackMaxEventDuration(track) return 0 end
+
+--- Returns the type of a single timeline track.
+--- @param track EncounterTimelineTrack
+--- @return EncounterTimelineTrackType trackType
+function C_EncounterTimeline.GetTrackType(track) return 0 end
+
+--- Returns the current view type of the timeline.
+--- @return EncounterTimelineViewType viewType
+function C_EncounterTimeline.GetViewType() return 0 end
+
+--- Returns true if the timeline contains any events in the active state.
+--- @return boolean hasActiveEvents
+function C_EncounterTimeline.HasActiveEvents() return true end
+
+--- Returns true if the timeline contains any events in any state.
+--- @return boolean hasAnyEvents
+function C_EncounterTimeline.HasAnyEvents() return true end
+
+--- Returns true if the timeline contains any events in the paused state.
+--- @return boolean hasPausedEvents
+function C_EncounterTimeline.HasPausedEvents() return true end
+
+--- Returns true if the timeline contains any events that are on visible tracks.
+--- @return boolean hasVisibleEvents
+function C_EncounterTimeline.HasVisibleEvents() return true end
+
+--- Returns true if the event is in a 'blocked' state, where the cast for this event may not occur due to encounter conditions not being met.
+--- @param eventID EncounterTimelineEventID
+--- @return boolean blocked
+function C_EncounterTimeline.IsEventBlocked(eventID) return true end
+
+--- Returns true if the encounter timeline feature is available on this client.
+--- @return boolean isAvailable
+function C_EncounterTimeline.IsFeatureAvailable() return true end
+
+--- Returns true if the encounter timeline feature has been enabled by the player. This function will always return false if the feature is not available.
+--- @return boolean isAvailableAndEnabled
+function C_EncounterTimeline.IsFeatureEnabled() return true end
+
+--- Pauses a custom timeline event, hiding it from the timeline. A paused event can later be resumed to show it again, or canceled.
+--- @param eventID EncounterTimelineEventID
+function C_EncounterTimeline.PauseScriptEvent(eventID) end
+
+--- Resumes a custom timeline event, showing it on the timeline again if it is currently paused.
+--- @param eventID EncounterTimelineEventID
+function C_EncounterTimeline.ResumeScriptEvent(eventID) end
+
+--- Updates a given vector of texture objects to reference art assets for icons associated with an event.
+--- @param eventID EncounterTimelineEventID
+--- @param includeIcons EncounterEventIconmask
+--- @param textures table
+function C_EncounterTimeline.SetEventIconTextures(eventID, includeIcons, textures) end
+
+--- Changes the view type for the timeline. This adjusts track layouts to be more appropriate for a specific mode and optimizes event processing.
+--- @param viewType EncounterTimelineViewType
+function C_EncounterTimeline.SetViewType(viewType) end
+
+---@class encountertimeline_eventsortdirection : table
+---@field Descending number 0 Events are sorted in descending order (longest time remaining to shortest).
+---@field Ascending number 1 Events are sorted in ascending order (shortest time remaining to longest).
+
+---@class encountertimeline_eventsource : table
+---@field Encounter number 0 Source used for events added by an instance encounter.
+---@field Script number 1 Source used for events added by Lua scripting APIs. This is used to apply API restrictions; the Pause/Cancel/ResumeScriptEvent functions only work on Script events.
+---@field EditMode number 2 Source used for events added by the AddEditModeEvents script API.
+
+---@class encountertimeline_eventstate : table
+---@field Active number 0
+---@field Paused number 1
+---@field Finished number 2
+---@field Canceled number 3
+
+---@class encountertimeline_iconset : table
+---@field TankAlert number 1
+---@field HealerAlert number 2
+---@field DamageAlert number 3
+---@field Deadly number 4
+---@field Dispel number 5
+---@field Enrage number 6
+
+---@class encountertimeline_track : table
+---@field Queued number 0
+---@field Short number 1 This track always has a zero minimum duration.
+---@field Medium number 2
+---@field Long number 3
+---@field Indeterminate number 4 This track is used as a placeholder for events whose position is not calculated and shouldn't appear on the timeline.
+
+---@class encountertimeline_tracktype : table
+---@field Hidden number 0
+---@field Sorted number 1
+---@field Linear number 2
+
+---@class encountertimeline_viewtype : table
+---@field None number 0 Configures the view for an empty timeline display. This mode is recommended for user addons that take full control of the timeline display.
+---@field Timeline number 1 Configures the view for a linear timeline display.
+---@field Bars number 2 Configures the view for a sorted timer bar display.
+
+---@class encountertimeline_eventconstants : table
+---@field ENCOUNTER_TIMELINE_INVALID_EVENT number 0 Constant used for invalid event IDs. Script APIs are guaranteed to always return nil data if supplied this ID, and events will never be added to the timeline with this ID.
+---@field ENCOUNTER_TIMELINE_RESERVED_EVENT_COUNT number 40 Minimum size of internal arrays that are preallocated for event storage.
+
+---@class encountertimeline_iconmasks : table
+---@field EncounterTimelineTankAlertIcons EncounterEventIconmask TankRole
+---@field EncounterTimelineHealerAlertIcons EncounterEventIconmask HealerRole
+---@field EncounterTimelineDamageAlertIcons EncounterEventIconmask DpsRole
+---@field EncounterTimelineDeadlyIcons EncounterEventIconmask DeadlyEffect
+---@field EncounterTimelineDispelIcons EncounterEventIconmask 124
+---@field EncounterTimelineEnrageIcons EncounterEventIconmask EnrageEffect
+---@field EncounterTimelineAllIcons EncounterEventIconmask 1023
+---@field EncounterTimelineRoleIcons EncounterEventIconmask 896
+---@field EncounterTimelineOtherIcons EncounterEventIconmask 127
+---@field EncounterTimelineNoIcons EncounterEventIconmask 0
+
+---@class encountertimeline_eventfilter : table
+---@field maxEventCount number
+---@field maxEventDuration DurationSeconds
+---@field excludeTerminalStates boolean
+---@field excludeHiddenEvents boolean
+
+---@class encountertimeline_eventinfo : table
+---@field id EncounterTimelineEventID
+---@field source EncounterTimelineEventSource
+---@field spellName string
+---@field spellID number
+---@field iconFileID fileID
+---@field duration DurationSeconds
+---@field maxQueueDuration DurationSeconds
+---@field icons EncounterEventIconmask
+---@field severity EncounterEventSeverity
+---@field color colorRGB
+---@field isApproximate boolean
+
+---@class encountertimeline_scripteventrequest : table
+---@field spellID number
+---@field iconFileID fileID
+---@field duration DurationSeconds
+---@field maxQueueDuration DurationSeconds
+---@field overrideName stringView
+---@field icons EncounterEventIconmask
+---@field severity EncounterEventSeverity
+---@field paused boolean
+
+---@class encountertimeline_trackinfo : table
+---@field id EncounterTimelineTrack
+---@field type EncounterTimelineTrackType
+---@field minimumDuration DurationSeconds
+---@field maximumDuration DurationSeconds
+---@field minimumEventIntroDuration DurationSeconds
+---@field minimumEventGapDuration DurationSeconds
+---@field maximumEventCount number
+---@field sortDirection EncounterTimelineEventSortDirection
+
+---@class enum : table
+---@field EncounterTimelineEventSortDirection encountertimeline_eventsortdirection
+---@field EncounterTimelineEventSource encountertimeline_eventsource
+---@field EncounterTimelineEventState encountertimeline_eventstate
+---@field EncounterTimelineIconSet encountertimeline_iconset
+---@field EncounterTimelineTrack encountertimeline_track
+---@field EncounterTimelineTrackType encountertimeline_tracktype
+---@field EncounterTimelineViewType encountertimeline_viewtype
+---@field EncounterTimelineEventConstants encountertimeline_eventconstants
+---@field EncounterTimelineIconMasks encountertimeline_iconmasks
+
+C_EncounterEvents = {}
+
+    ---@alias EncounterEventSoundTrigger number|string
+---@alias EncounterEventInfo table
+---@alias EncounterEventSoundInfo table
+---@alias SoundHandle number
+
+---@class C_EncounterEvents : table
+C_EncounterEvents = {}
+
+--- Returns any custom color override applied for an encounter event.
+--- @param encounterEventID number
+--- @return colorRGB? colorRGB color
+function C_EncounterEvents.GetEventColor(encounterEventID) return nil end
+
+--- Returns information about an encounter event.
+--- @param encounterEventID number
+--- @return EncounterEventInfo encounterEventInfo
+function C_EncounterEvents.GetEventInfo(encounterEventID) return {} end
+
+--- Returns a list of all encounter event IDs.
+--- @return table<number> encounterEventIDs
+function C_EncounterEvents.GetEventList() return {} end
+
+--- Returns information on a custom sound file to be played when an encounter event trigger occurs.
+--- @param encounterEventID number
+--- @param trigger EncounterEventSoundTrigger
+--- @return EncounterEventSoundInfo sound
+function C_EncounterEvents.GetEventSound(encounterEventID, trigger) return {} end
+
+--- Returns true if an encounter event record with a specified ID exists.
+--- @param encounterEventID number
+--- @return boolean exists
+function C_EncounterEvents.HasEventInfo(encounterEventID) return false end
+
+--- Plays any registered custom sound file for a given encounter event trigger.
+--- @param encounterEventID number
+--- @param trigger EncounterEventSoundTrigger
+--- @return SoundHandle handle
+function C_EncounterEvents.PlayEventSound(encounterEventID, trigger) return 0 end
+
+--- Sets a custom color override for an encounter event. This can be used to colorize text or timer bars individually.
+--- @param encounterEventID number
+--- @param colorRGB? colorRGB color
+function C_EncounterEvents.SetEventColor(encounterEventID, colorRGB) end
+
+--- Sets a custom sound file to be played when an encounter event trigger occurs.
+--- @param encounterEventID number
+--- @param trigger EncounterEventSoundTrigger
+--- @param sound? EncounterEventSoundInfo
+function C_EncounterEvents.SetEventSound(encounterEventID, trigger, sound) end
+
+
+
+---@class instanceencounter : table
+C_InstanceEncounter = {}
+
+---@param isInProgress boolean
+---@return boolean isActive
+function C_InstanceEncounter.IsEncounterInProgress(isInProgress) return true end
+
+---@param isLimitingResurrections boolean
+---@return boolean isActive
+function C_InstanceEncounter.IsEncounterLimitingResurrections(isLimitingResurrections) return true end
+
+---@param isSuppressingRelease boolean
+---@return boolean isActive
+function C_InstanceEncounter.IsEncounterSuppressingRelease(isSuppressingRelease) return true end
+
+---@param shouldShow boolean
+---@return boolean isActive
+function C_InstanceEncounter.ShouldShowTimelineForEncounter(shouldShow) return true end
+
 
 ---@class encodingutil : table
 ---@field EncodeHex fun(self: encodingutil, str: string) : string
@@ -3572,11 +4610,11 @@ SetWatchedFactionIndex = function(factionIndex) end
 ---@return string, number
 UnitFactionGroup = function(unit) return "", 0 end
 
----@param frameType string
+---@param frameType frameobjects
 ---@param name string | nil
 ---@param parent table | nil
 ---@param template string | nil
----@return table
+---@return frame
 CreateFrame = function(frameType, name, parent, template) return {} end
 
 ---@param fontName string

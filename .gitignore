@@ -2,3 +2,5 @@
 wowapi.lua
 *.json
 .vscode/bookmarks.json
+Libs/DF/_lua_fns.txt
+Libs/DF/anchorsystem - backup.lua
