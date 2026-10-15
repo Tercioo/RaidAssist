@@ -1,4 +1,4 @@
-## Interface: 120100
+## Interface: 120105
 ## Title: Raid Assist
 ## Notes: Mods and Tools for raiding, type /raa to see.
 ## SavedVariables: RADataBase
